@@ -1,0 +1,43 @@
+\chapter{Conclusion and Future Work}
+\label{Ch_Chapter6}
+
+\section{Conclusion}
+
+Hepatocellular carcinoma (HCC) is a highly heterogeneous malignancy whose clinical outcome largely depends on the stage at diagnosis. The complexity of its molecular mechanisms often limits the effectiveness of conventional diagnostic biomarkers and treatment strategies. This study presented an integrated computational framework that combines transcriptomic and DNA methylation data with machine learning, explainable artificial intelligence, external validation, and computational drug discovery to improve stage-specific biomarker identification in HCC.
+
+Initially, RNA-seq expression profiles and DNA methylation data were collected from the TCGA-LIHC dataset and processed through an integrated bioinformatics pipeline. Differential expression analysis and differential methylation analysis were performed independently to identify significant molecular alterations associated with disease progression. By integrating both omics datasets, a set of candidate biomarkers was identified that demonstrated strong discriminatory ability between early-stage and advanced-stage HCC patients.
+
+Several supervised machine learning algorithms, including Support Vector Machine (SVM), Random Forest (RF), XGBoost, and an Ensemble Learning model, were trained to classify HCC stages. Comparative evaluation demonstrated that the Ensemble Learning model achieved the best overall performance, providing robust classification accuracy and improved generalization. To ensure the reliability of the identified biomarkers, external validation was conducted using the independent GEO dataset GSE14520, where eight biomarkers were successfully validated.
+
+To improve model interpretability, SHAP (Shapley Additive Explanations) analysis was incorporated into the proposed framework. SHAP identified the relative contribution of individual biomarkers toward model prediction and confirmed that several validated genes consistently exhibited high predictive importance. This explainability analysis increased the transparency of the developed machine learning models and provided biological evidence supporting the identified biomarkers.
+
+Beyond biomarker identification, the study extended into computational drug discovery. Among the validated biomarkers, SRY (Sex-determining Region Y) was selected as a potential therapeutic target based on its biological relevance and differential methylation pattern. Protein structure preparation, molecular docking, and binding affinity analysis were performed to investigate potential interactions between the target protein and selected FDA-approved anticancer drugs. The docking results demonstrated favorable binding affinities for several compounds, suggesting their potential as repurposed therapeutic candidates for HCC.
+
+To further evaluate the suitability of the identified compounds, SwissADME analysis was conducted to investigate pharmacokinetic characteristics, drug-likeness, and physicochemical properties, while ProTox-3 analysis assessed their predicted toxicity profiles. The integrated docking, ADME, and toxicity analyses identified promising compounds that satisfied acceptable pharmacological and safety criteria, thereby providing valuable candidates for future experimental validation.
+
+Overall, this research demonstrates that integrating multi-omics analysis, explainable machine learning, and computational drug discovery provides an effective framework for identifying clinically relevant biomarkers and potential therapeutic candidates for hepatocellular carcinoma. The proposed methodology contributes toward precision oncology by combining predictive modeling with biological interpretation and rational drug repurposing strategies.
+\vspace{1.5cm}
+
+
+
+\section{Limitations of the Study}
+
+Although the proposed framework achieved promising results, several limitations should be acknowledged.
+
+The machine learning models were trained using retrospective data and therefore require prospective clinical validation before clinical implementation.
+
+The molecular docking analysis provides only computational predictions of protein–ligand interactions. Binding affinity alone cannot confirm biological activity or therapeutic efficacy.
+
+Finally, wet-laboratory experiments such as gene expression validation, methylation assays, protein expression analysis, and biological functional studies were beyond the scope of this research.
+
+\section{Future Work}
+
+Several directions can be explored to further extend this research.
+
+Future studies may integrate additional omics layers, including proteomics, metabolomics, single-cell sequencing, mutation data, and copy number variation, to construct a more comprehensive molecular landscape of hepatocellular carcinoma.
+
+Deep learning architectures, graph neural networks, transformer-based models, and multimodal learning techniques may further improve predictive performance and capture complex biological relationships.
+
+The computationally identified drug candidates should undergo molecular dynamics simulations, MM-PBSA free-energy calculations, and experimental validation to investigate binding stability and therapeutic potential.
+
+Finally, the proposed computational framework can be adapted to other cancer types by integrating disease-specific multi-omics datasets and clinical information, thereby supporting broader applications in precision medicine and personalized oncology.

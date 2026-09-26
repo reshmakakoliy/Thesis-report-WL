@@ -1,0 +1,211 @@
+\documentclass[a4paper,11pt,oneside]{phdthesis}
+%
+% for customizing the page size
+
+%New Add
+\usepackage[hidelinks]{hyperref}
+
+\usepackage{indentfirst}
+
+\usepackage{subfig}
+
+
+\usepackage[vcentering,dvips]{geometry}
+\geometry{papersize={190mm,260mm},margin=2.0cm, bottom=2.5cm, top=2.5cm}
+%
+%using fancy header for customizing the page header
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+%
+\renewcommand{\chaptermark}[1]{\markboth{\MakeUppercase{#1}}{}}
+\renewcommand{\sectionmark}[1]{\markright{\MakeUppercase{#1}}{}}
+\renewcommand{\headrulewidth}{3.0pt}
+%
+\mainmatter{}
+\fancyhead[RE,LO]{\footnotesize\rightmark}
+\renewcommand{\headrulewidth}{0.5pt}
+%
+\setlength{\headsep}{20pt}
+%\setlength{\parskip}{.6cm}
+\renewcommand{\baselinestretch}{1.5}
+%
+\usepackage{color}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{latexsym}
+%\usepackage[tight,footnotesize]{subfigure}%
+\usepackage{fancyhdr}                    % Fancy Header and Footer 
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{ragged2e} % optional, for cleaner ragged text
+\usepackage{tabularx}
+\usepackage{longtable} 
+\usepackage{comment}
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage{booktabs}
+\usepackage{pdflscape}
+\usepackage{rotating}
+
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+
+\usepackage{tipa}
+%\usepackage{setspace}
+%\usepackage{txfonts}
+\usepackage{cite}
+\DeclareGraphicsExtensions{.eps}
+\usepackage[fleqn]{amsmath}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\usepackage{amssymb}
+\usepackage{titletoc}
+
+
+
+%\usepackage{amsfonts,amssymb, txfonts, dsfont}
+%\usepackage{amsmath,amsthm,txfonts}
+%changing the font
+%\usepackage{mathptmx}
+%\usepackage{pslatex}
+%\usepackage{palatino}
+\newtheorem{definition}{Definition}
+\newtheorem{mypro}{Property}
+\newtheorem{proposition}{Proposition}
+\newtheorem{proof}{Proof}
+\newtheorem{corollary}{Corollary}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+
+%
+% following commands add the word chapter in table of contents
+\makeatletter 
+\newcommand*\stdl@chapter{} 
+\let\stdl@chapter\l@chapter 
+\newcommand*\realchapter{% 
+  \renewcommand*\l@chapter[2]{% 
+    \stdl@chapter{\chaptername\space##1}{##2}}} 
+\newcommand*\fakechapter{\let\l@chapter\stdl@chapter} 
+\makeatother 
+\newcommand*\switchchapter[1]{\addtocontents{toc}{\expandafter\protect\csname #1chapter\endcsname}}
+%
+\newenvironment{xlist}[1]{%
+\begin{list}{}{%
+    \settowidth{\labelwidth}{#1}
+    \setlength{\labelsep}{0.5cm}
+    \setlength{\leftmargin}{\labelwidth}
+    \addtolength{\leftmargin}{\labelsep}
+    \setlength{\rightmargin}{0pt}
+    \setlength{\parsep}{0.5ex plus0.2ex minus0.1ex}
+    \setlength{\itemsep}{0ex plus0.2ex}
+    }
+  }
+{\end{list}}
+%
+\definecolor{MyBlack}{cmyk}{1,1,1,1}
+\color{MyBlack}
+%\color{black}
+%
+\begin{document}
+
+\include{Cover}
+\include{InnerCover}
+\include{TitlePage}
+\include{approval}
+\include{Dedication}
+
+%
+%: ----------------------- abstract ------------------------
+%
+% Your institution may have specific regulations if you need an abstract and where it is to be placed in the document. The default here is just after title.
+%
+\frontmatter{}
+%
+% adding the abstract 
+% this also adds the abstract in the table of contents
+\fancyhead[RO, RE]{\thepage}
+\setcounter{tocdepth}{2}
+%
+\switchchapter{fake} 
+\addcontentsline{toc}{chapter}{Abstract}
+%
+\include{Abstract}
+%
+% adding the acknowledgment 
+% this also adds the acknowledgment in the table of contents
+\switchchapter{fake} 
+\addcontentsline{toc}{chapter}{Acknowledgment}
+%
+\include{Acknowledgment}
+%
+%: ----------------------- contents ------------------------
+%
+\setcounter{secnumdepth}{3} % organisational level that receives a numbers
+\setcounter{tocdepth}{3}    % print table of contents for level 3
+\switchchapter{fake} 
+\renewcommand\contentsname{Table of Contents}
+%\addcontentsline{toc}{chapter}{Table of Contents} 
+\tableofcontents            % print the table of contents
+\cleardoublepage
+% levels are: 0 - chapter, 1 - section, 2 - subsection, 3 - subsection
+%
+%: ----------------------- list of figures ------------------------
+\switchchapter{fake} 
+%\addcontentsline{toc}{chapter}{List of Figures}
+\listoffigures	% print list of figures
+\cleardoublepage
+%
+%: ----------------------- list of tables ------------------------
+\switchchapter{fake} 
+%\addcontentsline{toc}{chapter}{List of Tables}
+\listoftables  % print list of tables
+\switchchapter{real}
+\newpage
+%
+\mainmatter{}
+\fancyhead[RE,LO]{{\thesection}\hspace{0.5em} {\footnotesize\rightmark} }
+\renewcommand{\headrulewidth}{0.5pt}
+%
+% start the arabic page numbering
+\pagenumbering{arabic} \setcounter{page}{1} 
+%
+% now switch to real chapters
+%
+\include{Chapter1}
+\include{Chapter2}
+\include{Chapter3}
+% \include{Chapter4}
+% \include{Chapter5}
+% \include{Chapter6}
+
+
+
+%
+\fancyhead[RE,LO]{{\footnotesize\rightmark} }
+
+
+\renewcommand{\headrulewidth}{0.5pt}
+%
+
+\nocite{*}
+\bibliographystyle{IEEEtran}
+\switchchapter{fake} 
+\addcontentsline{toc}{chapter}{Bibliography}
+\bibliography{reference}
+%\bibliography{BibTex}
+%
+\fancyhead[RE,LO]{{\footnotesize\rightmark} }
+\renewcommand{\headrulewidth}{0.5pt}
+%
+\appendix 
+\titlecontents{chapter}[6pc] 
+  {\bfseries} 
+  {\contentslabel[\appendixname\ \thecontentslabel]{6pc}} 
+  {}{\hfill\contentspage} 
+%
+%\include{Acronyms}
+%\include{Notations}
+% \include{Publications}
+%
+
+\end{document}

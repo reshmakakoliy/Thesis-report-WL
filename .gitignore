@@ -1,0 +1,31 @@
+# LaTeX auxiliary/build files
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.loa
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+*.run.xml
+*.bcf
+*.nav
+*.snm
+*.vrb
+*.tcp
+*.tps
+
+# Temporary pdflatex files
+pdflatex*.fls
+
+# PDF output
+*.pdf
+
+# Editor/system files
+.DS_Store
+Thumbs.db
+.vscode/
