@@ -73,7 +73,7 @@ That is the gap this thesis sets out to close, with a Clustered Federated Learni
 
 \section{Aim of the Study}
 
-The aim of this study is to design, build, and evaluate a Clustered Federated Learning framework based on an Encoder--Decoder LSTM (CFL-EDLSTM), for privacy-preserving, multi-horizon, and interpretable water-level forecasting across 26 hydrologically diverse monitoring stations along the Brahmaputra River system in Bangladesh.
+The aim of this study is to design, build, and evaluate a Clustered Federated Learning framework based on an Encoder--Decoder LSTM (CFL-EDLSTM), for privacy-preserving, multi-horizon, and interpretable water-level forecasting across 25 hydrologically diverse monitoring stations along the Brahmaputra River system in Bangladesh.
 
 Alongside the forecasting framework itself, the study also demonstrates how these outputs might actually be presented to someone using them, through a web-based visualization platform. The platform gives station-level forecast information and lets a user compare CFL-EDLSTM's predictions against water-level information published by the Flood Forecasting and Warning Centre (FFWC), used here as an external point of comparison rather than as ground truth.
 
@@ -82,7 +82,7 @@ Alongside the forecasting framework itself, the study also demonstrates how thes
 The objectives of this study are:
 
 \begin{enumerate}
-    \item To develop a clustering strategy that groups 26 hydrologically diverse Bangladeshi monitoring stations within the Brahmaputra River system into four meaningful clusters: Upstream, Middle, Downstream, and Urban.
+    \item To develop a clustering strategy that groups 25 hydrologically diverse Bangladeshi monitoring stations within the Brahmaputra River system into four meaningful clusters: Upstream, Middle, Downstream, and Urban.
 
     \item To develop an Encoder--Decoder LSTM (EDLSTM) architecture capable of multivariate, multi-horizon water-level forecasting across seven lead times, ranging from 3 hours to 15 days.
 
@@ -100,7 +100,7 @@ The objectives of this study are:
 This study is guided by the following questions:
 
 \begin{enumerate}
-    \item How can 26 hydrologically diverse monitoring stations within the Brahmaputra River system in Bangladesh be grouped into clusters that are meaningful for federated training?
+    \item How can 25 hydrologically diverse monitoring stations within the Brahmaputra River system in Bangladesh be grouped into clusters that are meaningful for federated training?
 
     \item How effectively can an Encoder--Decoder LSTM architecture forecast water levels across horizons ranging from short-term (3 hours) to long-term (15 days)?
 
@@ -115,7 +115,7 @@ This study is guided by the following questions:
 
 \section{Scope of the Study}
 
-This study is built around 26 selected monitoring stations within the Brahmaputra River system in Bangladesh, grouped into four clusters --- Upstream, Middle, Downstream, and Urban --- based on their hydrological characteristics and where they sit within the river network.
+This study is built around 25 selected monitoring stations within the Brahmaputra River system in Bangladesh, grouped into four clusters --- Upstream, Middle, Downstream, and Urban --- based on their hydrological characteristics and where they sit within the river network.
 
 Five variables are used: water level, discharge, rainfall, temperature, and evaporation, with water level as the target. Forecasts are generated across seven lead times: 3 hours, 6 hours, 12 hours, 1 day, 3 days, 7 days, and 15 days.
 
@@ -128,7 +128,7 @@ What this study does not attempt is real-time operational deployment, a mobile a
 This thesis makes the following contributions:
 
 \begin{enumerate}
-    \item A clustering strategy that groups 26 monitoring stations within the Brahmaputra River system into four meaningful federated client groups: Upstream, Middle, Downstream, and Urban.
+    \item A clustering strategy that groups 25 monitoring stations within the Brahmaputra River system into four meaningful federated client groups: Upstream, Middle, Downstream, and Urban.
 
     \item A Clustered Federated Learning framework based on an Encoder--Decoder LSTM (CFL-EDLSTM), for privacy-preserving, multivariate, multi-horizon water-level forecasting across heterogeneous monitoring stations.
 
@@ -143,7 +143,7 @@ This thesis makes the following contributions:
 
 At a high level, CFL-EDLSTM combines a sequence-to-sequence Encoder--Decoder LSTM \cite{Kao2020,Cui2022} with a Clustered Federated Learning training procedure. The federated part of this borrows directly from McMahan et al.'s original idea: model updates travel from distributed clients to a central point of aggregation, but the raw data behind those updates never does \cite{McMahan2017}.
 
-In this framework, the 26 monitoring stations are first grouped into four clusters based on their hydrological characteristics and position within the river network. Each station then acts as a local client within its cluster, training the EDLSTM model on its own multivariate data. Rather than being sent anywhere, that data stays local; only the resulting model parameters are shared, and Federated Averaging (FedAvg) is used to combine them into a single model per cluster \cite{McMahan2017}.
+In this framework, the 25 monitoring stations are first grouped into four clusters based on their hydrological characteristics and position within the river network. Each station then acts as a local client within its cluster, training the EDLSTM model on its own multivariate data. Rather than being sent anywhere, that data stays local; only the resulting model parameters are shared, and Federated Averaging (FedAvg) is used to combine them into a single model per cluster \cite{McMahan2017}.
 
 This is a deliberate departure from a conventional federated setup, where all clients would ultimately contribute to one shared global model. Here, each cluster keeps its own model. The reasoning follows directly from the literature reviewed above: non-IID data across clients can genuinely hurt standard federated learning \cite{Zhu2021,Chen2025}, whereas clustering clients with similar characteristics tends to produce better, more specialized models \cite{Ghosh2021,Harshvardhan2022,BenAli2026}.
 

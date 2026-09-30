@@ -1,1637 +1,278 @@
-\chapter{Experimental Results and Analysis}
-\label{Ch_Chapter5}
+\chapter{Experimental Results and Discussion}
+\label{Ch_Chapter4}
 
-\section{Overview of Result Analysis }
+\section{Introduction}
+\label{sec:4.1}
 
-This chapter presents the comprehensive results of the integrated multi-omics analysis for early versus late stage hepatocellular carcinoma (HCC) classification. The results include differential expression analysis, machine learning model performance, biomarker validation, and functional enrichment analysis, SHAP explainibility, molecular docking and drug discovery.
+This chapter reports what happened when the procedure described in Chapter~3 was actually run. It begins with the data the models were trained and tested on (Section~4.2), then moves through the clustering outcome (Section~4.3), the proposed CFL-EDLSTM's own performance (Section~4.4), and its comparison against the baseline models (Section~4.5), before breaking the results down by forecast horizon (Sections~4.6 and~4.8) and by station cluster (Section~4.7). The remaining sections turn to interpretability (Section~4.9), station-level forecasts (Section~4.10), the comparison against FFWC information (Section~4.11), and a closing discussion that places the findings alongside earlier work (Sections~4.12 and~4.13).
 
+Throughout, model performance is judged mainly on MAE and RMSE in metres, since these stay directly comparable across architectures and are expressed in the same unit the water-level readings themselves use.
 
-\section{Differential Expression Analysis}
-\subsection{ Volcano Plot}
+\section{Experimental Setup and Dataset Characteristics}
+\label{sec:4.2}
 
-The volcano plot (Figure 4.1) displays the differential expression results for all 64,785 features comparing early stage (Stage I + II) versus late stage (Stage III + IV) HCC patients. The x-axis represents the log $ 2 $ fold change (Log $2$ FC), indicating the magnitude of expression difference between late and early stage. The y-axis represents the -log $ 10 $ (FDR), indicating the statistical significance of each feature.
+Results in this chapter come from station-wise data --- water level, rainfall, MDD, evaporation, and temperature, at five observations per day --- across the 25 monitoring stations described in Section~\ref{sec:3.5}. Every model is evaluated on a chronological 15\% test split held out independently for each station, using an input history of 30 days (150 observations) and a forecast horizon of 15 days (75 observations), reported at the seven horizon checkpoints defined in Section~\ref{sec:3.15}. All model performance figures are computed after inverse-transforming outputs back into the original water-level units (metres), and none has been rounded beyond what the underlying result files report. Training and evaluation ran on an AMD Ryzen 5 3600 six-core processor (3.60~GHz) with 24~GB of RAM and an NVIDIA GeForce RTX~3060 (12~GB VRAM); PyTorch models used CUDA where available, and XGBoost was configured for the same device.
 
+Before turning to the models, Table~\ref{tab:4.1} summarizes the five input variables as they appear across the full set of stations.
 
-\begin{figure}[H]
+\begin{table}[htbp]
+  \centering
+  \caption{Dataset Statistics Across the 25 Stations}
+  \label{tab:4.1}
+  \small
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabular}{@{}l r r r r r@{}}
+    \toprule
+    \textbf{Variable} & \textbf{Mean} & \textbf{SD}$^{*}$ & \textbf{Min} & \textbf{Max} & \textbf{Missing (\%)} \\
+    \midrule
+    Water Level (mMSL) & 12.528 & 2.033 & $-0.92$ & 52.9 & 3.38 \\
+    Discharge, MDD (m\textsuperscript{3}/s) & 1534.785 & 462.86 & 0 & 73{,}226.6 & 68.44$^{\dagger}$ \\
+    Rainfall (mm) & 4.753 & 15.024 & 0 & 540 & 0.48 \\
+    Temperature (\textdegree C) & 25.342 & 4.862 & 8.65 & 36.83 & 24.08 \\
+    Evaporation (mm) & 1.663 & 3.100 & $-145.796$ & 115.15 & 1.66 \\
+    \bottomrule
+  \end{tabular}
+  \end{table}
+
+Each entry in Table~\ref{tab:4.1} is built from 25 rows of per-station descriptive statistics --- one mean, SD, minimum, maximum, and missing percentage per station, per variable --- rather than from the raw observation-level data directly, so it is worth being explicit about how each column was pooled across stations.
+
+Min and Max are exact. The lowest value recorded anywhere in the dataset has to be the lowest of the 25 station-level minimums, and the same logic applies to the maximum, so no information is lost by pooling this way: Water Level's $-0.92$~m minimum comes from station SW147.5, and its 52.9~m maximum from SW291.5R.
+
+Mean is the unweighted average of the 25 station means --- for Water Level, the sum of all 25 station means divided by 25, giving 12.528~m; for Discharge, the same calculation but divided by 15, since the ten stations without a discharge sensor are excluded from both the sum and the count rather than treated as zero. This is a reasonable summary but not, strictly, the true pooled mean of every individual observation: the mathematically correct pooled mean would weight each station by how many valid readings it actually contributed, and that per-station observation count was not available from the summary file this table was built from. Two stations with very different record lengths count equally in the average reported here, which is worth keeping in mind if a station with an unusually short record turns out to be pulling a variable's mean in one direction.
+
+SD is the weakest number in the table, which is why it carries the asterisk. It is simply the average of the 25 stations' own standard deviations, and that calculation only captures how spread out readings are \emph{within} each station --- it says nothing about how much the stations' means differ \emph{from each other}. Water level ranges from a mean of under 2~m at some stations to over 50~m at others, reflecting different physical baselines along the river network, so the between-station spread is almost certainly large. A properly pooled SD, using the law of total variance, would combine the within-station variance with that between-station term and would very likely come out meaningfully higher than the 2.033~m reported here. Computing it correctly needs the raw per-station observation counts (or the original time series), neither of which this table draws from, so it is reported as-is with this caveat attached rather than corrected with an unsupported estimate.
+
+Missing~\% is reported two ways for exactly this reason. The 68.44\% figure for Discharge in the main table is the average missing percentage across all 25 stations, and it comes out high mainly because the ten stations with no discharge sensor at all are counted as 100\% missing rather than excluded. The 47.41\% figure in the footnote instead averages only across the 15 stations that do have a sensor, which is the more useful number for judging how gappy that instrument's record actually is once it exists. The two answer different questions --- the first is closer to "how complete is discharge across the full station panel," the second to "how reliable is the discharge sensor where one is installed" --- and both are kept because both matter for different parts of the pipeline described in Section~\ref{sec:3.9.2}.
+
+With that groundwork in place, two things stand out in the table itself. Missingness is uneven: water level (3.38\%), rainfall (0.48\%), and evaporation (1.66\%) are largely complete, while temperature is missing for 24.08\% of records and discharge for 68.44\%. Much of that reflects coverage rather than failure --- discharge is measured at only 15 of the 25 stations, and even among those the missing share is 47.41\%, while temperature's collection period is shorter than the study period (Table~\ref{tab:3.2}). It is also why discharge is never filled from a global average or borrowed from another station (Section~\ref{sec:3.9.2}).
+
+The second point is the extremes. The evaporation range ($-145.796$ to 115.15~mm) lies far outside any physically plausible daily value and most likely reflects recording errors in the source records rather than real evaporation; it is noted here for transparency rather than corrected, since the underlying cause has not been confirmed. Rainfall, by contrast, is heavily skewed as expected for a monsoon climate, with a mean of 4.753~mm against a maximum of 540~mm.
+
+Figure~\ref{fig:4.1} shows representative historical series for one station, and Figure~\ref{fig:4.2} the correlations among the five variables. The correlation matrix describes linear association only and should not be read as evidence of causation.
+
+\begin{figure}[htbp]
     \centering
-    \includegraphics[width=.75\linewidth]{Figures/Figure1_Volcano_Plot.jpg}
-    \caption{\textbf{Volcano Plot of Differential Multi-Omics Features}}
-    \label{fig:Volcano Plot of Differential Multi-Omics}
+    \includegraphics[width=0.9\textwidth]{figures2/fig4-1-historical-timeseries.png}
+    \caption{Representative historical time series (water level, discharge, rainfall, temperature, evaporation) for one station.}
+    \label{fig:4.1}
 \end{figure}
 
-\begin{itemize}
-
-    \item \textbf{Key Observations:}
-    \begin{table}[htbp]
-\centering
-\caption{\textbf{Feature Categories from Differential Analysis}}
-\label{tab:feature_categories}
-\small
-\begin{tabular}{|p{3.5cm}|c|p{2.5cm}|p{6cm}|}
-\hline
-
-\textbf{Category} & \textbf{Count} & \textbf{Color} & \textbf{Interpretation} \\
-\hline
-Not Significant & 64,653 & Gray & Features that did not meet significance thresholds \\
-\hline
- Significant RNA & 130 & Red & RNA features with FDR < 0.05 and Log$_2$FC $>$ 0.5 \\
-\hline
- Significant Methylation & 2 & Blue & CpG sites with FDR < 0.05 and Log$_2$FC $>$ 0.5 \\
-\hline
-\end{tabular}
-\end{table}
-
-    \item \textbf{Interpretation:}
-    The volcano plot reveals a clear separation of significant features in the right and left tails of the distribution. The horizontal dashed line represents the FDR threshold of 0.05, while the vertical dashed lines represent the Log$_2$FC threshold of ±0.5. Features falling above the horizontal line and outside the vertical lines were considered significantly differentially expressed.
-
-    \item \textbf{Biological Significance:} 
-    The identification of 130 significant RNA features and 2 significant methylation features demonstrates that both transcriptional and epigenetic alterations contribute to HCC stage progression. The presence of features with extreme Log4FC values ( $>$ 0.5) suggests the involvement of key driver genes in the transition from early to late stage disease. 
-
-\end{itemize}
-
-
-\subsection{Top Differential Features Boxplots}
-
-The boxplots (Figure 4.2) visualize the expression distribution of the top differential features across early and late stage patients.
-
-\begin{figure}[!h]
+\begin{figure}[htbp]
     \centering
-    \includegraphics[width=.8\linewidth]{Figures/Figure3_Boxplots.jpg}
-    \caption{\textbf{Boxplots of Top Differential Features}}
-    \label{fig:Boxplots of Top Differential Features}
+    \includegraphics[width=0.7\textwidth]{figures2/fig4-2-correlation-heatmap.png}
+    \caption{Correlation heatmap across the five variables. This shows association, not causation.}
+    \label{fig:4.2}
 \end{figure}
 
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Significant RNA Features from Differential Analysis}}
-\label{tab:rna_features}
-\small
-\begin{tabular}{|l|c|c|l|}
-\hline
-\textbf{Feature} & \textbf{FDR} & \textbf{Log$_2$FC} & \textbf{Regulation} \\
-\hline
-ENSG00000223566.1 & 3.68e-02 & 0.029 & Up in Late Stage \\
-\hline
-ENSG00000268532.1 & 3.68e-02 & 0.005 & Up in Late Stage \\
-\hline
-\end{tabular}
-\end{table}
 
-The boxplots show that both RNA features exhibit slightly elevated expression in the late stage compared to early stage samples. The overlapping distributions indicate moderate effect sizes, which is consistent with the relatively small Log$_2$FC values (0.029 and 0.005).
+\section{Clustering Results}
+\label{sec:4.3}
+
+\section{Overall Performance of CFL-EDLSTM}
+\label{sec:4.4}
+
+\section{Comparison with Baseline Models}
+\label{sec:4.5}
+
+Table~\ref{tab:4.2} reports overall test-set performance for the four baseline models specified in Chapter~3, with a row reserved for CFL-EDLSTM once its results are complete (Section~4.4). Every value is reproduced exactly from the underlying result files.
 
 \begin{table}[htbp]
-\centering
-\caption{\textbf{Significant Methylation Features from Differential Analysis}}
-\label{tab:methylation_features}
-\small
-\begin{tabular}{|l|c|c|l|}
-\hline
-\textbf{Feature} & \textbf{FDR} & \textbf{Log$_2$FC} & \textbf{Regulation} \\
-\hline
-cg14619259 & 3.87e-02 & -0.207 & Down in Late Stage \\
-\hline
-cg07522644 & 4.45e-02 & -0.179 & Down in Late Stage \\
-\hline
-\end{tabular}
+  \centering
+  \caption{Overall Test-Set Performance by Model}
+  \label{tab:4.2}
+  \footnotesize
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabular}{@{}l r r r r r r r@{}}
+    \toprule
+    \textbf{Model} & \textbf{Test windows} & \textbf{MAE (m)} & \textbf{RMSE (m)} & \textbf{MSE} & \textbf{NSE/R\textsuperscript{2}} & \textbf{EVS} & \textbf{IOA} \\
+    \midrule
+    XGBoost & 109{,}425 & 0.302850 & 0.500693 & 0.250694 & 0.998067 & 0.998079 & 0.999515 \\
+    Vanilla LSTM & 105{,}675 & 0.496084 & 0.721850 & 0.521068 & 0.995983 & 0.996663 & 0.999000 \\
+    GRU & 105{,}675 & 0.501721 & 0.743300 & 0.552495 & 0.995741 & 0.995845 & 0.998929 \\
+    TCN & 105{,}675 & 0.573665 & 0.852950 & 0.727523 & 0.994391 & 0.994697 & 0.998603 \\
+    CFL-EDLSTM & --- & --- & --- & --- & --- & --- & --- \\
+    \bottomrule
+  \end{tabular}
+  \caption*{\footnotesize MAE and RMSE in metres; MSE in square metres. CFL-EDLSTM row pending (Section~4.4).}
 \end{table}
 
-The methylation boxplots show decreased methylation (lower beta values) in the late stage compared to the early stage for both CpG sites. The beta values range from 0 to 1, with values closer to 0 indicating lower methylation. The observed down-regulation of methylation in the late stage suggests potential hypomethylation at these CpG sites, which could be associated with gene activation during cancer progression.\\
+XGBoost comes out on top, with the lowest overall MAE and RMSE of the four. That fits the role Chapter~3 gave it as a sanity-check baseline: the lag and rolling features it works from already capture much of the predictable structure in this dataset, so it sets a bar the sequence models must approach or beat rather than one they clear simply by being more complex. It also fits the wider picture in the literature, where XGBoost has matched or outperformed LSTM in comparable hydrological settings \cite{Hameed2025} and no single architecture wins everywhere \cite{Aghenda2025}.
 
-\textbf{Statistical Interpretation:} All four features showed statistically significant differences between early and late stage (FDR $<$ 0.05). The boxplots demonstrate that while the effect sizes are modest, the differences are consistent across patient samples, supporting their potential as stage-associated biomarkers.
+Below XGBoost, Vanilla LSTM and GRU sit close together (overall MAE 0.496 and 0.502~m), with TCN clearly behind at 0.574~m. Because NSE/R\textsuperscript{2} \cite{NashSutcliffe1970} is already at or above 0.994 for every model, it does little to separate them; the differences show up in MAE and RMSE, where they can be read directly in metres. The LSTM--GRU comparison deserves one caution: GRU was trained jointly across all stations while LSTM was trained station by station (Section~\ref{sec:3.13}), so the gap between them reflects that difference in data representation as well as the cell design, and should not be attributed to gating alone.
 
+One further detail concerns the window counts. XGBoost is evaluated on 109{,}425 test windows and the three neural models on 105{,}675 --- a difference of 3{,}750, or exactly 150 per station, the length of one input window. This most likely reflects how XGBoost's windows may draw lag inputs from just before the test boundary while the neural models' windows must lie entirely inside the test split (Section~\ref{sec:3.9.5}); the effect on the comparison is small.
 
-\section{Machine Learning Model Performance}
-\subsection{Cross-Validation Results}
+The overall figures in Table~\ref{tab:4.2} average across every station, which hides how much performance actually varies from one station to the next. Tables~\ref{tab:4.2a} and~\ref{tab:4.2b} break MAE and RMSE down per station for all four baselines.
 
-\begin{figure}[H]
+\begin{table}[htbp]
+  \centering
+  \caption{Station-Wise MAE (m) by Model}
+  \label{tab:4.2a}
+  \small
+  \begin{tabular}{@{}l r r r r@{}}
+    \toprule
+    \textbf{Station} & \textbf{XGBoost} & \textbf{Vanilla LSTM} & \textbf{GRU} & \textbf{TCN} \\
+    \midrule
+    SW137A & 0.277673 & 0.466605 & 0.410133 & 1.769512 \\
+    SW147.5 & 0.377989 & 0.428984 & 0.900652 & 1.971066 \\
+    SW151 & 0.313205 & 0.521329 & 0.537704 & 2.432516 \\
+    SW15J & 0.390190 & 0.501520 & 0.823017 & 2.648381 \\
+    SW179 & 0.198654 & 0.354841 & 0.329764 & 1.029500 \\
+    SW180 & 0.211806 & 0.364207 & 0.344643 & 0.986906 \\
+    SW225 & 0.377354 & 0.654162 & 0.627983 & 1.973415 \\
+    SW228.5 & 0.321414 & 0.502303 & 0.366557 & 2.367414 \\
+    SW291.5R & 0.215751 & 0.370344 & 0.284317 & 0.872887 \\
+    SW294 & 0.181804 & 0.326250 & 0.263855 & 0.947263 \\
+    SW302 & 0.208231 & 0.365782 & 0.343326 & 1.095598 \\
+    SW42 & 0.217841 & 0.379603 & 0.363657 & 1.011922 \\
+    SW45 & 0.315137 & 0.742365 & 0.555102 & 1.557479 \\
+    SW45.5 & 0.334343 & 0.788972 & 0.831862 & 1.930331 \\
+    SW46.9R & 0.363803 & 0.495427 & 0.907602 & 2.047331 \\
+    SW49 & 0.360238 & 0.490615 & 0.707820 & 2.364663 \\
+    SW49A & 0.365934 & 0.521901 & 0.758412 & 2.432896 \\
+    SW62 & 0.266083 & 0.409733 & 0.348949 & 0.399035 \\
+    SW63 & 0.429282 & 0.578238 & 1.039369 & 0.959453 \\
+    SW65 & 0.395873 & 0.524739 & 1.002189 & 0.875295 \\
+    SW68.5 & 0.214796 & 0.437419 & 0.388730 & 1.510207 \\
+    SW68A & 0.315693 & 0.459111 & 0.489497 & 1.702843 \\
+    SW7.5 & 0.202718 & 0.353655 & 0.322145 & 1.030922 \\
+    SW77 & 0.299032 & 0.700208 & 0.472538 & 1.229090 \\
+    SW97 & 0.416394 & 0.663792 & 0.921811 & 1.358701 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Station-Wise RMSE (m) by Model}
+  \label{tab:4.2b}
+  \small
+  \begin{tabular}{@{}l r r r r@{}}
+    \toprule
+    \textbf{Station} & \textbf{XGBoost} & \textbf{Vanilla LSTM} & \textbf{GRU} & \textbf{TCN} \\
+    \midrule
+    SW137A & 0.406873 & 0.600848 & 0.544429 & 2.015990 \\
+    SW147.5 & 0.590556 & 0.635665 & 1.264799 & 2.211798 \\
+    SW151 & 0.463981 & 0.632909 & 0.777236 & 2.681621 \\
+    SW15J & 0.604403 & 0.784162 & 1.101736 & 2.904288 \\
+    SW179 & 0.268856 & 0.435222 & 0.418524 & 1.202832 \\
+    SW180 & 0.285048 & 0.443943 & 0.434496 & 1.136126 \\
+    SW225 & 0.725709 & 1.262189 & 0.949687 & 2.210596 \\
+    SW228.5 & 0.621755 & 0.712650 & 0.623370 & 2.700119 \\
+    SW291.5R & 0.296285 & 0.429879 & 0.377957 & 0.992086 \\
+    SW294 & 0.265741 & 0.379261 & 0.364523 & 1.068770 \\
+    SW302 & 0.275467 & 0.444618 & 0.447392 & 1.342805 \\
+    SW42 & 0.290251 & 0.463001 & 0.458122 & 1.186967 \\
+    SW45 & 0.491215 & 0.952022 & 0.729816 & 1.898679 \\
+    SW45.5 & 0.504621 & 1.040896 & 1.076985 & 2.187715 \\
+    SW46.9R & 0.584241 & 0.797829 & 1.190440 & 2.290345 \\
+    SW49 & 0.562334 & 0.673522 & 0.985382 & 2.624179 \\
+    SW49A & 0.555255 & 0.739176 & 1.034661 & 2.700881 \\
+    SW62 & 0.466671 & 0.604727 & 0.590344 & 0.625429 \\
+    SW63 & 0.765266 & 0.967077 & 1.396799 & 1.202921 \\
+    SW65 & 0.676372 & 0.823403 & 1.364260 & 1.050411 \\
+    SW68.5 & 0.347195 & 0.539673 & 0.543641 & 1.629919 \\
+    SW68A & 0.507731 & 0.596641 & 0.728672 & 1.884764 \\
+    SW7.5 & 0.278503 & 0.434613 & 0.407049 & 1.196476 \\
+    SW77 & 0.473816 & 0.877603 & 0.640719 & 1.400343 \\
+    SW97 & 0.619729 & 0.897973 & 1.191294 & 1.586056 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+The spread across stations is considerably wider than the overall averages in Table~\ref{tab:4.2} suggest on their own. For XGBoost, station MAE ranges from 0.182~m at SW294 up to 0.429~m at SW63 --- more than double, within a model whose overall MAE is 0.303~m. TCN shows the widest spread of any model by far: its MAE at SW62 (0.399~m) is actually lower than XGBoost's worst station, while at SW15J it reaches 2.648~m, nearly seven times higher. That is a wider range within one model than separates XGBoost from TCN on the overall table.
+
+A pattern worth flagging, even before the formal cluster-wise analysis in Section~4.7: the stations where every model, and TCN especially, struggles most --- SW15J, SW49A, SW49, SW228.5, SW97, SW46.9R --- sit predominantly in the Middle and Downstream clusters (Table~\ref{tab:3.5}), while several of the consistently easiest stations for every model --- SW179, SW180, SW7.5, SW294, SW291.5R --- are Urban or Upstream. This is only a visual pattern at this stage, not a formal cluster-level result, but it points in the direction the clustering argument in Chapters~1 and~2 anticipated: a single global model is being asked to perform well across stations whose difficulty differs by a wide margin, and Section~4.7 returns to this with the proper cluster-level breakdown once CFL-EDLSTM's own results are available for the comparison.
+
+\section{Multi-Horizon Forecasting Results}
+\label{sec:4.6}
+
+Tables~\ref{tab:4.3} and~\ref{tab:4.4} report MAE and RMSE at each of the seven horizon checkpoints, computed over all test windows and stations at that forecast step.
+
+\begin{table}[htbp]
+  \centering
+  \caption{MAE (m) by Forecast Horizon}
+  \label{tab:4.3}
+  \small
+  \begin{tabular}{@{}l r r r r@{}}
+    \toprule
+    \textbf{Horizon} & \textbf{XGBoost} & \textbf{Vanilla LSTM} & \textbf{GRU} & \textbf{TCN} \\
+    \midrule
+    3 hours & 0.058431 & 0.258757 & 0.307044 & 0.416184 \\
+    6 hours & 0.068343 & 0.265423 & 0.323841 & 0.416167 \\
+    12 hours & 0.086931 & 0.278525 & 0.325624 & 0.417941 \\
+    1 day & 0.093267 & 0.297403 & 0.320197 & 0.419426 \\
+    3 days & 0.186510 & 0.364102 & 0.413494 & 0.444992 \\
+    7 days & 0.323418 & 0.494566 & 0.579290 & 0.499945 \\
+    15 days & 0.449376 & 0.675014 & 0.583328 & 0.776767 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+  \centering
+  \caption{RMSE (m) by Forecast Horizon}
+  \label{tab:4.4}
+  \small
+  \begin{tabular}{@{}l r r r r@{}}
+    \toprule
+    \textbf{Horizon} & \textbf{XGBoost} & \textbf{Vanilla LSTM} & \textbf{GRU} & \textbf{TCN} \\
+    \midrule
+    3 hours & 0.117684 & 0.331713 & 0.470305 & 0.644916 \\
+    6 hours & 0.135106 & 0.340609 & 0.491384 & 0.644908 \\
+    12 hours & 0.163643 & 0.358016 & 0.496604 & 0.646916 \\
+    1 day & 0.174558 & 0.377158 & 0.491877 & 0.648385 \\
+    3 days & 0.319076 & 0.481770 & 0.609966 & 0.676390 \\
+    7 days & 0.514327 & 0.693839 & 0.829935 & 0.736779 \\
+    15 days & 0.671593 & 0.989720 & 0.838073 & 1.119514 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+XGBoost has the lowest MAE and RMSE at every one of the seven horizons. Its lead is largest where forecasts are easiest: at 3 hours its MAE is about 0.058~m, roughly 6~cm and more than four times lower than Vanilla LSTM's. That lead narrows steadily with lead time. By 15 days XGBoost's MAE is 0.449~m, about 1.5 times lower than LSTM's and 1.3 times lower than GRU's. Its error also grows fastest in relative terms, rising about 7.7-fold in MAE from 3 hours to 15 days, against roughly 2.6-fold for LSTM and 1.9-fold for both GRU and TCN. The neural models start from a higher floor but degrade more gently, so the gap to XGBoost closes as the horizon lengthens.
+
+Among the neural baselines the ordering is not fixed. Vanilla LSTM beats GRU at every horizon from 3 hours through 7 days on both metrics, but at 15 days GRU takes over (MAE 0.583 against 0.675~m; RMSE 0.838 against 0.990~m). That makes GRU the strongest neural baseline at the longest horizon, and so the neural figure CFL-EDLSTM most needs to beat there. TCN behaves differently again. Its MAE is almost flat from 3 hours to 1 day (0.416 to 0.419~m), and its 3-hour error is larger than XGBoost's at 7 days, which suggests something other than forecast difficulty sets its floor at short horizons. It does edge past GRU at 7 days on both metrics, but it is the weakest model at 15 days. It also trails Vanilla LSTM at every horizon, a less favourable showing than the competitive TCN performance reported by \cite{Lin2021}, though on a different dataset.
+
+The general rise in error with lead time is the pattern earlier multi-step flood-forecasting studies describe \cite{Kao2020,Cui2022,Yuan2023}. These four baselines settle the bar the proposed model has to clear, and Figures~\ref{fig:4.4} and~\ref{fig:4.5} show it visually.
+
+\begin{figure}[htbp]
     \centering
-    \includegraphics[width=.75\linewidth]{Figures/cross_validation_results_fixed.jpg}
-    \caption{\textbf{5-Fold Cross-Validation Performance}}
-    \label{fig:Cross-Validation}
+    \includegraphics[width=0.95\textwidth]{figures2/fig4-4-model-horizon-heatmap.png}
+    \caption{Model $\times$ horizon performance heatmap, built from Tables~\ref{tab:4.3} and~\ref{tab:4.4}, to be extended with CFL-EDLSTM once its results are available.}
+    \label{fig:4.4}
 \end{figure}
 
-The cross-validation results (Figure 4.3) show the performance of all four models using 5-fold cross-validation. The Voting Ensemble achieved the highest cross-validated accuracy of 0.924, followed by SVM Linear (0.901), XGBoost (0.881), and Random Forest (0.864).
-
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Cross-Validated Accuracy of Machine Learning Models}}
-\label{tab:cv_accuracy}
-\small
-\begin{tabular}{|l|c|}
-\hline
-\textbf{Model} & \textbf{Cross-Validated Accuracy} \\
-\hline
-Voting Ensemble & 0.924 \\
-\hline
-SVM Linear & 0.901 \\
-\hline
-XGBoost & 0.881 \\
-\hline
-Random Forest & 0.864 \\
-\hline
-Random Classifier & 0.500 \\
-\hline
-\end{tabular}
-\end{table}
-
-\textbf{Interpretation: }The Voting Ensemble model outperformed all individual models, demonstrating the benefit of combining multiple algorithms through soft voting. The ensemble approach leverages the complementary strengths of SVM, Random Forest, and XGBoost, reducing individual model biases and improving overall prediction accuracy. The consistent performance across all folds (as indicated by the error bars) suggests that the model is robust and generalizable.
-
-\subsection{Confusion Matrix}
-
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
-    \includegraphics[width=.75\linewidth]{Figures/confusion_matrices_all_models_fix.jpg}
-    \caption{\textbf{Confusion Matrices for All Models} }
-    \label{Confusion Matrices}
+    \includegraphics[width=0.9\textwidth]{figures2/fig4-5-horizon-degradation.png}
+    \caption{Horizon degradation: RMSE against forecast horizon, one line per model. CFL-EDLSTM's own curve will be added once its horizon-wise results are available, to show whether it degrades more slowly than Vanilla LSTM at long horizons.}
+    \label{fig:4.5}
 \end{figure}
 
-The confusion matrices (Figure 4.4) provide a detailed breakdown of classification performance for each model.\\
-\textbf{SVM Linear:}\\
-True Positives (Late correctly predicted): 8\\
-True Negatives (Early correctly predicted): 32\\
-False Positives (Early incorrectly predicted as Late): 6\\
-False Negatives (Late incorrectly predicted as Early): 4\\ \\
-\textbf{Random Forest:}\\
-True Positives(Late correctly predicted): 5\\
-True Negatives(Early correctly predicted): 33\\
-False Positives(Early incorrectly predicted as Late): 5\\
-False Negatives(Late incorrectly predicted as Early): 7\\
-\textbf{XGBoost:}\\
-True Positives(Late correctly predicted): 7\\
-True Negatives(Early correctly predicted): 32\\
-False Positives(Early incorrectly predicted as Late): 6\\
-False Negatives(Late incorrectly predicted as Early): 5\\
-\textbf{Ensemble Soft Voting:}\\
-True Positives(Late correctly predicted): 8\\
-True Negatives(Early correctly predicted): 33\\
-False Positives(Early incorrectly predicted as Late): 5\\
-False Negatives(Late incorrectly predicted as Early): 4\\\\
-\textbf{Interpretation:} The confusion matrices demonstrate that the Voting Ensemble model achieved the highest accuracy with the fewest misclassifications. The balanced performance across both early and late stage classes indicates that the models are not biased toward the majority class (early stage).
 
+\section{Cluster-Wise Performance Analysis}
+\label{sec:4.7}
 
-\subsection{ROC Curves}
+\section{Effect of Forecasting Horizon}
+\label{sec:4.8}
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=.8\linewidth]{Figures/roc_curves_all_models.jpg}
-    \caption{\textbf{ROC Curve of all Models}}
-    \label{fig:ROC Curve}
-\end{figure}
+\section{SHAP-Based Interpretability Results}
+\label{sec:4.9}
 
- The Receiver Operating Characteristic (ROC) curves were generated to evaluate and compare the discriminatory ability of all four machine learning models. The ROC curve plots the True Positive Rate (Sensitivity) against the False Positive Rate (1 - Specificity) across all possible classification thresholds, providing a comprehensive measure of model performance independent of any single threshold.\\
-\textbf{Interpretation:}
-The ROC curves demonstrate that SVM Linear achieved the highest AUC of 0.844, indicating excellent discriminatory ability between early and late stage HCC. The Voting Ensemble (AUC = 0.825) and XGBoost (AUC = 0.796) also showed good performance, while Random Forest (AUC = 0.787) showed fair discrimination.\\
-\textbf{Clinical Interpretation:} An AUC of 0.844 indicates that there is an 84.4 percent chance that a randomly selected late stage patient will have a higher predicted probability of late stage disease than a randomly selected early stage patient. This level of discrimination is considered clinically useful for stage prediction.
+\section{Station-Level Forecast Visualization}
+\label{sec:4.10}
 
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Comparison of Model Performance by AUC}}
-\label{tab:auc_comparison}
-\small
-\begin{tabular}{|l|c|l|}
-\hline
-\textbf{Model} & \textbf{AUC} & \textbf{Rank} \\
-\hline
-SVM Linear & 0.844 & 1st (Best) \\
-\hline
-Voting Ensemble & 0.825 & 2nd \\
-\hline
-XGBoost & 0.796 & 3rd \\
-\hline
-Random Forest & 0.787 & 4th \\
-\hline
-\end{tabular}
-\end{table}
+\section{Comparison with FFWC}
+\label{sec:4.11}
 
-\textbf{Performance at Optimal Threshold:}\\
-The ROC curves reveal that all models achieve high sensitivity and specificity at intermediate thresholds. The SVM Linear model shows the most favorable trade-off between sensitivity and specificity, with the curve closest to the top-left corner of the plot.
+\section{Discussion of Findings}
+\label{sec:4.12}
 
-\textbf{Clinical Relevance:}\\
-The high AUC values demonstrate that the models can effectively separate early from late stage patients. This is clinically significant because accurate stage classification is essential for:
-\begin{itemize}
-    \item \textbf{Treatment Selection:} Early stage patients may receive curative treatments (surgery, ablation), while late stage patients receive systemic therapy.
-    \item \textbf{Prognosis:} Early stage patients have 60-70 percent  5-year survival, while late stage patients have only 10-20 percent.
+\section{Comparison with Previous Studies}
+\label{sec:4.13}
 
-    \item \textbf{Patient Management:} Accurate classification guides clinical decision-making and resource allocation.
-\end{itemize}
-
-\subsection{Comparison of Machine Learning Model Performance}
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Comparison of machine learning models and ensemble approaches}}
-\label{tab:model_comparison}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{lcccccccc}
-\toprule
-\textbf{Model} & \textbf{Train (s)} & \textbf{Predict (s)} & 
-\textbf{Total (s)} & \textbf{Bal. Acc.} & \textbf{Precision} & 
-\textbf{Recall} & \textbf{F1} & \textbf{AUC} \\
-\midrule
-Linear SVM & 0.0247 & 0.0015 & 0.0262 & 0.7281 & 0.5000 & 0.6667 & 0.5714 & 0.8443 \\
-Random Forest & 0.1511 & 0.0346 & 0.1858 & 0.6689 & 0.6250 & 0.4167 & 0.5000 & 0.7873 \\
-XGBoost & 0.1902 & 0.0015 & 0.1917 & 0.7127 & 0.5385 & 0.5833 & 0.5600 & 0.7961 \\
-3-Model Soft Voting & 0.3337 & 0.0359 & 0.3695 & 0.7412 & 0.5333 & 0.6667 & 0.5926 & 0.8246 \\
-2-Model SVM+XGB & 0.2034 & 0.0032 & 0.2066 & 0.7281 & 0.5000 & 0.6667 & 0.5714 & 0.8268 \\
-\bottomrule
-\end{tabular}%
-}
-\end{table}
-
-
-Table 4.6 presents a comparative evaluation of the individual machine learning models and ensemble approaches based on training time, prediction time, total computational time, balanced accuracy, precision, recall, F1-score, and ROC-AUC.
-
-\textbf{The Linear SVM} achieved a balanced accuracy of \textbf{72.81\%}, with a precision of 50.00\%, recall of 66.67\%, and F1-score of 57.14\%. It also obtained the highest ROC-AUC value of 0.8443 among all the evaluated models, indicating good discrimination between the early-stage and advanced-stage classes. In addition, the Linear SVM required the lowest total computational time, with a total execution time of only \textbf{0.0262 seconds.}\\
-
-\textbf{The Random Forest model} produced a balanced accuracy of \textbf{66.89\%,} which was the lowest among the evaluated models. It achieved a precision of 62.50\%, recall of 41.67\%, and F1-score of 50.00\%, with an ROC-AUC of 0.7873. Although Random Forest showed the highest precision among the individual models, its relatively lower recall indicates that it identified a smaller proportion of the positive-class samples.\\
-
-\textbf{The XGBoost model} achieved a balanced accuracy of \textbf{71.27\%}, with a precision of 53.85\%, recall of 58.33\%, and F1-score of 56.00\%. The model obtained an ROC-AUC of 0.7961. Its total computational time was \textbf{0.1917 seconds}, which was higher than that of the Linear SVM but comparable to the Random Forest model.\\
-
-\textbf{The three-model soft voting ensemble}, which combined Linear SVM, Random Forest, and XGBoost, achieved the highest balanced accuracy of \textbf{74.12\%} among all the evaluated approaches. The ensemble also obtained a recall of 66.67\% and an F1-score of 59.26\%, with an ROC-AUC of 0.8246. Although its ROC-AUC was slightly lower than that of the Linear SVM, the three-model ensemble provided the highest balanced accuracy, suggesting that combining the predictions of the three classifiers improved the balance of classification performance between the two disease-stage classes. However, this improvement was associated with a higher computational cost, with a total execution time of \textbf{0.3695 seconds.}\\
-
-\textbf{The two-model soft voting ensemble} combining Linear SVM and XGBoost achieved a balanced accuracy of \textbf{72.81\%}, with a precision of 50.00\%, recall of 66.67\%, and F1-score of 57.14\%. The ROC-AUC of this ensemble was 0.8268, which was higher than the ROC-AUC obtained by XGBoost and the three-model soft voting ensemble, although it remained lower than that of the Linear SVM. The total computational time was \textbf{0.2066 seconds}, making this approach considerably faster than the three-model ensemble.\\
-
-Overall, the three-model soft voting ensemble demonstrated the highest balanced accuracy, achieving 74.12\%. In contrast, the Linear SVM achieved the highest ROC-AUC of 0.8443 and required the lowest computational time. The Random Forest model obtained the highest precision among the individual classifiers, while the Linear SVM, three-model soft voting ensemble, and two-model SVM--XGBoost ensemble achieved the highest recall of 66.67\%. Therefore, the results indicate that the three-model soft voting approach provided the best performance when balanced accuracy was considered as the primary evaluation criterion, whereas \textbf{Linear SVM }demonstrated stronger discrimination and computational efficiency based on ROC-AUC and execution time.
-
-\section{Feature Importance Analysis}
-\subsection{Top 20 Feature Importance}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=.80\linewidth]{Figures/top20_feature_importance.jpg}
-    \caption{\textbf{Top 20 Features for Stage Prediction}}
-    \label{fig:Top 20 Features}
-\end{figure}
-
-The feature importance plot (Figure 4.6) displays the top 20 features ranked by their contribution to the Random Forest model. The top features include:
-\textbf{Interpretation:} The feature importance analysis reveals that ENSG00000223566.1 is the most important feature for stage prediction, with an importance score of 0.045. The top 20 features collectively contribute approximately 0.300 to the model's predictive power. The gradual decline in importance scores suggests that a moderate number of features (20-50) is sufficient for accurate classification, supporting our feature selection strategy.\\
-\textbf{Biological Relevance:} The identified top features include genes involved in various cancer-related pathways, including cell cycle regulation, signal transduction, and metabolic processes. The presence of both RNA and methylation features in the top 20 list highlights the complementary value of multi-omics data for cancer stage prediction.
-
-\subsection{Heatmap of Top 30 Differential Features}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=.75\linewidth]{Figures/Figure2_Heatmap.jpg}
-    \caption{\textbf{Heatmap of Top 30 Differential Features}}
-    \label{fig:Top 30 Differential Features}
-\end{figure}
-The heatmap (Figure 4.7) visualizes the expression patterns of the top 30 differential features across all patients. Each row represents a feature and each column represents a patient. The color gradient represents the Z-score, with red indicating higher expression and blue indicating lower expression.
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Feature Group Observations from Differential Analysis}}
-\label{tab:feature_observations}
-\small
-\begin{tabular}{|p{4cm}|p{10cm}|}
-\hline
-\textbf{Feature Group} & \textbf{Observation} \\
-\hline
-Upregulated Features & Genes with increased expression in late stage patients \\
-\hline
-Downregulated Features & Genes with decreased expression in late stage patients \\
-\hline
-Methylation Features & CpG sites with altered methylation patterns \\
-\hline
-\end{tabular}
-\end{table}
-\textbf{Interpretation:} The heatmap reveals distinct clustering patterns between early and late stage patients. Late stage patients show a characteristic expression signature with multiple features consistently upregulated or downregulated. This clustering pattern suggests that the top 30 features collectively capture a biological signature associated with stage progression.
-
-\section{Validated Biomarkers}
-\subsection{ Volcano Plot with Validated Biomarkers}
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=.75\linewidth]{Figures/volcano_plot_fixed.jpg}
-    \caption{\textbf{Volcano Plot Highlighting Validated Biomarkers}}
-    \label{fig:Volcano Plot}
-\end{figure}
-
-The volcano plot with validated biomarkers shows the position of the 8 validated genes relative to the differential expression thresholds.
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Validated Biomarkers from SHAP Analysis and GEO Validation}}
-\label{tab:validated_biomarkers from SHAP Analysis and GEO Validation}
-\small
-\begin{tabular}{|l|c|c|l|c|}
-\hline
-\textbf{Gene} & \textbf{Log$_2$FC} & \textbf{FDR} & \textbf{Regulation} & \textbf{Validation Status} \\
-\hline
-CCL16 & -1.022 & 0.00113 & Down & $\checkmark$ Validated \\
-\hline
-PCCB & -0.632 & 0.00042 & Down & $\checkmark$ Validated \\
-\hline
-ATOX1 & -0.601 & 0.00036 & Down & $\checkmark$ Validated \\
-\hline
-ECT2 & 0.557 & 0.04476 & Up & $\checkmark$ Validated \\
-\hline
-BICD2 & 0.440 & 0.00042 & Up & $\checkmark$ Validated \\
-\hline
-EIF4E & 0.408 & 0.00054 & Up & $\checkmark$ Validated \\
-\hline
-VEGFA & 0.362 & 0.04476 & Up & $\checkmark$ Validated \\
-\hline
-ANGPT2 & 0.236 & 0.00293 & Up & $\checkmark$ Validated \\
-\hline
-\end{tabular}
-\end{table}
-\\
-\textbf{Interpretation:} The 8 validated biomarkers are clearly visible in the volcano plot. CCL16 shows the most extreme Log $ 2 $ FC (-1.022), indicating strong down-regulation in the late stage. ECT2 and VEGFA show Log $ 2 $ FC values above the 0.5 threshold, while BICD2, EIF4E, and ANGPT2 show moderate Log $ 2 $ FC values (0.23-0.44) that still achieve statistical significance.
-
-\textbf{Biological Significance:} The validation of these 8 genes on independent GEO data confirms their robustness as stage-specific biomarkers. The mix of upregulated and downregulated genes reflects the complex molecular changes occurring during cancer progression.
-
-\section{Functional Enrichment Analysis}
-\subsection{GO Biological Process Network}
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=.75\linewidth]{Figures/network.jpg}
-    \caption{\textbf{GO Biological Process Network for Validated Biomarkers}}
-    \label{fig:GO Biological}
-\end{figure}
-The network diagram  visualizes the Gene Ontology (GO) biological processes associated with the validated biomarkers.
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Gene Ontology (GO) Enrichment Analysis of Validated Biomarkers}}
-\label{tab:go_enrichment}
-\small
-\begin{tabular}{|p{5.5cm}|p{3cm}|p{4.5cm}|}
-\hline
-\textbf{GO Term} & \textbf{Genes Involved} & \textbf{Biological Process} \\
-\hline
-Activation of protein kinase activity (GO:0032147) & VEGFA, ECT2 & Signal transduction \\
-\hline
-Regulation of blood vessel endothelial cell migration (GO:0043535) & VEGFA, ANGPT2 & Angiogenesis \\
-\hline
-Regulation of positive chemotaxis (GO:0050926) & VEGFA & Cell migration \\
-\hline
-Positive regulation of hydrolase activity (GO:0051345) & VEGFA & Enzyme regulation \\
-\hline
-Positive regulation of protein kinase activity (GO:0045860) & VEGFA, ECT2 & Signal transduction \\
-\hline
-\end{tabular}
-\end{table}
-\\
-\textbf{Interpretation:} The GO network reveals that the validated biomarkers are primarily involved in angiogenesis (VEGFA, ANGPT2), cell cycle regulation (ECT2), and signal transduction (VEGFA, ECT2). These processes are well-established hallmarks of cancer progression.
-
-\subsection{ KEGG Pathway Network}
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=.70\linewidth]{Figures/network (1).jpg}
-    \caption{\textbf{ KEGG Pathway Network for Validated Biomarkers}}
-    \label{fig:KEGG Pathway}
-\end{figure}
-The KEGG pathway network (Figure 4.10) shows the signaling pathways enriched among the validated biomarkers.
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Pathway Enrichment Analysis of Validated Biomarkers}}
-\label{tab:pathway_enrichment}
-\small
-\begin{tabular}{|p{4.5cm}|p{3.5cm}|p{5.5cm}|}
-\hline
-\textbf{Pathway} & \textbf{Genes Involved} & \textbf{Biological Relevance} \\
-\hline
-Ras signaling pathway & VEGFA & Cell proliferation \\
-\hline
-Rap1 signaling pathway & ANGPT2 & Cell adhesion, migration \\
-\hline
-PI3K-Akt signaling pathway & VEGFA & Cell survival, angiogenesis \\
-\hline
-HIF-1 signaling pathway & VEGFA & Response to hypoxia \\
-\hline
-Kaposi sarcoma-associated herpesvirus infection & VEGFA & Viral oncogenesis \\
-\hline
-\end{tabular}
-\end{table}
-\\
-\textbf{Interpretation:} The KEGG pathway analysis confirms that the validated biomarkers are involved in key cancer-related pathways. The PI3K-Akt and HIF-1 signaling pathways are particularly relevant to HCC progression, as they regulate cell survival, angiogenesis, and response to hypoxia.
-
-\section{SHAP Explainability Analysis}
-\subsection{SHAP Analysis of the 132 Selected Biomarkers}
-To investigate the contribution of all selected biomarkers, Also performed SHAP analysis using the complete set of 132 important genes obtained after feature selection.\\
-The SHAP feature importance plot shown in Figure 4.11 ranks the twenty most influential biomarkers based on their mean absolute SHAP values. Among all genes, TNRC18P2 exhibited the highest SHAP importance score, indicating that it contributed the most to the prediction of HCC progression. 
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=.75\linewidth]{Figures/SHAP_Bar_GeneNames.jpg}
-    \caption{\textbf{The SHAP feature importance plot}}
-    \label{fig:SHAP feature}
-\end{figure}
-
-Several additional genes, including RPL5P4, FAM163A, ENSG00000287528, SCTR, WBP11P3, EPYC, LAMTOR3, PCCB, SPANXC, and SPANXA2-OT1, also demonstrated relatively high importance. Interestingly, although PCCB was ranked lower than TNRC18P2 in the complete biomarker analysis, it remained among the most influential genes and was later validated using the external GEO dataset.\\
-
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=.75\linewidth]{Figures/SHAP_Summary_GeneNames.jpg}
-    \caption{\textbf{SHAP summary plot}}
-    \label{fig:SHAP summary}
-\end{figure}
-
-The SHAP summary plot presented in Figure 4.12 illustrates both the importance and direction of feature contributions across all patient samples. Each point represents an individual sample, and the color indicates the corresponding gene expression level. The wide spread of SHAP values observed for TNRC18P2 confirms its strong influence on the model prediction. Similarly, genes such as RPL5P4, FAM163A, SCTR, and PCCB also showed noticeable impacts, although their contributions were smaller than that of TNRC18P2. The summary plot also demonstrates that different expression levels can either increase or decrease the predicted probability depending on the patient, highlighting the complex relationships captured by the machine learning model.\\
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=.85\linewidth]{Figures/SHAP_Waterfall.jpg}
-    \caption{\textbf{SHAP waterfall plot}}
-    \label{fig:SHAP waterfall}
-\end{figure}
-Figure 4.13 presents the SHAP waterfall plot for one representative prediction using the complete biomarker set. The waterfall plot shows how individual genes collectively influenced the model output. Among all biomarkers, RPL5P4, cg14619259, TNRC18P2, ENSG00000287528, PCCB, and cg07522644 produced the largest negative SHAP contributions, while FAM163A provided the largest positive contribution. The remaining biomarkers had comparatively smaller effects on the final prediction. This visualization demonstrates how multiple genes interact to produce the final classification rather than relying on a single biomarker alone.
-
-\subsection{SHAP Analysis of the Eight Validated Biomarkers}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=.85\linewidth]{Figures/SHAP_8_Biomarkers_Bar.jpg}
-    \caption{\textbf{The SHAP 8 biomarkers importance plot}}
-    \label{fig:SHAP 8 biomarkers}
-\end{figure}
-Figure 4.14 presents the SHAP feature importance plot for the eight validated biomarkers. The results clearly indicate that PCCB had the highest average SHAP value among all validated genes, demonstrating that it contributed the most to the prediction of HCC stage. The remaining biomarkers, including ANGPT2, VEGFA, ATOX1, BICD2, ECT2, EIF4E, and CCL16, showed comparatively lower contributions. Although these genes influenced the model prediction, their impact was considerably smaller than that of PCCB. Based on this finding, considered PCCB to be the most influential validated biomarker and selected it for further molecular docking and drug discovery analysis.\\
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=.75\linewidth]{Figures/SHAP_Summary_GeneNames.jpg}
-    \caption{\textbf{SHAP 8 biomarker summary plot}}
-    \label{fig:SHAP 8 biomarker summary plot}
-\end{figure}
-The SHAP summary plot shown in Figure 4.15 provides additional insight into how each biomarker influenced the model. Each point represents one patient sample, while the color indicates the gene expression level. Red points correspond to higher expression values, whereas blue points indicate lower expression values. PCCB displayed the widest distribution of SHAP values, confirming that variations in its expression produced the greatest influence on model predictions. The remaining biomarkers exhibited relatively narrow SHAP distributions, suggesting a more moderate effect on classification performance.\\
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=.8\linewidth]{Figures/SHAP_Waterfall.jpg}
-    \caption{\textbf{SHAP 8 biomarker waterfall plot}}
-    \label{fig:8 biomarker waterfall}
-\end{figure}
-To further explain the contribution of individual biomarkers for a representative prediction, generated the SHAP waterfall plot shown in Figure 4.16. This figure illustrates how each validated biomarker contributed to the final prediction for a single patient. Among all biomarkers, PCCB produced the largest SHAP contribution, indicating that it was the primary factor influencing the model output. The remaining genes, including ATOX1, VEGFA, ANGPT2, ECT2, BICD2, EIF4E, and CCL16, showed comparatively smaller positive or negative contributions. This result further confirms the dominant role of PCCB in distinguishing between early- and late-stage HCC patients.\\
-
-Overall, the SHAP analysis consistently demonstrated that \textbf{PCCB is the most important validated} biomarker in my predictive model. Therefore, PCCB is selected as the primary target for subsequent protein structure analysis, molecular docking, and drug discovery.\\
-
-Overall, the SHAP analysis of the complete biomarker set identified \textbf{TNRC18P2} as the most influential biomarker within the machine learning model. However, after external validation using the independent GEO dataset, \textbf{PCCB }emerged as the most reliable and biologically validated biomarker. Therefore, PCCB was selected for downstream molecular docking, drug screening, and therapeutic candidate identification because it demonstrated both strong predictive capability and successful external validation.
-
-\section{Molecular Docking Analysis for RNA Features}
- \subsection{Docking Against PCCB}
- 
-\subsubsection{Target Protein and Binding Site Identification}
-
-Three-dimensional structure of PCCB (Propionyl-CoA Carboxylase Beta subunit) is obtained from the Protein Data Bank under the accession code 8ZUX. This structure was determined using electron microscopy at a resolution of 2.68 Å and contains the PCCB protein with its natural cofactors, including ATP, Biotin, and Magnesium.Protein structure is prepared for docking by removing water molecules and adding hydrogen atoms.The C2 pocket is identified as the primary binding site based on its location near the ATP-binding region, where natural ligands are positioned. This findings selected this pocket as the target for all docking simulations.
-
-\subsubsection{Molecular Docking of Sorafenib}
-
-Molecular docking of Sorafenib against PCCB using CB-Dock2, and the results are preented in Table 4.11. The docking analysis revealed that Sorafenib bound most favorably to the C2 pocket, achieving a Vina score of -10.0 kcal/mol. This pocket had a cavity volume of 1119 Å³ and was centered at coordinates 170, 134, 200. This set the docking grid to 27 × 27 × 27 Å, ensuring comprehensive coverage of the binding site.
-
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Molecular Docking Results of Sorafenib Against PCCB}}
-\label{tab:sorafenib_docking}
-\small
-\begin{tabular}{|p{1.5cm}|p{2.0cm}|p{1.5cm}|p{2.5cm}|p{2.5cm}|}
-\hline
-\textbf{Pocket ID} & \textbf{Vina Score (kcal/mol)} & \textbf{Cavity Volume (\AA³)} & \textbf{Center (x, y, z)} & \textbf{Docking Size (x, y, z)} \\
-\hline
-C2 & -10.0 & 1119 & 170, 134, 200 & 27, 27, 27 \\
-\hline
-C3 & -9.2 & 699 & 163, 138, 192 & 27, 27, 27 \\
-\hline
-C4 & -9.2 & 605 & 188, 122, 160 & 27, 27, 27 \\
-\hline
-C1 & -8.9 & 4746 & 186, 111, 209 & 35, 35, 35 \\
-\hline
-C5 & -6.9 & 347 & 165, 143, 150 & 27, 27, 27 \\
-\hline
-\end{tabular}
-\end{table}
-
-Sorafenib showed promising binding to other pockets, including C3 (-9.2 kcal/mol, volume 699 Å³), C4 (-9.2 kcal/mol, volume 605 Å³), C1 (-8.9 kcal/mol, volume 4746 Å³), and C5 (-6.9 kcal/mol, volume 347 Å³). Consistently found that the strongest binding was at the C2 pocket, suggesting this is the preferred binding site for Sorafenib on PCCB.
-
-\subsubsection{Molecular Docking of Regorafenib}
-
-The docking results are represented for Regorafenib in Table 4.12. Similar to Sorafenib, found that Regorafenib exhibited the strongest binding affinity at the C2 pocket, with a Vina score of -9.6 kcal/mol. The C2 pocket maintained the same cavity volume of 1119 Å³ and center coordinates of 170, 134, 200, with a slightly reduced docking size of 23 × 23 × 23 Å compared to Sorafenib.\\
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Molecular Docking Results of Regorafenib Against PCCB}}
-\label{tab:regorafenib_docking}
-\small
-\begin{tabular}{|p{1.5cm}|p{2.0cm}|p{1.5cm}|p{2.5cm}|p{2.5cm}|}
-\hline
-\textbf{Pocket ID} & \textbf{Vina Score (kcal/mol)} & \textbf{Cavity Volume (\AA³)} & \textbf{Center (x, y, z)} & \textbf{Docking Size (x, y, z)} \\
-\hline
-C2 & -9.6 & 1119 & 170, 134, 200 & 23, 23, 23 \\
-\hline
-C1 & -9.5 & 4746 & 186, 111, 209 & 35, 35, 35 \\
-\hline
-C4 & -8.1 & 605 & 188, 122, 160 & 23, 23, 23 \\
-\hline
-C3 & -8.0 & 699 & 163, 138, 192 & 23, 23, 23 \\
-\hline
-C5 & -7.3 & 347 & 165, 143, 150 & 23, 23, 23 \\
-\hline
-\end{tabular}
-\end{table}
-Regorafenib demonstrated favorable binding to the C1 pocket (-9.5 kcal/mol, volume 4746 Å³), C4 pocket (-8.1 kcal/mol, volume 605 Å³), C3 pocket (-8.0 kcal/mol, volume 699 Å³), and C5 pocket (-7.3 kcal/mol, volume 347 Å³). This process noted that the consistent preference for the C2 pocket across both Sorafenib and Regorafenib suggests that this binding site is structurally favorable for kinase inhibitors targeting PCCB.
-
-\subsubsection{Molecular Docking of Cabozantinib}
-
-Cabozantinib demonstrated the most promising binding affinity among all tested drugs, achieving a Vina score of -10.8 kcal/mol at the C2 pocket, as shown in Table 4.13. This was the highest binding affinity across all docking simulations, indicating the strongest predicted interaction with PCCB. The C2 pocket maintained its consistent characteristics with a volume of 1119 Å³ and center at 170, 134, 200, with a docking size of 25 × 25 × 25 Å.\\
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Molecular Docking Results of Cabozantinib Against PCCB}}
-\label{tab:cabozantinib_docking}
-\small
-\begin{tabular}{|p{1.5cm}|p{2.0cm}|p{1.5cm}|p{2.5cm}|p{2.5cm}|}
-\hline
-\textbf{Pocket ID} & \textbf{Vina Score (kcal/mol)} & \textbf{Cavity Volume (\AA³)} & \textbf{Center (x, y, z)} & \textbf{Docking Size (x, y, z)} \\
-\hline
-C2 & -10.8 & 1119 & 170, 134, 200 & 25, 25, 25 \\
-\hline
-C1 & -9.4 & 4746 & 186, 111, 209 & 35, 35, 35 \\
-\hline
-C3 & -9.0 & 699 & 163, 138, 192 & 25, 25, 25 \\
-\hline
-C4 & -8.7 & 605 & 188, 122, 160 & 25, 25, 25 \\
-\hline
-C5 & -6.9 & 347 & 165, 143, 150 & 25, 25, 25 \\
-\hline
-\end{tabular}
-\end{table}
- Cabozantinib showed favorable binding to other pockets, including C1 (-9.4 kcal/mol, volume 4746 Å³), C3 (-9.0 kcal/mol, volume 699 Å³), C4 (-8.7 kcal/mol, volume 605 Å³), and C5 (-6.9 kcal/mol, volume 347 Å³). The superior binding affinity of Cabozantinib compared to Sorafenib and Regorafenib suggests that its molecular structure allows for more optimal interactions with the C2 pocket residues.
-
-\subsubsection{Comparison of Docking Results}
-A comparative analysis of the docking results is presented for all three drugs in Table 4.14. Cabozantinib exhibited the strongest binding affinity to PCCB with a Vina score of -10.8 kcal/mol, followed by Sorafenib (-10.0 kcal/mol) and Regorafenib (-9.6 kcal/mol). All three drugs showed preferential binding to the C2 pocket, indicating that this site is the most favorable for ligand binding on PCCB.\\
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Comparative Docking Results of FDA-Approved HCC Drugs Against PCCB}}
-\label{tab:comparative_docking}
-\small
-\begin{tabular}{|p{2.5cm}|p{2.0cm}|p{1.5cm}|p{2.5cm}|p{2.5cm}|}
-
-\hline
-\textbf{Drug} & \textbf{Target Protein} & \textbf{Best Binding Pocket} & \textbf{Binding Affinity (kcal/mol)} & \textbf{Rank} \\
-\hline
-Cabozantinib & PCCB (8ZUX) & C2 & -10.8 & 1 \\
-\hline
-Sorafenib & PCCB (8ZUX) & C2 & -10.0 & 2 \\
-\hline
-Regorafenib & PCCB (8ZUX) & C2 & -9.6 & 3 \\
-\hline
-\end{tabular}
-\end{table}
-The superior binding affinity of Cabozantinib can be attributed to its molecular structure, which may allow for more extensive hydrogen bonding and hydrophobic interactions with the C2 pocket residues. It has validated the C2 pocket as a promising target for therapeutic intervention in liver cancer based on the consistent binding patterns across all three drugs.
-
-
-\section{Surface Structure Analysis of PCCB Protein}
-\subsection{Sorafenib Surface Structure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=.75\linewidth]{docking figure/RNA/SORAFENIB_C2.jpg}
-    \caption{\textbf{Sorafenib surface structure}}
-    \label{fig:SORAFENIB}
-\end{figure}
-
-To initiate the molecular docking study, firstly visualized the three-dimensional surface structure of the PCCB protein using PyMOL. The surface representation of the protein is shown in Figure 4.17. This visualization allowed me to observe the overall structural topology and identify the accessible regions that could potentially interact with small-molecule drugs.\\
-
-In the surface model, different colors represent different physicochemical properties of the protein surface. The red regions indicate negatively charged residues, the blue regions represent positively charged residues, while the white regions correspond to neutral or hydrophobic surface areas. A few yellow-colored residues represent sulfur-containing amino acids exposed on the protein surface. These variations in surface charge are important because they influence how ligand molecules recognize and bind to the protein.\\
-
-From the surface visualization,the PCCB protein possesses several grooves and cavities distributed throughout its structure. Among these regions, one prominent pocket located near the central region of the protein appeared suitable for ligand binding. This observation was further confirmed by the CB-Dock2 server, which automatically detected multiple potential binding cavities within the protein structure.\\
-
-The surface analysis indicates that the PCCB protein has an accessible and well-defined binding environment capable of accommodating small-molecule inhibitors. Therefore, it proceeded with cavity detection and molecular docking analysis to determine the most favorable binding pocket for the selected anticancer drugs.
-
-\subsection{Regorafenib Surface Structure}
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=.75\linewidth]{docking figure/RNA/Regorafenib.jpg}
-    \caption{\textbf{Regorafenib surface structure}}
-    \label{fig:Regorafenib}
-\end{figure}
-
-After identifying Cavity 2 as the most favorable binding pocket of the PCCB protein, performed molecular docking of Regorafenib to investigate its interaction with the selected target protein. The docked complex was visualized using PyMOL to examine the binding orientation and interaction environment. The molecular docking result is presented in Figure 4.18.\\
-
-From the docking analysis,Regorafenib was successfully positioned within the selected binding cavity of the PCCB protein. The ligand occupied the active pocket in a stable conformation and interacted closely with several surrounding amino acid residues. The docked complex indicates that the ligand fits well inside the cavity without significant steric clashes, suggesting that the selected binding site is structurally suitable for ligand accommodation.\\
-
-The docking score obtained for Regorafenib was -9.6 kcal/mol, indicating a strong binding affinity between the ligand and the PCCB protein. Although this binding energy was slightly higher than that of Sorafenib (-10.0 kcal/mol), it still represents a stable interaction according to the AutoDock Vina scoring function. The negative binding energy suggests that the ligand-protein complex is energetically favorable and can form spontaneously under the predicted conditions.\\
-
-From the three-dimensional visualization,Regorafenib established multiple interactions with residues surrounding the binding pocket. These interactions included hydrogen bonding and hydrophobic contacts, which contribute to stabilizing the ligand within the active site. The amino acid residues located around the ligand formed a compact interaction network, indicating that the drug molecule was well accommodated inside the binding cavity.\\
-
-\subsection{Cabozantinib Surface Structure}
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=.75\linewidth]{docking figure/RNA/Cabozantinib (2).jpg}
-    \caption{\textbf{Cabozantinib surface structure}}
-    \label{fig:Cabozantinib}
-\end{figure}
-
-After selecting Cavity 2 as the most suitable binding pocket of the PCCB protein, has performed molecular docking of Cabozantinib to evaluate its binding interaction with the target protein. The docked complex was visualized using PyMOL to examine the ligand orientation and the interaction environment within the active site. The molecular docking result is presented in Figure 4.19.\\
-
-From the docking analysis, Cabozantinib was successfully accommodated within the selected binding cavity of the PCCB protein. The ligand occupied the active pocket with a stable binding conformation and established close interactions with several surrounding amino acid residues. The molecular surface visualization indicates that the ligand was deeply embedded inside the binding cavity, suggesting a favorable structural complementarity between the ligand and the protein.\\
-
-The docking analysis produced a binding affinity of -10.8 kcal/mol, which was the lowest binding energy among the three selected drugs. This result indicates that Cabozantinib has the strongest predicted binding affinity toward the PCCB protein. The highly negative binding energy suggests that the ligand-protein complex is energetically stable and that Cabozantinib can interact efficiently with the selected binding site.\\
-
-The molecular surface representation further demonstrated that the ligand was surrounded by multiple amino acid residues within the binding pocket. Both polar and hydrophobic regions of the protein contributed to ligand stabilization, indicating that several intermolecular interactions participated in maintaining the docked complex. The close positioning of the ligand inside the cavity suggests that the selected pocket provides a favorable environment for stable molecular recognition.\\
-
-When comparing the docking results of all three candidate drugs, Cabozantinib exhibited the strongest binding affinity (-10.8 kcal/mol), followed by Sorafenib (-10.0 kcal/mol) and Regorafenib (-9.6 kcal/mol). These findings suggest that Cabozantinib has the highest predicted interaction strength with the PCCB protein and may possess greater inhibitory potential against this biomarker.
-
-\subsection{Docking Against VEGFA}
-\subsubsection{Docking of Sorafenib Against VEGFA Chain A}
-
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Molecular Docking Results of Sorafenib Against VEGFA}}
-\label{tab:sorafenib_vegfa}
-\small
-\begin{tabular}{|p{2.2cm}|p{2.0cm}|p{2.0cm}|p{2.5cm}|p{2.0cm}|}
-\hline
-\textbf{Pocket ID} & \textbf{Vina Score (kcal/mol)} & \textbf{Cavity Volume (\AA³)} & \textbf{Center (x, y, z)} & \textbf{Docking Size (x, y, z)} \\
-\hline
-C1 & -7.0 & 60 & -16, -10, 6 & 27, 27, 27 \\
-\hline
-C3 & -6.5 & 37 & 6, 14, -6 & 27, 27, 27 \\
-\hline
-C5 & -6.5 & 26 & -15, -3, -6 & 27, 27, 27 \\
-\hline
-C4 & -6.4 & 29 & -1, 14, -3 & 27, 27, 27 \\
-\hline
-C2 & -6.1 & 37 & -5, -2, -14 & 27, 27, 27 \\
-\hline
-\end{tabular}
-\end{table}
-Molecular docking is performed of Sorafenib against VEGFA chain A, and present the results in Table 4.15. Sorafenib bound most favorably to the C1 pocket, achieving a Vina score of -7.0 kcal/mol. This pocket had a cavity volume of 60 Å³ and was centered at coordinates -16, -10, 6. Sorafenib showed binding to other pockets including C3 (-6.5 kcal/mol), C5 (-6.5 kcal/mol), C4 (-6.4 kcal/mol), and C2 (-6.1 kcal/mol).
-\subsubsection{Docking of Regorafenib Against VEGFA Chain A}
-Molecular docking of Regorafenib against VEGFA chain A, and present the results in Table 4.16. Regorafenib exhibited the strongest binding affinity at the C1 pocket, with a Vina score of -7.4 kcal/mol. This pocket had a cavity volume of 60 Å³ and was centered at coordinates -16, -10, 6. Binding to the C4 pocket (-6.9 kcal/mol), C5 pocket (-6.7 kcal/mol), C3 pocket (-6.5 kcal/mol), and C2 pocket (-5.9 kcal/mol).
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Molecular Docking Results of Regorafenib Against VEGFA}}
-\label{tab:regorafenib_vegfa}
-\small
-\begin{tabular}{|p{2.2cm}|p{2.0cm}|p{2.0cm}|p{2.5cm}|p{2.0cm}|}
-\hline
-\textbf{Pocket ID} & \textbf{Vina Score (kcal/mol)} & \textbf{Cavity Volume (\AA³)} & \textbf{Center (x, y, z)} & \textbf{Docking Size (x, y, z)} \\
-\hline
-C1 & -7.4 & 60 & -16, -10, 6 & 23, 23, 23 \\
-\hline
-C4 & -6.9 & 29 & -1, 14, -3 & 23, 23, 23 \\
-\hline
-C5 & -6.7 & 26 & -15, -3, -6 & 23, 23, 23 \\
-\hline
-C3 & -6.5 & 37 & 6, 14, -6 & 23, 23, 23 \\
-\hline
-C2 & -5.9 & 37 & -5, -2, -14 & 23, 23, 23 \\
-\hline
-\end{tabular}
-\end{table}
-
-\subsubsection{Docking of Cabozantinib Against VEGFA Chain A}
-Molecular docking of Cabozantinib is performed against VEGFA chain A, and present the results in Table 4.17. Cabozantinib showed the strongest binding at the C1 pocket with a Vina score of -6.6 kcal/mol. This pocket had a cavity volume of 60 Å³ and was centered at coordinates -16, -10, 6. Binding to the C2 pocket (-6.3 kcal/mol), C5 pocket (-6.3 kcal/mol), C3 pocket (-6.0 kcal/mol), and C4 pocket (-6.0 kcal/mol).
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Molecular Docking Results of Cabozantinib Against VEGFA }}
-\label{tab:cabozantinib_vegfa}
-\small
-\begin{tabular}{|p{2.2cm}|p{2.0cm}|p{2.0cm}|p{2.5cm}|p{2.0cm}|}
-\hline
-\textbf{Pocket ID} & \textbf{Vina Score (kcal/mol)} & \textbf{Cavity Volume (\AA³)} & \textbf{Center (x, y, z)} & \textbf{Docking Size (x, y, z)} \\
-\hline
-C1 & -6.6 & 60 & -16, -10, 6 & 25, 25, 25 \\
-\hline
-C2 & -6.3 & 37 & -5, -2, -14 & 25, 25, 25 \\
-\hline
-C5 & -6.3 & 26 & -15, -3, -6 & 25, 25, 25 \\
-\hline
-C3 & -6.0 & 37 & 6, 14, -6 & 25, 25, 25 \\
-\hline
-C4 & -6.0 & 29 & -1, 14, -3 & 25, 25, 25 \\
-\hline
-\end{tabular}
-\end{table}
-
-\subsubsection{Comparative Analysis of VEGFA Docking Results}
-A comparative analysis of the docking results for all three drugs against VEGFA chain A, and present the findings in Table 4.18. Regorafenib exhibited the strongest binding affinity with a Vina score of -7.4 kcal/mol at the C1 pocket, followed by Sorafenib (-7.0 kcal/mol) and Cabozantinib (-6.6 kcal/mol). Consistently observed that all three drugs showed preferential binding to the C1 pocket, indicating this is the most favorable binding site on VEGFA chain A.
-
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Comparative Docking Results Against VEGFA}}
-\label{tab:comparative_vegfa}
-\small
-\begin{tabular}{|l|c|c|c|c|}
-\hline
-\textbf{Drug} & \textbf{Best Pocket} & \textbf{Vina Score (kcal/mol)} & \textbf{Cavity Volume (\AA³)} & \textbf{Rank} \\
-\hline
-Regorafenib & C1 & -7.4 & 60 & 1 \\
-\hline
-Sorafenib & C1 & -7.0 & 60 & 2 \\
-\hline
-Cabozantinib & C1 & -6.6 & 60 & 3 \\
-\hline
-\end{tabular}
-\end{table}
-
-\section{Surface Structure Analysis Against VEGFA}
-\subsection{Sorafenib Surface Structure }
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=.75\linewidth]{docking figure/RNA/sorafenib_2.jpg}
-    \caption{\textbf{Sorafenib surface structure}}
-    \label{fig:Sorafenib surface}
-\end{figure}
-The molecular docking simulations elucidated distinct binding modalities for the three multi-kinase inhibitors within the active site cleft of the VEGFA protein. The first visualized binding conformation demonstrates a deeply buried orientation, characteristic of the interactions observed for Sorafenib. In this pose, the ligand positions its difluorinated aromatic ring system deep into the hydrophobic core of the cavity. This deep-seated insertion is strategically anchored by prominent polar and van der Waals interactions with a conserved cluster of proximal residues, specifically including Glutamine 87 (Q87), Lysine 84 (K84), and the backbone of Isoleucine 43 (I43). Additionally, the ligand's central urea pharmacophore forms stabilizing hydrogen bonds with Glutamate 42 (E42). The electrostatic surface potential map further indicates that this binding modality tightly matches the distinct electronegative (red) and electropositive (blue) contours of the interior cleft, allowing for maximal desolvation and stable complex formation.
-
-\subsection{Regorafenib Surface Structure }
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=.75\linewidth]{docking figure/RNA/Regorafenib_2.jpg}
-    \caption{\textbf{Regorafenib surface structure}}
-    \label{fig:Regorafenib surface structure}
-\end{figure}
-
-In contrast to the deeply buried orientation, the second visualized pose—which corresponds to the binding profile of Regorafenib—reveals a subtly shifted, slightly outward-extended conformation. While the core scaffold retains interactions within the primary binding pocket, the terminal aromatic moiety transitions closer to the peripheral rim of the active site. This intermediate geometry allows the ligand to interact with a broader, secondary network of polar residues. Notably, interactions with Glutamine 87 (Q87) and Lysine 84 (K84) are maintained, while the outward shift enables additional contact points with the backbone carbonyls and side chains of residues such as Proline 85 (P85), Isoleucine 46 (I46), and an adjacent serine residue (likely S50 or S51). The halogenated functional groups on the ligand are positioned favorably to potentially participate in halogen-bonding interactions with the surrounding electrophilic patches on the protein surface.
-\subsection{Cabozantinib Surface Structure }
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=.75\linewidth]{docking figure/RNA/CABOZANTINIB_2.jpg}
-    \caption{\textbf{Cabozantinib Surface Structure}}
-    \label{fig:Cabozantinib Surface Structure}
-\end{figure}
-A distinct third binding modality, characteristic of Cabozantinib, demonstrates an entirely different spatial arrangement. In this extended conformation, the ligand projects significantly away from the deep hydrophobic cleft, positioning its terminal aromatic groups directly toward the solvent-exposed periphery of the VEGFA binding site. This dramatic outward rotation drastically alters the interaction profile; the primary anchoring contacts shift prominently to a cluster of interfacial residues, predominantly Tyrosine 45 (Y45), Glutamate 44 (E44), and Isoleucine 43 (I43). Furthermore, the extended, aliphatic linker of the ligand allows for enhanced hydrophobic contacts with a lower pocket defined by residues such as Proline 85 (P85), Isoleucine 46 (I46), and Lysine 48 (K48). This solvent-accessible pose suggests that Cabozantinib relies on a distinct, surface-oriented stabilization strategy, potentially explaining differences in its binding kinetics and specificity compared to its structural analogs.
-
-\section{ADME and Pharmacokinetic Analysis}
-\subsection{SwissADME Analysis of Sorafenib }
-The pharmacokinetic properties of Sorafenib using SwissADME is presented the results in Table 4.19. Sorafenib has a molecular weight of 464.82 g/mol, which falls within the acceptable range of less than 500. It has 7 hydrogen bond acceptors and 3 hydrogen bond donors, both of which are considered acceptable for drug-like molecules.The compound has 9 rotatable bonds, making it slightly flexible, and a topological polar surface area (TPSA) of 92.35 Å², which is suitable for oral drug administration. The consensus LogP value of 4.27 indicates that Sorafenib is moderately lipophilic.
-\begin{table}[htbp]
-\centering
-\caption{\textbf{SwissADME Interpretation of Sorafenib}}
-\label{tab:sorafenib_adme}
-\small
-\begin{tabular}{|l|l|l|}
-\hline
-\textbf{Parameter} & \textbf{Result} & \textbf{Interpretation} \\
-\hline
-Molecular Weight & 464.82 g/mol & Acceptable (<500 Da) \\
-\hline
-H-bond Acceptors & 7 & Acceptable \\
-\hline
-H-bond Donors & 3 & Acceptable \\
-\hline
-Rotatable Bonds & 9 & Slightly flexible \\
-\hline
-TPSA & 92.35 Å² & Suitable for oral drugs \\
-\hline
-Consensus LogP & 4.27 & Moderately lipophilic \\
-\hline
-GI Absorption & Low & Low predicted intestinal absorption \\
-\hline
-BBB Permeability & No & Does not readily cross the blood-brain barrier \\
-\hline
-Lipinski Rule & Yes (0 violations) & Excellent drug-likeness \\
-\hline
-Bioavailability Score & 0.55 & Good oral bioavailability prediction \\
-\hline
-PAINS Alerts & 0 & No problematic substructures \\
-\hline
-Brenk Alerts & 0 & No structural toxicity alerts \\
-\hline
-Synthetic Accessibility & 2.87 & Relatively easy to synthesize \\
-\hline
-\end{tabular}
-\end{table}
-Sorafenib has low GI absorption, suggesting poor predicted intestinal absorption. It does not readily cross the blood-brain barrier, which is favorable for minimizing central nervous system side effects. Sorafenib complies with Lipinski's Rule of Five with zero violations, indicating excellent drug-likeness.A bioavailability score of 0.55, which suggests good predicted oral bioavailability. It is detected no PAINS alerts or Brenk alerts, indicating no problematic substructures or structural toxicity concerns.Sorafenib has a synthetic accessibility score of 2.87, making it relatively easy to synthesize.
-
-
-\subsection{SwissADME Analysis of Regorafenib}
-
-The pharmacokinetic properties of Regorafenib using SwissADME, and presented the results in Table 4.20. Regorafenib has a molecular weight of 482.82 g/mol, which is acceptable as it is below 500.A consensus LogP value of 4.64, indicating moderate lipophilicity.TPSA is 92.35 Å², which is considered good for drug-like molecules.
-\begin{table}[htbp]
-\centering
-\caption{\textbf{SwissADME Interpretation of Regorafenib}}
-\label{tab:regorafenib_adme}
-\small
-\begin{tabular}{|l|l|l|}
-\hline
-\textbf{Parameter} & \textbf{Value} & \textbf{Interpretation} \\
-\hline
-Molecular Weight & 482.82 g/mol & Acceptable ($<$500) \\
-\hline
-Consensus LogP & 4.64 & Moderately lipophilic \\
-\hline
-TPSA & 92.35 Å² & Good \\
-\hline
-GI Absorption & Low & Low predicted intestinal absorption \\
-\hline
-BBB Permeability & No & Does not cross the blood-brain barrier \\
-\hline
-Lipinski Violations & 0 & Excellent \\
-\hline
-Bioavailability Score & 0.55 & Good \\
-\hline
-PAINS Alerts & 0 & Excellent \\
-\hline
-Brenk Alerts & 0 & Excellent \\
-\hline
-Synthetic Accessibility & 3.04 & Easy to synthesize \\
-\hline
-\end{tabular}
-\end{table}
-Regorafenib has low GI absorption, similar to Sorafenib, suggesting low predicted intestinal absorption. It does not cross the blood-brain barrier, which is favorable for minimizing central nervous system side effects.Regorafenib has zero Lipinski violations, indicating excellent drug-likeness.A bioavailability score of 0.55, suggesting good predicted oral bioavailability. No PAINS or Brenk alerts, indicating excellent structural safety. Regorafenib has a synthetic accessibility score of 3.04, making it easy to synthesize.
-
-\subsection{SwissADME Analysis of Cabozantinib}
-
-Evaluation of the pharmacokinetic properties of Cabozantinib using SwissADME, and presented the results in Table 4.21. Cabozantinib has a molecular weight of 501.51 g/mol, which is slightly above the Lipinski limit of 500 Da.A consensus LogP value of 4.61, indicating moderate lipophilicity. The TPSA is 98.78 Å², which is considered acceptable for drug-like molecules. Cabozantinib has high GI absorption, which is better than the predicted intestinal absorption of Sorafenib.It does not readily cross the blood-brain barrier, which is favorable for minimizing central nervous system side effects.
-\begin{table}[htbp]
-\centering
-\caption{\textbf{SwissADME Interpretation of Cabozantinib}}
-\label{tab:cabozantinib_adme}
-\small
-\begin{tabular}{|l|l|l|}
-\hline
-\textbf{Parameter} & \textbf{Value} & \textbf{Interpretation} \\
-\hline
-Molecular Weight & 501.51 g/mol & Slightly above Lipinski limit (500) \\
-\hline
-Consensus LogP & 4.61 & Moderately lipophilic \\
-\hline
-TPSA & 98.78 Å² & Acceptable \\
-\hline
-GI Absorption & High & Better predicted intestinal absorption \\
-\hline
-BBB Permeability & No & Does not readily cross BBB \\
-\hline
-P-gp Substrate & Yes & May be actively transported \\
-\hline
-Lipinski Violations & 1 (MW $>$ 500) & Still considered drug-like \\
-\hline
-Bioavailability Score & 0.55 & Good \\
-\hline
-PAINS Alerts & 0 & No problematic substructures \\
-\hline
-Brenk Alerts & 1 & One structural alert (beta-keto anhydride) \\
-\hline
-Synthetic Accessibility & 3.09 & Reasonably easy to synthesize \\
-\hline
-\end{tabular}
-\end{table}
-Cabozantinib is predicted to be a P-glycoprotein substrate, meaning it may be actively transported by P-glycoprotein. Cabozantinib has one Lipinski violation due to its molecular weight exceeding 500, but it still drug-like despite this single violation. A bioavailability score of 0.55, suggesting good predicted oral bioavailability. No PAINS alerts, indicating no problematic substructures. However,one Brenk alert (beta-keto anhydride) is found, which may warrant attention as a structural toxicity concern. Cabozantinib has a synthetic accessibility score of 3.09, making it reasonably easy to synthesize.
-
-\subsection{Comparative SwissADME Analysis}
-A comparative analysis of the SwissADME results for all three drugs, presentED the findings in Table 4.22. Cabozantinib has the highest molecular weight (501.51 g/mol) compared to Sorafenib (464.82 g/mol) and Regorafenib (482.82 g/mol). Cabozantinib shows high GI absorption, while Sorafenib and Regorafenib both show low GI absorption.All three drugs have zero Lipinski violations, except for Cabozantinib which has one violation due to its molecular weight.All drugs have no PAINS alerts, indicating no problematic substructures. Cabozantinib has one Brenk alert, while Sorafenib and Regorafenib have none. All three drugs have a bioavailability score of 0.55, indicating good predicted oral bioavailability
-
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Comparative SwissADME Analysis of FDA-Approved HCC Drugs}}
-\label{tab:comparative_adme}
-\small
-\begin{tabular}{|l|c|c|c|c|}
-\hline
-\textbf{Parameter} & \textbf{Sorafenib} & \textbf{Regorafenib} & \textbf{Cabozantinib} \\
-\hline
-Molecular Weight (g/mol) & 464.82 & 482.82 & 501.51 \\
-\hline
-GI Absorption & Low & Low & High \\
-\hline
-Lipinski Violations & 0 & 0 & 1 \\
-\hline
-PAINS Alerts & 0 & 0 & 0 \\
-\hline
-Brenk Alerts & 0 & 0 & 1 \\
-\hline
-Bioavailability Score & 0.55 & 0.55 & 0.55 \\
-\hline
-\end{tabular}
-\end{table}
-
-\subsection{ProTox-3 Toxicity Interpretation}
-Evaluation of the acute toxicity profiles of the three drug candidates using ProTox-3, presented the results in Table 4.23. Sorafenib and Regorafenib both exhibited a predicted LD50 of 800 mg/kg, placing them in toxicity class 4, which indicates moderate acute toxicity. For Cabozantinib, a higher LD50 value of 1600 mg/kg, which also falls within toxicity class 4. This higher LD50 as suggesting lower predicted acute toxicity compared to Sorafenib and Regorafenib, even though all three drugs remain in the same toxicity class. Based on these findings, Cabozantinib may offer a more favorable safety profile while maintaining similar toxicity classification.
-\begin{table}[htbp]
-\centering
-\caption{\textbf{ProTox-3 Toxicity Interpretation of Drugs}}
-\label{tab:toxicity_interpretation of Drugs}
-\small
-\begin{tabular}{|l|l|l|}
-\hline
-\textbf{Drug} & \textbf{LD50 (mg/kg)} & \textbf{Interpretation} \\
-\hline
-Sorafenib & 800 & Moderate acute toxicity \\
-\hline
-Regorafenib & 800 & Similar toxicity profile to Sorafenib \\
-\hline
-Cabozantinib & 1600 & Higher LD50 suggesting lower predicted acute toxicity \\
-\hline
-\end{tabular}
-\end{table}
-
-\subsection{Final ProTox-3 Comparison of Drugs}
-A comprehensive comparison of the ProTox-3 has been performed results for all three drugs. Cabozantinib has the highest molecular weight (501.51 g/mol) compared to Sorafenib (464.82 g/mol) and Regorafenib (482.82 g/mol). Cabozantinib has the highest predicted LD50 value of 1600 mg/kg, while both Sorafenib and Regorafenib have LD50 values of 800 mg/kg. All three drugs fall into toxicity class 4. The average similarity values and found that Cabozantinib has the highest similarity (56.09 \%) compared to Sorafenib (53.45 \%) and Regorafenib (53.12 \%), indicating better model confidence for Cabozantinib. The prediction accuracy was consistent at 67.38 \% for all three drugs.
-Also analyzed the physicochemical properties and found that Cabozantinib has 8 H-bond acceptors compared to 7 for the other two drugs, 2 H-bond donors compared to 3 for the others, and 10 rotatable bonds compared to 9 for Sorafenib and Regorafenib. Cabozantinib has a TPSA of 98.78 Å², which is slightly higher than the 92.35 Å² observed for both Sorafenib and Regorafenib. Cabozantinib has the lowest LogP value of 5.69, compared to 6.09 for Sorafenib and 6.23 for Regorafenib, suggesting comparatively lower lipophilicity.
-
-
-\subsection{Final Comparison (Docking + ADME + Toxicity)}
-Based on my integrated toxicity assessment, the final comparison of drug candidates in Table 4.24. Cabozantinib demonstrates the most favorable toxicity profile with an LD50 of 1600 mg/kg, which is twice that of Sorafenib and Regorafenib (800 mg/kg). All three drugs maintain toxicity class 4 classification. Cabozantinib shows high GI absorption, while Sorafenib and Regorafenib show low GI absorption. Sorafenib and Regorafenib have zero Lipinski violations, while Cabozantinib has one violation due to its molecular weight exceeding 500 Da.Despite the single Lipinski violation, Cabozantinib's superior LD50 value and high GI absorption make it a promising candidate with a favorable safety profile.
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Combined Analysis of Docking, ADME, and Toxicity Profiles}}
-\label{tab:combined_analysis_vegfa}
-\small
-\begin{tabular}{|l|c|c|c|}
-\hline
-\textbf{Parameter} & \textbf{Sorafenib} & \textbf{Regorafenib} & \textbf{Cabozantinib} \\
-\hline
-Docking (VEGFA) (kcal/mol) & -7.0 & -7.4 & -6.6 \\
-\hline
-Docking (PCCB) (kcal/mol) & -10.02 & -9.63 & -10.81 \\
-\hline
-GI Absorption & Low & Low & High \\
-\hline
-Lipinski Violations & 0 & 0 & 1 \\
-\hline
-PAINS Alerts & 0 & 0 & 0 \\
-\hline
-Brenk Alerts & 0 & 0 & 1 \\
-\hline
-Bioavailability Score & 0.55 & 0.55 & 0.55 \\
-\hline
-LD50 (mg/kg) & 800 & 800 & 1600 \\
-\hline
-Toxicity Class & 4 & 4 & 4 \\
-\hline
-\end{tabular}
-\end{table}
-
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Comparison of Docking, ADME, and Toxicity of HCC Drugs}}
-\label{tab:combined_docking_adme_toxicity}
-\small
-\begin{tabular}{|p{2.2cm}|p{2.0cm}|p{2.0cm}|p{1.8cm}|p{1.6cm}|p{1.4cm}|p{1.4cm}|}
-\hline
-\textbf{Drug} & \textbf{PCCB Docking (kcal/mol)} & \textbf{VEGFA Docking (kcal/mol)} & \textbf{GI Absorption} & \textbf{Lipinski} & \textbf{LD50 (mg/kg)} & \textbf{Toxicity Class} \\
-\hline
-Sorafenib & -10.0 & -7.0 & Low & Pass & 800 & 4 \\
-\hline
-Regorafenib & -9.6 & -7.4 & Low & Pass & 800 & 4 \\
-\hline
-Cabozantinib & -10.8 & -6.6 & High & 1 violation & 1600 & 4 \\
-\hline
-\end{tabular}
-\end{table}
-
-
-\section{Molecular Docking Analysis (SPRY4) }
-\subsection{Molecular Docking of Sorafenib Against SPRY4}
-
-Molecular docking of Sorafenib has performed against the SPRY4 protein (Sprouty RTK Signaling Antagonist 4), a tumor suppressor gene identified from SHAP analysis.Using the AlphaFold predicted structure (AF-Q9C004-F1) as no experimentally determined structure was available. Presented the docking results in Table 4.26.
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Molecular Docking Results of Sorafenib Against SPRY4}}
-\label{tab:sorafenib_spry4}
-\small
-\begin{tabular}{|p{1.9cm}|p{2.0cm}|p{2.0cm}|p{1.8cm}|p{2.2cm}|}
-\hline
-\textbf{Pocket ID} & \textbf{Vina Score (kcal/mol)} & \textbf{Cavity Volume (\AA³)} & \textbf{Center (x, y, z)} & \textbf{Docking Size (x, y, z)} \\
-\hline
-C4 & -8.2 & 131 & -6, 1, -14 & 27, 27, 27 \\
-\hline
-C1 & -7.7 & 1389 & -18, 1, -14 & 27, 27, 27 \\
-\hline
-C5 & -7.4 & 106 & 0, 1, -4 & 27, 27, 27 \\
-\hline
-C2 & -7.2 & 492 & 3, -8, -9 & 27, 27, 27 \\
-\hline
-C3 & -6.8 & 155 & 8, 4, -7 & 27, 27, 27 \\
-\hline
-\end{tabular}
-\end{table}
-Sorafenib bound most favorably to the C4 pocket, achieving a Vina score of -8.2 kcal/mol. This pocket had a cavity volume of 131 Å³ and was centered at coordinates -6, 1, -14, with a docking grid of 27 × 27 × 27 Å. I also found that Sorafenib showed promising binding to other pockets, including C1 (-7.7 kcal/mol, volume 1389 Å³), C5 (-7.4 kcal/mol, volume 106 Å³), C2 (-7.2 kcal/mol, volume 492 Å³), and C3 (-6.8 kcal/mol, volume 155 Å³).Consistently observed that the strongest binding was at the C4 pocket, suggesting this is the preferred binding site for Sorafenib on SPRY4.
-
-
-
-\subsection{Molecular Docking of Lenvatinib Against SPRY4}
-
-Also performed molecular docking of Lenvatinib against SPRY4, and present the results in Table 4.27. Lenvatinib exhibited the strongest binding affinity at the C2 pocket, with a Vina score of -7.5 kcal/mol. This pocket had a cavity volume of 492 Å³ and was centered at coordinates 3, -8, -9, with a docking grid of 25 × 25 × 25 Å.Lenvatinib also showed favorable binding to the C4 pocket (-7.2 kcal/mol, volume 131 Å³), C1 pocket (-7.0 kcal/mol, volume 1389 Å³), C5 pocket (-6.7 kcal/mol, volume 106 Å³), and C3 pocket (-5.9 kcal/mol, volume 155 Å³).Lenvatinib demonstrated moderate binding affinity compared to Sorafenib, with the C2 pocket being the preferred binding site.Also performed molecular docking of Lenvatinib against SPRY4, and presentED the results in Table 6.2. Lenvatinib exhibited the strongest binding affinity at the C2 pocket, with a Vina score of -7.5 kcal/mol. This pocket had a cavity volume of 492 Å³ and was centered at coordinates 3, -8, -9, with a docking grid of 25 × 25 × 25 Å. Lenvatinib also showed favorable binding to the C4 pocket (-7.2 kcal/mol, volume 131 Å³), C1 pocket (-7.0 kcal/mol, volume 1389 Å³), C5 pocket (-6.7 kcal/mol, volume 106 Å³), and C3 pocket (-5.9 kcal/mol, volume 155 Å³). Lenvatinib demonstrated moderate binding affinity compared to Sorafenib, with the C2 pocket being the preferred binding site.
-
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Molecular Docking Results of Lenvatinib Against SPRY4}}
-\label{tab:lenvatinib_spry4}
-\small
-\begin{tabular}{|p{1.9cm}|p{2.0cm}|p{2.0cm}|p{1.8cm}|p{2.2cm}|}
-\hline
-\textbf{Pocket ID} & \textbf{Vina Score (kcal/mol)} & \textbf{Cavity Volume (\AA³)} & \textbf{Center (x, y, z)} & \textbf{Docking Size (x, y, z)} \\
-\hline
-C2 & -7.5 & 492 & 3, -8, -9 & 25, 25, 25 \\
-\hline
-C4 & -7.2 & 131 & -6, 1, -14 & 25, 25, 25 \\
-\hline
-C1 & -7.0 & 1389 & -18, 1, -1 & 25, 25, 25 \\
-\hline
-C5 & -6.7 & 106 & 0, 1, -4 & 25, 25, 25 \\
-\hline
-C3 & -5.9 & 155 & 8, 4, -7 & 25, 25, 25 \\
-\hline
-\end{tabular}
-\end{table}
-
-\subsection{Molecular Docking of Regorafenib Against SPRY4}
-
-Further performed molecular docking of Regorafenib against SPRY4, and present the results in Table 4.28.Regorafenib showed strong binding affinity at both the C1 and C4 pockets, achieving Vina scores of -8.0 kcal/mol for both. The C1 pocket had a cavity volume of 1389 Å³ and was centered at coordinates -18, 1, -1, 4, with a docking grid of 26 × 26 × 26 Å. The C4 pocket had a cavity volume of 131 Å³ and was centered at coordinates -6, 1, -14.Also observed favorable binding to the C5 pocket (-7.3 kcal/mol, volume 106 Å³), C2 pocket (-7.1 kcal/mol, volume 492 Å³), and C3 pocket (-7.1 kcal/mol, volume 155 Å³). Regorafenib demonstrated comparable binding affinity to Sorafenib, with multiple pockets showing strong interactions.
-
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Molecular Docking Results of Regorafenib Against SPRY4}}
-\label{tab:regorafenib_spry4}
-\small
-\begin{tabular}{|p{1.9cm}|p{2.0cm}|p{2.0cm}|p{1.8cm}|p{2.2cm}|}
-\hline
-\textbf{Pocket ID} & \textbf{Vina Score (kcal/mol)} & \textbf{Cavity Volume (\AA³)} & \textbf{Center (x, y, z)} & \textbf{Docking Size (x, y, z)} \\
-\hline
-C1 & -8.0 & 1389 & -18, 1, -1, 4 & 26, 26, 26 \\
-\hline
-C4 & -8.0 & 131 & -6, 1, -14 & 26, 26, 26 \\
-\hline
-C5 & -7.3 & 106 & 0, 1, -4 & 26, 26, 26 \\
-\hline
-C2 & -7.1 & 492 & 3, -8, -9 & 26, 26, 26 \\
-\hline
-C3 & -7.1 & 155 & 8, 4, -7 & 26, 26, 26 \\
-\hline
-\end{tabular}
-\end{table}
-\subsection{Comparison of Docking Results Against SPRY4}
-
-Here performed a comparative analysis of the docking results for all three drugs against SPRY4, and presented the findings in Table 4.29. Sorafenib exhibited the strongest binding affinity with a Vina score of -8.2 kcal/mol at the C4 pocket, followed by Regorafenib (-8.0 kcal/mol at both C1 and C4 pockets) and Lenvatinib (-7.5 kcal/mol at the C2 pocket). Consistently observed that all three drugs showed preferential binding to pockets C4, C1, and C2, indicating these are the most favorable binding sites on SPRY4. These results suggest that Sorafenib may also interact with SPRY4, potentially contributing to its anti-cancer activity through multiple targets. The docking scores obtained for SPRY4 were lower than those observed for PCCB, suggesting that PCCB may be the primary target for these drugs.
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Comparative Docking Results of Drugs Against SPRY4}}
-\label{tab:comparative_spry4_meth}
-\small
-\begin{tabular}{|l|c|c|c|}
-\hline
-\textbf{Drug} & \textbf{Best Pocket} & \textbf{Vina Score (kcal/mol)} & \textbf{Cavity Volume (\AA³)} \\
-\hline
-Sorafenib & C4 & -8.2 & 131 \\
-\hline
-Regorafenib & C1 / C4 & -8.0 & 1389 / 131 \\
-\hline
-Lenvatinib & C2 & -7.5 & 492 \\
-\hline
-\end{tabular}
-\end{table}
-
-\section{Protein-Ligand Interaction Analysis}
-
-Here analyzing the protein-ligand interactions for the best docking poses of each drug against SPRY4 to understand the molecular basis of their binding affinities.
-
-\subsection{ Sorafenib-SPRY4 Interactions}
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=.75\linewidth]{docking figure/DNA/SORAFENIB_meth.jpg}
-    \caption{\textbf{SORAFENIB Methylation surface structure}}
-    \label{fig:SORAFENIB Methylation surface}
-\end{figure}
-Examining the interaction profile of Sorafenib bound to SPRY4 and identified several key residues involved in stabilizing the complex. Sorafenib formed interactions with residues including V129, R130, E185, E131, C186, L187, Q204, D221, T192, S189, Q191, and Y251. The presence of multiple charged and polar residues, such as R130, E185, and Q204, suggests that electrostatic interactions and hydrogen bonding play important roles in stabilizing the Sorafenib-SPRY4 complex. Hydrophobic residues like L187 and V129, which likely contribute to hydrophobic interactions within the binding pocket. The combination of these interactions contributes to the favorable binding affinity (-8.2 kcal/mol)is observed for Sorafenib at the C4 pocket.\\
-
-\textbf{Key Interactions: V129, R130, E185, E131, C186, L187, Q204, D221, T192, S189, Q191, Y251}
-
-\subsection{Regorafenib-SPRY4 Interactions}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=.75\linewidth]{docking figure/DNA/Regorafenib.jpg}
-    \caption{\textbf{Regorafenib Methylation surface structure}}
-    \label{fig:Regorafenib Methylation surface}
-\end{figure}
-
-Also analyzining the interaction profile of Regorafenib with SPRY4 and identified a more extensive network of interacting residues. Regorafenib interacted with residues including R127, A128, V129, R130, C201, I131, Q132, T193, E185, C183, L187, S189, Q191, Q194, and Q195.Regorafenib showed a broader interaction network compared to Sorafenib, involving additional residues such as R127, A128, C201, and Q132.The presence of multiple glutamine residues (Q132, Q191, Q194, Q195) suggests that hydrogen bonding networks may be particularly important for Regorafenib binding. Hydrophobic residues (A128, V129, L187, C183, C201) that likely contribute to hydrophobic interactions. The extensive interaction network observe may explain the comparable binding affinity (-8.0 kcal/mol) of Regorafenib to Sorafenib, despite differences in their chemical structures.\\
-
-\textbf{Key Interactions: R127, A128, V129, R130, C201, I131, Q132, T193, E185, C183, L187, S189, Q191, Q194, Q195}
-
-\subsection{Lenvatinib-SPRY4 Interactions}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=.75\linewidth]{docking figure/DNA/Lenvatinib.jpg}
-    \caption{\textbf{Lenvatinib Methylation surface structure}}
-    \label{fig:Lenvatinib Methylation surface}
-\end{figure}
-
-Further analyzed the interaction profile of Lenvatinib with SPRY4 and identified a smaller set of interacting residues. Lenvatinib interacted with residues including Q204, C224, C202, M200, D22, I222, Y196, N195, Y251, T192, T255, Q191, S189, and K25.Lenvatinib showed interactions with several residues that were also important for Sorafenib binding, such as Q204, Y251, T192, Q191, and S189. The presence of cysteine residues (C202, C224), which may form unique interactions with Lenvatinib. Methionine (M200) and isoleucine (I222), which likely contribute to hydrophobic interactions.The smaller interaction network observed for Lenvatinib may explain its relatively weaker binding affinity (-7.5 kcal/mol) compared to Sorafenib and Regorafenib.\\
-
-\textbf{Key Interactions: Q204, C224, C202, M200, D22, I222, Y196, N195, Y251, T192, T255, Q191, S189, K25}
-
-\subsection{ Comparative Analysis of Interactions}
-
-Performed a comparative analysis of the interaction profiles for all three drugs, and summarized the findings in Table 4.30. Sorafenib and Regorafenib shared several common interacting residues, including V129, R130, E185, L187, S189, Q191, and T192, suggesting these residues are important for the binding of both drugs. Regorafenib showed the most extensive interaction network, involving additional residues such as R127, A128, C201, I131, Q132, T193, C183, Q194, and Q195. Lenvatinib showed the most distinct interaction profile, with unique interactions involving C202, C224, M200, D22, I222, Y196, N195, T255, and K25. The differences in interaction profiles reflect the structural diversity of the three drugs and may explain their different binding affinities and selectivity profiles. The extensive interaction network observed for Regorafenib suggests it may form more stable complexes with SPRY4, while the unique interactions observed for Lenvatinib may offer opportunities for selective targeting.
-
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Comparative Analysis of Protein-Ligand Interactions}}
-\label{tab:protein_ligand_interactions}
-\small
-\begin{tabular}{|p{3cm}|p{5.5cm}|p{5cm}|}
-\hline
-\textbf{Drug} & \textbf{Key Interacting Residues} & \textbf{Notable Features} \\
-\hline
-Sorafenib & V129, R130, E185, E131, C186, L187, Q204, D221, T192, S189, Q191, Y251 & Strong electrostatic and hydrogen bonding network \\
-\hline
-Regorafenib & R127, A128, V129, R130, C201, I131, Q132, T193, E185, C183, L187, S189, Q191, Q194, Q195 & Extensive interaction network with multiple glutamine residues \\
-\hline
-Lenvatinib & Q204, C224, C202, M200, D22, I222, Y196, N195, Y251, T192, T255, Q191, S189, K25 & Unique interactions with cysteine and methionine residues \\
-\hline
-\end{tabular}
-\end{table}
-
-\section{ADME and Pharmacokinetic Analysis for SPRY4}
-
-\subsection{SwissADME Analysis of Sorafenib}
-
-
-
-The evaluation of pharmacokinetic properties of Sorafenib using SwissADME, and presented the results in the first part of Table 4.31. Sorafenib has a molecular weight of 464.82 g/mol, which falls within the acceptable range of less than 500. It has 7 hydrogen bond acceptors and 3 hydrogen bond donors, both of which are considered acceptable for drug-like molecules. The compound has 9 rotatable bonds, making it slightly flexible, and a topological polar surface area (TPSA) of 92.35 Å², which is suitable for oral drug administration. The consensus LogP value of 4.27 indicates that Sorafenib is moderately lipophilic.
-\begin{table}[htbp]
-\centering
-\caption{\textbf{SwissADME Interpretation of Sorafenib}}
-\label{tab:sorafenib_adme_meth}
-\small
-\begin{tabular}{|l|l|l|}
-\hline
-\textbf{Property} & \textbf{Result} & \textbf{Interpretation} \\
-\hline
-Molecular Weight & 464.82 g/mol & Acceptable ($<$500) \\
-\hline
-H-bond Acceptors & 7 & Acceptable \\
-\hline
-H-bond Donors & 3 & Acceptable \\
-\hline
-Rotatable Bonds & 9 & Slightly flexible \\
-\hline
-TPSA & 92.35 Å² & Suitable for oral drugs \\
-\hline
-Consensus LogP & 4.27 & Moderately lipophilic \\
-\hline
-GI Absorption & Low & Low predicted intestinal absorption \\
-\hline
-BBB Permeability & No & Does not readily cross the blood-brain barrier \\
-\hline
-Lipinski Rule & Yes (0 violations) & Excellent drug-likeness \\
-\hline
-Bioavailability Score & 0.55 & Good oral bioavailability prediction \\
-\hline
-PAINS Alerts & 0 & No problematic substructures \\
-\hline
-Brenk Alerts & 0 & No structural toxicity alerts \\
-\hline
-Synthetic Accessibility & 2.87 & Relatively easy to synthesize \\
-\hline
-\end{tabular}
-\end{table}
-Sorafenib has low GI absorption, suggesting poor predicted intestinal absorption. It does not readily cross the blood-brain barrier, which is favorable for minimizing central nervous system side effects. Sorafenib complies with Lipinski's Rule of Five with zero violations, indicating excellent drug-likeness.Calculated a bioavailability score of 0.55, which suggests good predicted oral bioavailability.Detected no PAINS alerts or Brenk alerts, indicating no problematic substructures or structural toxicity concerns.Sorafenib has a synthetic accessibility score of 2.87, making it relatively easy to synthesize.
-
-\subsection{SwissADME Analysis of Regorafenib}
-
-\begin{table}[htbp]
-\centering
-\caption{\textbf{SwissADME Interpretation of Regorafenib}}
-\label{tab:regorafenib_adme_meth}
-\small
-\begin{tabular}{|l|l|l|}
-\hline
-\textbf{Property} & \textbf{Value} & \textbf{Interpretation} \\
-\hline
-Molecular Weight & 482.82 g/mol & Acceptable ($<$500) \\
-\hline
-Consensus LogP & 4.64 & Moderately lipophilic \\
-\hline
-TPSA & 92.35 Å² & Good \\
-\hline
-GI Absorption & Low & Low predicted intestinal absorption \\
-\hline
-BBB Permeability & No & Does not cross the blood-brain barrier \\
-\hline
-Lipinski Violations & 0 & Excellent \\
-\hline
-Bioavailability Score & 0.55 & Good \\
-\hline
-PAINS Alerts & 0 & Excellent \\
-\hline
-Brenk Alerts & 0 & Excellent \\
-\hline
-Synthetic Accessibility & 3.04 & Easy to synthesize \\
-\hline
-\end{tabular}
-\end{table}
-Evaluated the pharmacokinetic properties of Regorafenib using SwissADME, and presented the results in Table 4.32. Regorafenib has a molecular weight of 482.82 g/mol, which is acceptable as it is below 500 Da. A consensus LogP value of 4.64, indicating moderate lipophilicity.TPSA is 92.35 Å², which is considered good for drug-like molecules. Regorafenib has low GI absorption, similar to Sorafenib, suggesting low predicted intestinal absorption. It does not cross the blood-brain barrier, which is favorable for minimizing central nervous system side effects. Regorafenib has zero Lipinski violations, indicating excellent drug-likeness. Calculated a bioavailability score of 0.55, suggesting good predicted oral bioavailability. Here, detected no PAINS or Brenk alerts, indicating excellent structural safety. Regorafenib has a synthetic accessibility score of 3.04, making it easy to synthesize
-
-\subsection{SwissADME Analysis of Cabozantinib}
-
-Further evaluation of the pharmacokinetic properties of Cabozantinib using SwissADME, and present the results in Table 4.33. Cabozantinib has a molecular weight of 501.51 g/mol, which is slightly above the Lipinski limit of 500. A consensus LogP value of 4.61, indicating moderate lipophilicity. TPSA is 98.78 Å², which is considered acceptable for drug-like molecules. Cabozantinib has high GI absorption, which is better than the predicted intestinal absorption of Sorafenib. It does not readily cross the blood-brain barrier, which is favorable for minimizing central nervous system side effects. Cabozantinib is predicted to be a P-glycoprotein substrate, meaning it may be actively transported by P-glycoprotein. Cabozantinib has one Lipinski violation due to its molecular weight exceeding 500, but consider it still drug-like despite this single violation. A bioavailability score of 0.55, suggesting good predicted oral bioavailability. Detected no PAINS alerts, indicating no problematic substructures. However, one Brenk alert (beta-keto anhydride), which may warrant attention as a structural toxicity concern.Cabozantinib has a synthetic accessibility score of 3.09, making it reasonably easy to synthesize.
-
-\begin{table}[H]
-\centering
-\caption{\textbf{SwissADME Interpretation of Cabozantinib}}
-\label{tab:cabozantinib_adme_meth}
-\small
-\begin{tabular}{|p{3cm}|p{2.4cm}|p{6cm}|}
-\hline
-\textbf{Property} & \textbf{Value} & \textbf{Interpretation} \\
-\hline
-Molecular Weight & 501.51 g/mol & Slightly above Lipinski limit (500) \\
-\hline
-Consensus LogP & 4.61 & Moderately lipophilic \\
-\hline
-TPSA & 98.78 Å\textsuperscript{2} & Acceptable \\
-\hline
-GI Absorption & High & Better predicted intestinal absorption than Sorafenib \\
-\hline
-BBB Permeability & No & Does not readily cross the blood-brain barrier \\
-\hline
-P-gp Substrate & Yes & May be actively transported by P-glycoprotein \\
-\hline
-Lipinski Violations & 1 (MW $>$500) & Still considered drug-like despite one violation \\
-\hline
-Bioavailability Score & 0.55 & Good predicted oral bioavailability \\
-\hline
-PAINS Alerts & 0 & No problematic substructures \\
-\hline
-Brenk Alerts & 1 & One structural alert (beta-keto anhydride) that may warrant attention \\
-\hline
-Synthetic Accessibility & 3.09 & Reasonably easy to synthesize \\
-\hline
-\end{tabular}
-\end{table}
-
-\subsection{Comprehensive-Comparative Physicochemical Comparison}
-Further evaluation  the pharmacokinetic properties of Cabozantinib using SwissADME, and present the results in Table 4.34. Cabozantinib has a molecular weight of 501.51 g/mol, which is slightly above the Lipinski limit of 500. Observed a consensus LogP value of 4.61, indicating moderate lipophilicity. The TPSA is 98.78 Å², which is considered acceptable for drug-like molecules. Cabozantinib has high GI absorption, which is better than the predicted intestinal absorption of Sorafenib. It does not readily cross the blood-brain barrier, which is favorable for minimizing central nervous system side effects. \\
-\begin{table}[H]
-\centering
-\caption{\textbf{Comprehensive Physicochemical Comparison of FDA-Approved HCC Drugs}}
-\label{tab:comprehensive_physicochemical}
-\footnotesize  % Even smaller than \small
-\begin{tabular}{|l|c|c|c|}
-\hline
-\textbf{Parameter} & \textbf{Sorafenib} & \textbf{Regorafenib} & \textbf{Cabozantinib} \\
-\hline
-Molecular Formula & C$_{21}$H$_{16}$ClF$_{3}$N$_{4}$O$_{3}$ & C$_{21}$H$_{15}$ClF$_{4}$N$_{4}$O$_{3}$ & C$_{28}$H$_{24}$FN$_{3}$O$_{5}$ \\
-\hline
-Molecular Weight (g/mol) & 464.82 & 482.82 & 501.51 \\
-\hline
-Consensus LogP & 4.27 & 4.64 & 4.61 \\
-\hline
-TPSA (Å\textsuperscript{2}) & 92.35 & 92.35 & 98.78 \\
-\hline
-H-Bond Acceptors & 7 & 8 & 7 \\
-\hline
-H-Bond Donors & 3 & 3 & 2 \\
-\hline
-Rotatable Bonds & 9 & 9 & 10 \\
-\hline
-GI Absorption & Low & Low & High \\
-\hline
-BBB Permeability & No & No & No \\
-\hline
-P-gp Substrate & No & No & Yes \\
-\hline
-Lipinski Rule & Yes (0 violations) & Yes (0 violations) & Yes (1 violation: MW $ > $ 500) \\
-\hline
-Veber Rule & Yes & Yes & Yes \\
-\hline
-Egan Rule & No (1 violation) & No (1 violation) & Yes \\
-\hline
-Muegge Filter & Yes & Yes & No (1 violation) \\
-\hline
-Bioavailability Score & 0.55 & 0.55 & 0.55 \\
-\hline
-PAINS Alerts & 0 & 0 & 0 \\
-\hline
-Brenk Alerts & 0 & 0 & 1 \\
-\hline
-Lead-likeness & No (3 violations) & No (3 violations) & No (3 violations) \\
-\hline
-Synthetic Accessibility & 2.87 & 3.04 & 3.09 \\
-\hline
-\end{tabular}
-\end{table}
-
-Cabozantinib is predicted to be a P-glycoprotein substrate, meaning it may be actively transported by P-glycoprotein. Cabozantinib has one Lipinski violation due to its molecular weight exceeding 500, but it still drug-like despite this single violation. A bioavailability score of 0.55, suggesting good predicted oral bioavailability. Detected no PAINS alerts, indicating no problematic substructures. However,  one Brenk alert (beta-keto anhydride), which may warrant attention as a structural toxicity concern. Cabozantinib has a synthetic accessibility score of 3.09, making it reasonably easy to synthesize.
-
-
-
-\subsection{Comperative Analysis}
-
-The additional physicochemical properties presented in Table 4.35.Cabozantinib has the highest molecular weight (501.51 g/mol) and the highest number of rotatable bonds (10). Cabozantinib has 7 hydrogen bond acceptors compared to 7 for Sorafenib and 6 for Regorafenib. 
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Comparative SwissADME Analysis of FDA-Approved HCC Drugs}}
-\label{tab:comparative_adm_methe}
-\small
-\begin{tabular}{|l|c|c|c|}
-\hline
-\textbf{Property} & \textbf{Sorafenib} & \textbf{Regorafenib} & \textbf{Cabozantinib} \\
-\hline
-Docking (PCCB) & -10.0 & -9.6 & -10.8 \\
-\hline
-Molecular Weight (g/mol) & 464.82 & 482.82 & 501.51 \\
-\hline
-GI Absorption & Low & Low & High \\
-\hline
-Lipinski Violations & 0 & 0 & 1 \\
-\hline
-PAINS Alerts & 0 & 0 & 0 \\
-\hline
-Brenk Alerts & 0 & 0 & 1 \\
-\hline
-Bioavailability Score & 0.55 & 0.55 & 0.55 \\
-\hline
-\end{tabular}
-\end{table}
-Cabozantinib has 2 hydrogen bond donors compared to 3 for both Sorafenib and Regorafenib. Cabozantinib has a TPSA of 98.78 Å², which is slightly higher than the 92.35 Å² observed for both Sorafenib and Regorafenib. All three drugs do not cross the blood-brain barrier.Cabozantinib is the only drug predicted to be a P-glycoprotein substrate. All three drugs fail the lead-likeness filter with 3 violations each, suggesting they may be too large for ideal lead compounds. I also found that all three drugs pass the Veber Rule, indicating good oral bioavailability potential. Regorafenib fails the Egan Rule with one violation, while Cabozantinib passes. Cabozantinib fails the Muegge Filter with one violation, while Sorafenib and Regorafenib pass. The synthetic accessibility scores range from 2.87 to 3.09, indicating that all three drugs are relatively easy to synthesize.
-
-
-\subsection{Summary of ADME Findings}
-
-Based on our integrated ADME analysis, Cabozantinib demonstrates the most favorable pharmacokinetic profile with high GI absorption, good bioavailability, and acceptable drug-likeness despite one Lipinski violation. Sorafenib and Regorafenib show similar ADME profiles with low GI absorption and excellent drug-likeness. Cabozantinib's P-glycoprotein substrate status and Brenk alert require consideration for potential drug-drug interactions and toxicity monitoring. However, Cabozantinib's superior GI absorption and favorable safety profile make it the most promising candidate for further development.
-
-\section{Toxicity Analysis and Integrated Drug Ranking}
-
-\subsection{ProTox-3 Toxicity Interpretation}
-
-\begin{table}[htbp]
-\centering
-\caption{\textbf{ProTox-3 Toxicity Interpretation of Drugs}}
-\label{tab:toxicity_interpretation}
-\small
-\begin{tabular}{|p{2.5cm}|p{1.6cm}|p{2.5cm}|p{6cm}|}
-\hline
-\textbf{Drug} & \textbf{LD50 (mg/kg)} & \textbf{Toxicity Class} & \textbf{Interpretation} \\
-\hline
-Sorafenib & 800 & 4 & Harmful if swallowed; moderate acute toxicity \\
-\hline
-Lenvatinib & 3000 & 5 & Lower acute toxicity than Sorafenib \\
-\hline
-Regorafenib & 800 & 4 & Moderate acute toxicity \\
-\hline
-\end{tabular}
-\end{table}
-
-Evaluation of the acute toxicity profiles of the three drug candidates using ProTox-3, and present the results in Table 4.36. Sorafenib and Regorafenib both exhibited a predicted LD50 of 800 mg/kg, placing them in toxicity class 4, which indicates moderate acute toxicity and is classified as "harmful if swallowed." For Lenvatinib, a significantly higher LD50 value of 3000 mg/kg, which falls into toxicity class 5, indicating lower acute toxicity than Sorafenib and Regorafenib. The interpretation this higher LD50 as suggesting a more favorable safety profile for Lenvatinib compared to the other two drugs. Based on these findings, Lenvatinib may offer the best safety profile among the three drug candidates.
-
-\subsection{Comparative ProTox-3 Analysis}
-
-\begin{table}[htbp]
-\centering
-\caption{\textbf{Final ProTox-3 Comparison of Drugs}}
-\label{tab:final_toxicity}
-\small
-\begin{tabular}{|l|c|c|c|}
-\hline
-\textbf{Parameter} & \textbf{Sorafenib} & \textbf{Lenvatinib} & \textbf{Regorafenib} \\
-\hline
-LD50 (mg/kg) & 800 & 3000 & 800 \\
-\hline
-Toxicity Class & 4 & 5 & 4 \\
-\hline
-Average Similarity (\%) & 53.45 & 53.43 & 53.12 \\
-\hline
-Prediction Accuracy (\%) & 67.38 & 67.38 & 67.38 \\
-\hline
-Molecular Weight (g/mol) & 464.83 & 426.85 & 482.82 \\
-\hline
-logP & 6.09 & 5.24 & 6.23 \\
-\hline
-TPSA (Å²) & 92.35 & 115.57 & 92.35 \\
-\hline
-\end{tabular}
-\end{table}
-
-A comprehensive comparison of the ProTox-3 results for all three drugs, and present the detailed findings in Table 4.37. Lenvatinib has the highest predicted LD50 value of 3000 mg/kg, while both Sorafenib and Regorafenib have LD50 values of 800 mg/kg. Lenvatinib falls into toxicity class 5, whereas Sorafenib and Regorafenib are in toxicity class 4. The average similarity values and found that Sorafenib has the highest similarity (53.45 \%), followed by Lenvatinib (53.43 \%) and Regorafenib (53.12 \%), indicating acceptable model confidence for all three drugs. The prediction accuracy was consistent at 67.38 \% for all three drugs. Also analyzed the physicochemical properties and found that Lenvatinib has the lowest molecular weight (426.85 g/mol) and the lowest logP value (5.24), suggesting comparatively lower lipophilicity. Lenvatinib has the highest TPSA of 115.57 Å², compared to 92.35 Å² for both Sorafenib and Regorafenib, which may influence its absorption and distribution properties.\\
-
-
-\subsection{Integrated Analysis and Drug Ranking}
-Based on my combined docking, ADME, and toxicity analyses, present the final comparison of drug candidates in Table 4.38. Sorafenib demonstrated the strongest binding affinity (-8.2 kcal/mol) among the three drugs, with acceptable drug-likeness and moderate toxicity. Regorafenib showed a comparable docking score (-8.0 kcal/mol) but lower pharmacokinetic performance than Sorafenib. Noted that Lenvatinib had the lowest docking score (-7.5 kcal/mol) among the three, although it exhibited the best ADME and toxicity profile with high GI absorption and the highest LD50 value (3000 mg/kg).\\\\\\
-
-\begin{table}[H]
-\centering
-\caption{\textbf{Final Comparison of Drug Candidates}}
-\label{tab:final_comparison_drugs}
-\small
-\begin{tabular}{|p{1.6cm}|p{2.2cm}|p{1.8cm}|p{1.3cm}|p{1.3cm}|p{1.2cm}|p{2.5cm}|}
-\hline
-\textbf{Drug} & \textbf{Best Docking Score (kcal/mol)} & \textbf{GI Absorption} & \textbf{Lipinski} & \textbf{Toxicity Class} & \textbf{LD50 (mg/kg)} & \textbf{Overall Assessment} \\
-\hline
-Sorafenib & -8.2 & Low & Pass & 4 & 800 & Strongest binding but moderate toxicity and low absorption \\
-\hline
-Lenvatinib & -7.5 & High & Pass & 5 & 3000 & Best pharmacokinetic and toxicity profile \\
-\hline
-Regorafenib & -8.0 & Low & Pass & 4 & 800 & Strong docking but moderate toxicity and poor absorption \\
-\hline
-\end{tabular}
-\end{table}
-
-\section{Comparison with the State-of-the Related Work and Comparative Analysis}
-
-The comparison demonstrates that although previous studies have explored stage classification and biomarker discovery, few have combined transcriptomic and epigenomic integration with independent external validation using GEO datasets. The present study addresses these gaps by integrating RNA-seq and DNA methylation data, applying multiple ML algorithms, validating biomarkers using an independent GEO cohort, and extending the analysis to SHAP-based biomarker prioritization and computational drug discovery.
-
-\begin{table}[H]
-\centering
-\caption{\textbf{Comparison Analysis of Related Works}}
-\label{tab:literature_review_comparison}
-
-\resizebox{\textwidth}{!}{%
-
-\begin{tabular}{|p{2.0cm}|p{1.7cm}|p{3cm}|p{1.5cm}|p{2.3cm}|p{2.8cm}|p{1.7cm}|p{3.0cm}|p{3.0cm}|}
-
-\hline
-\textbf{Study} &
-\textbf{Data Source} &
-\textbf{Data Type} &
-\textbf{Sample Size} &
-\textbf{Methodology} &
-\textbf{Primary Task} &
-\textbf{External Validation} &
-\textbf{Key Findings} &
-\textbf{Limitations}
-\\
-\hline
-
-Chaudhary et al. (2018) \cite{chaudhary2018deep}
-&
-TCGA-LIHC
-&
-Multi-Omics
-&
-360
-&
-Deep Learning (Autoencoder)
-&
-Survival Prediction
-&
-Yes
-&
-Improved survival prediction through multi-omics integration
-&
-Not designed for stage classification
-\\
-\hline
-
-Kaur et al. (2019) \cite{kaur2019classification}
-&
-TCGA-LIHC
-&
-RNA + DNA Methylation
-&
-377
-&
-SVM, Naïve Bayes, RF
-&
-Early vs Late Stage Classification
-&
-No
-&
-Identified stage-associated molecular signatures
-&
-No external validation
-\\
-\hline
-
-Wang et al. (2020) \cite{dong2025integration}
-&
-TCGA-LIHC
-&
-Transcriptomics
-&
-424
-&
-SVM + RF
-&
-Cancer vs Normal
-&
-No
-&
-High classification performance
-&
-Not stage prediction
-\\
-\hline
-
-Tang et al. (2020) \cite{tang2015high}
-&
-TCGA-LIHC
-&
-miRNA
-&
-371
-&
-Machine Learning
-&
-Stage Prediction
-&
-No
-&
-Stage-associated miRNA biomarkers
-&
-Single omics
-\\
-\hline
-
-Li et al. (2021) \cite{li2024machine}
-&
-TCGA-LIHC
-&
-DNA Methylation
-&
-377
-&
-LASSO
-&
-Survival Prediction
-&
-No
-&
-Prognostic methylation signatures
-&
-No transcriptomics integration
-\\
-\hline
-
-Chen et al. (2022) \cite{monika2025texnet}
-&
-TCGA-LIHC
-&
-Transcriptomics
-&
-365
-&
-XGBoost
-&
-Stage Classification
-&
-No
-&
-Boosting effective for stage prediction
-&
-No methylation data
-\\
-\hline
-
-Zheng et al. (2023) \cite{zheng2017cbx6}
-&
-TCGA-LIHC
-&
-DNA Methylation
-&
-389
-&
-Random Forest
-&
-Multi-Class Stage Classification
-&
-No
-&
-Stage-related methylation biomarkers
-&
-No transcriptomics
-\\
-\hline
-
-Ahmed et al. \cite{dai2025automated}
-&
-TCGA-LIHC
-&
-Transcriptomics
-&
-421
-&
-Deep Learning
-&
-Stage Classification
-&
-Yes
-&
-Validated biomarkers in independent cohorts
-&
-Single omics
-\\
-\hline
-
-\textbf{Present Study}
-&
-TCGA-LIHC + GSE14520
-&
-RNA-seq + DNA Methylation
-&
-348 (TCGA) + 219 (GEO)
-&
-SVM, RF, XGBoost, Ensemble
-&
-Stage Classification and Biomarker Discovery
-&
-Yes
-&
-132 candidate biomarkers identified; 8 biomarkers externally validated
-&
-Single GEO cohort; no wet-lab validation
-\\
-\hline
-
-\end{tabular}
-
-}
-
-\end{table}
-
-
-
-
+\section{Summary}
+\label{sec:4.14}
 
 
 
