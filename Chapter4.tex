@@ -36,31 +36,31 @@ Before turning to the models, Table~\ref{tab:4.1} summarizes the five input vari
 
 Each entry in Table~\ref{tab:4.1} is built from 25 rows of per-station descriptive statistics --- one mean, SD, minimum, maximum, and missing percentage per station, per variable --- rather than from the raw observation-level data directly, so it is worth being explicit about how each column was pooled across stations.
 
-Min and Max are exact. The lowest value recorded anywhere in the dataset has to be the lowest of the 25 station-level minimums, and the same logic applies to the maximum, so no information is lost by pooling this way: Water Level's $-0.92$~m minimum comes from station SW147.5, and its 52.9~m maximum from SW291.5R.
+% Min and Max are exact. The lowest value recorded anywhere in the dataset has to be the lowest of the 25 station-level minimums, and the same logic applies to the maximum, so no information is lost by pooling this way: Water Level's $-0.92$~m minimum comes from station SW147.5, and its 52.9~m maximum from SW291.5R.
 
-Mean is the unweighted average of the 25 station means --- for Water Level, the sum of all 25 station means divided by 25, giving 12.528~m; for Discharge, the same calculation but divided by 15, since the ten stations without a discharge sensor are excluded from both the sum and the count rather than treated as zero. This is a reasonable summary but not, strictly, the true pooled mean of every individual observation: the mathematically correct pooled mean would weight each station by how many valid readings it actually contributed, and that per-station observation count was not available from the summary file this table was built from. Two stations with very different record lengths count equally in the average reported here, which is worth keeping in mind if a station with an unusually short record turns out to be pulling a variable's mean in one direction.
+% Mean is the unweighted average of the 25 station means --- for Water Level, the sum of all 25 station means divided by 25, giving 12.528~m; for Discharge, the same calculation but divided by 15, since the ten stations without a discharge sensor are excluded from both the sum and the count rather than treated as zero. This is a reasonable summary but not, strictly, the true pooled mean of every individual observation: the mathematically correct pooled mean would weight each station by how many valid readings it actually contributed, and that per-station observation count was not available from the summary file this table was built from. Two stations with very different record lengths count equally in the average reported here, which is worth keeping in mind if a station with an unusually short record turns out to be pulling a variable's mean in one direction.
 
-SD is the weakest number in the table, which is why it carries the asterisk. It is simply the average of the 25 stations' own standard deviations, and that calculation only captures how spread out readings are \emph{within} each station --- it says nothing about how much the stations' means differ \emph{from each other}. Water level ranges from a mean of under 2~m at some stations to over 50~m at others, reflecting different physical baselines along the river network, so the between-station spread is almost certainly large. A properly pooled SD, using the law of total variance, would combine the within-station variance with that between-station term and would very likely come out meaningfully higher than the 2.033~m reported here. Computing it correctly needs the raw per-station observation counts (or the original time series), neither of which this table draws from, so it is reported as-is with this caveat attached rather than corrected with an unsupported estimate.
+% SD is the weakest number in the table, which is why it carries the asterisk. It is simply the average of the 25 stations' own standard deviations, and that calculation only captures how spread out readings are \emph{within} each station --- it says nothing about how much the stations' means differ \emph{from each other}. Water level ranges from a mean of under 2~m at some stations to over 50~m at others, reflecting different physical baselines along the river network, so the between-station spread is almost certainly large. A properly pooled SD, using the law of total variance, would combine the within-station variance with that between-station term and would very likely come out meaningfully higher than the 2.033~m reported here. Computing it correctly needs the raw per-station observation counts (or the original time series), neither of which this table draws from, so it is reported as-is with this caveat attached rather than corrected with an unsupported estimate.
 
-Missing~\% is reported two ways for exactly this reason. The 68.44\% figure for Discharge in the main table is the average missing percentage across all 25 stations, and it comes out high mainly because the ten stations with no discharge sensor at all are counted as 100\% missing rather than excluded. The 47.41\% figure in the footnote instead averages only across the 15 stations that do have a sensor, which is the more useful number for judging how gappy that instrument's record actually is once it exists. The two answer different questions --- the first is closer to "how complete is discharge across the full station panel," the second to "how reliable is the discharge sensor where one is installed" --- and both are kept because both matter for different parts of the pipeline described in Section~\ref{sec:3.9.2}.
+% Missing~\% is reported two ways for exactly this reason. The 68.44\% figure for Discharge in the main table is the average missing percentage across all 25 stations, and it comes out high mainly because the ten stations with no discharge sensor at all are counted as 100\% missing rather than excluded. The 47.41\% figure in the footnote instead averages only across the 15 stations that do have a sensor, which is the more useful number for judging how gappy that instrument's record actually is once it exists. The two answer different questions --- the first is closer to "how complete is discharge across the full station panel," the second to "how reliable is the discharge sensor where one is installed" --- and both are kept because both matter for different parts of the pipeline described in Section~\ref{sec:3.9.2}.
 
-With that groundwork in place, two things stand out in the table itself. Missingness is uneven: water level (3.38\%), rainfall (0.48\%), and evaporation (1.66\%) are largely complete, while temperature is missing for 24.08\% of records and discharge for 68.44\%. Much of that reflects coverage rather than failure --- discharge is measured at only 15 of the 25 stations, and even among those the missing share is 47.41\%, while temperature's collection period is shorter than the study period (Table~\ref{tab:3.2}). It is also why discharge is never filled from a global average or borrowed from another station (Section~\ref{sec:3.9.2}).
+% With that groundwork in place, two things stand out in the table itself. Missingness is uneven: water level (3.38\%), rainfall (0.48\%), and evaporation (1.66\%) are largely complete, while temperature is missing for 24.08\% of records and discharge for 68.44\%. Much of that reflects coverage rather than failure --- discharge is measured at only 15 of the 25 stations, and even among those the missing share is 47.41\%, while temperature's collection period is shorter than the study period (Table~\ref{tab:3.2}). It is also why discharge is never filled from a global average or borrowed from another station (Section~\ref{sec:3.9.2}).
 
-The second point is the extremes. The evaporation range ($-145.796$ to 115.15~mm) lies far outside any physically plausible daily value and most likely reflects recording errors in the source records rather than real evaporation; it is noted here for transparency rather than corrected, since the underlying cause has not been confirmed. Rainfall, by contrast, is heavily skewed as expected for a monsoon climate, with a mean of 4.753~mm against a maximum of 540~mm.
+% The second point is the extremes. The evaporation range ($-145.796$ to 115.15~mm) lies far outside any physically plausible daily value and most likely reflects recording errors in the source records rather than real evaporation; it is noted here for transparency rather than corrected, since the underlying cause has not been confirmed. Rainfall, by contrast, is heavily skewed as expected for a monsoon climate, with a mean of 4.753~mm against a maximum of 540~mm.
 
 Figure~\ref{fig:4.1} shows representative historical series for one station, and Figure~\ref{fig:4.2} the correlations among the five variables. The correlation matrix describes linear association only and should not be read as evidence of causation.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.9\textwidth]{figures2/fig4-1-historical-timeseries.png}
-    \caption{Representative historical time series (water level, discharge, rainfall, temperature, evaporation) for one station.}
+    \caption{Representative historical time series (of 5 variables) for one station.}
     \label{fig:4.1}
 \end{figure}
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.7\textwidth]{figures2/fig4-2-correlation-heatmap.png}
-    \caption{Correlation heatmap across the five variables. This shows association, not causation.}
+    \caption{Correlation heatmap across the five variables.}
     \label{fig:4.2}
 \end{figure}
 
@@ -74,7 +74,7 @@ Figure~\ref{fig:4.1} shows representative historical series for one station, and
 \section{Comparison with Baseline Models}
 \label{sec:4.5}
 
-Table~\ref{tab:4.2} reports overall test-set performance for the four baseline models specified in Chapter~3, with a row reserved for CFL-EDLSTM once its results are complete (Section~4.4). Every value is reproduced exactly from the underlying result files.
+Table~\ref{tab:4.2} reports overall test-set performance for the four baseline models specified in Chapter~3. 
 
 \begin{table}[htbp]
   \centering
@@ -90,7 +90,7 @@ Table~\ref{tab:4.2} reports overall test-set performance for the four baseline m
     Vanilla LSTM & 105{,}675 & 0.496084 & 0.721850 & 0.521068 & 0.995983 & 0.996663 & 0.999000 \\
     GRU & 105{,}675 & 0.501721 & 0.743300 & 0.552495 & 0.995741 & 0.995845 & 0.998929 \\
     TCN & 105{,}675 & 0.573665 & 0.852950 & 0.727523 & 0.994391 & 0.994697 & 0.998603 \\
-    CFL-EDLSTM & --- & --- & --- & --- & --- & --- & --- \\
+    % CFL-EDLSTM & --- & --- & --- & --- & --- & --- & --- \\
     \bottomrule
   \end{tabular}
   \caption*{\footnotesize MAE and RMSE in metres; MSE in square metres. CFL-EDLSTM row pending (Section~4.4).}
@@ -238,14 +238,14 @@ The general rise in error with lead time is the pattern earlier multi-step flood
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.95\textwidth]{figures2/fig4-4-model-horizon-heatmap.png}
-    \caption{Model $\times$ horizon performance heatmap, built from Tables~\ref{tab:4.3} and~\ref{tab:4.4}, to be extended with CFL-EDLSTM once its results are available.}
+    \caption{Model $\times$ horizon performance heatmap.}
     \label{fig:4.4}
 \end{figure}
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.9\textwidth]{figures2/fig4-5-horizon-degradation.png}
-    \caption{Horizon degradation: RMSE against forecast horizon, one line per model. CFL-EDLSTM's own curve will be added once its horizon-wise results are available, to show whether it degrades more slowly than Vanilla LSTM at long horizons.}
+    \caption{Horizon degradation: RMSE against forecast horizon, one line per model.}
     \label{fig:4.5}
 \end{figure}
 
