@@ -3,7 +3,7 @@
 % for customizing the page size
 
 %New Add
-\usepackage[hidelinks]{hyperref}
+\usepackage[hidelinks,unicode=false]{hyperref}
 
 \usepackage{indentfirst}
 
@@ -17,6 +17,7 @@
 \usepackage{fancyhdr}
 \pagestyle{fancy}
 \fancyhf{}
+\setlength{\headheight}{14pt}
 %
 \renewcommand{\chaptermark}[1]{\markboth{\MakeUppercase{#1}}{}}
 \renewcommand{\sectionmark}[1]{\markright{\MakeUppercase{#1}}{}}
@@ -30,8 +31,10 @@
 %\setlength{\parskip}{.6cm}
 \renewcommand{\baselinestretch}{1.5}
 %
-\usepackage{color}
+\usepackage[table]{xcolor}
 \usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, calc, fit}
 \usepackage{float}
 \usepackage{latexsym}
 %\usepackage[tight,footnotesize]{subfigure}%

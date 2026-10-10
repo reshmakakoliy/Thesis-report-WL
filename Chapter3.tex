@@ -1,3 +1,5 @@
+% !TeX root = Main.tex
+
 \chapter{Methodology}
 \label{ch:methodology}
 
@@ -16,7 +18,7 @@ This is a quantitative, experimental study built around a comparative design: on
 \section{Overall Proposed Framework}
 \label{sec:3.3}
 
-At its core, the framework combines two ideas that Chapter~2 examined separately: a sequence-to-sequence Encoder--Decoder LSTM for multi-step forecasting \cite{Kao2020,Cui2022}, and a clustered federated training procedure in which stations are grouped by hydrological similarity and each group trains its own model via Federated Averaging \cite{McMahan2017,Ghosh2021,Harshvardhan2022}. Rather than pooling every station's data into one central model, each of the 25 stations trains locally within its assigned cluster, and only model parameters --- never raw station data --- are shared and aggregated.
+At its core, the framework combines two ideas that Chapter~2 examined separately: a sequence-to-sequence Encoder--Decoder LSTM for multi-step forecasting \cite{Kao2020,Cui2022}, and a clustered federated training procedure in which stations are grouped by hydrological similarity and each group acts as a federated client, trained and combined through Federated Averaging \cite{McMahan2017,Ghosh2021,Harshvardhan2022}. Rather than pooling every station's data into one central model, each of the four clusters trains on its own stations' data, and only model parameters --- never raw windows --- are shared and aggregated across clusters. The shared model that results is then adapted locally, so each cluster forecasts with a model that reflects its own hydrological character; Section~\ref{sec:3.12} sets out the details.
 
 \vspace{0.3cm}
 \begin{figure}[htbp]
@@ -40,7 +42,7 @@ BWDB classifies each station as tidal or non-tidal: 5 of the 25 stations, all of
 \begin{table}[htbp]
   \centering
   \caption{River System Distribution}
-  \label{tab:3.0}
+  \label{tab:river-distribution}
   \small
   \begin{tabular}{@{}L{5.0cm} C{1.7cm} L{3.8cm} L{2.2cm}@{}}
     \toprule
@@ -277,7 +279,8 @@ Before any of the four supporting variables get merged in, the station metadata 
 
 Missing water-level readings aren't treated as random noise. A large share of them are almost certainly tied to flooding itself, since gauges can fail or go unread precisely when water levels spike --- which means the gaps that matter most are exactly the ones a careless imputation method would handle worst. Where a gap coincides with a known event, it's checked against BWDB flood reports and the surrounding water-level trajectory at that station, and only reconstructed where both the report and the neighboring readings genuinely support a specific value --- with reconstructed points flagged separately from directly observed ones from that point on. Where the evidence isn't strong enough to reconstruct with any confidence, the gap stays marked as missing rather than being papered over.
 
-Discharge is handled more conservatively, since it maps directly to specific stations and simply isn't available at all of them. A missing MDD value is recorded as unavailable, never as zero, and is never filled in from a global average or borrowed from another station. Gaps in rainfall, temperature, and evaporation are handled on the same principle --- assessed variable by variable and source by source.
+% Discharge is handled separately because MDD measurements are not available at every monitoring station. Missing MDD values are first filled through interpolation, followed by forward filling and backward filling. Any values that remain missing are then replaced with zero. As a result, MDD values at the ten monitoring stations without discharge sensors are represented as zero throughout the series. Missing values in rainfall, temperature, and evaporation are processed using the same sequence of steps.
+Discharge is handled separately because MDD measurements are not available at every monitoring station. Missing MDD values are first filled through interpolation, followed by forward filling and backward filling. Any values that remain missing are then replaced with zero. As a result, MDD values at the ten monitoring stations without discharge sensors are represented as zero throughout the series. Missing values in rainfall, temperature, and evaporation are processed using the same sequence of steps.
 
 % One station needs an explicit note rather than silent handling: the Narayanganj Sadar rainfall record contains only 61 entries, against roughly 5,900 for every other rainfall station. It is retained in the dataset --- removing it now would require re-touching totals and figures already finalized elsewhere in this thesis, and no alternative or supplementary source is currently available for it --- but its extremely limited coverage means it should be treated with caution in any rainfall-dependent feature or result specific to that station, and this limitation is stated explicitly here rather than left for a reader to discover on their own.
 
@@ -385,7 +388,7 @@ which captures both short, sharp rainfall events and longer wet spells, using on
 Rainfall, discharge, temperature, and evaporation are each given lagged versions at offsets of roughly 1, 2, 3, 5, 7, and 14 days, depending on what the data actually supports, and water-level lags are built from its own preceding observations or matching daily slots. These daily-variable lags are computed on the original daily series first, before that series gets expanded across the five water-level slots --- doing it the other way around would treat five copies of the same value as five independent lags and quietly produce the wrong interval.
 
 \paragraph{Discharge-derived features.}
-Recent flow conditions are represented through rolling means of discharge over 3-, 7-, 14-, and, where the data allows, 30-day windows, along with rolling maximum discharge over 7- and 14-day windows to flag recent high-flow periods. One- and three-day discharge differences are also included. None of these are computed where the underlying discharge observations don't meet the completeness rules already set in \S\ref{sec:3.9.2} --- a missing discharge value is never treated as zero for the purpose of building a rolling feature.
+Recent discharge conditions are represented using rolling mean values over 3-, 7-, 14-, and 30-day windows. These features help the model capture changes in river flow over different time scales. Missing MDD values are handled during preprocessing through interpolation, forward filling, backward filling, and zero-filling for any values that remain missing, as described in \S\ref{sec:3.9.2}. Consequently, stations without discharge sensors have zero-valued MDD series, and their discharge-derived rolling means are also zero.
 
 \paragraph{Temporal features.}
 Calendar and observation-time information is folded in as well --- which of the five daily slots an observation falls in, day of year, and related calendar variables --- with cyclical quantities like time-of-day and day-of-year encoded via sine/cosine transforms. The elapsed time between consecutive observations is also carried through explicitly, given the schedule's own 12-hour overnight gap against the roughly 3-hour daytime gaps established in \S\ref{sec:3.9.3}.
@@ -466,31 +469,211 @@ Each model is trained on a sliding window of the past 30 days of daily observati
     \label{fig:3.7}
 \end{figure}
 
-
 \section{Proposed CFL-EDLSTM Framework}
 \label{sec:3.12}
+
+Everything described so far in this chapter feeds into one forecasting framework, which this section sets out in full. In short, CFL-EDLSTM trains a single encoder--decoder LSTM architecture across the four station clusters defined in Section~\ref{sec:3.10}. Each cluster acts as one federated client that learns from the data of its own stations; a server then combines what the four clients have learned into a shared global model using weighted Federated Averaging \cite{McMahan2017}, and every cluster keeps its own locally adapted version of the model for producing forecasts. The clusters are fixed in advance from hydrological knowledge, rather than discovered during training as in iterative clustering schemes such as IFCA \cite{Ghosh2021,Harshvardhan2022}, so clustering decides \emph{who the clients are}, while federation decides \emph{how they learn together}.
+
+The reasoning behind this design follows directly from the problem set out in Chapter~2. Stations on the same river system can behave quite differently from one another (Section~2.9), and training one model on all of them together risks averaging that difference away, while training a separate model per station gives up whatever the stations could teach each other. Federated learning offers a way to learn jointly without pooling raw data \cite{McMahan2017}, but plain federated averaging struggles when client data are strongly non-IID \cite{Zhu2021,Chen2025}. Grouping stations into hydrologically coherent clients, and letting each client keep a locally adapted model, is this thesis's response to that tension. A federated LSTM has been applied to hydrological forecasting before \cite{Amanzholova2026}, but with two stations, a single variable, and a one-day horizon; here the same idea is applied to four clients, five variables expanded into 42 input features, and horizons out to 15 days. Table~\ref{tab:3.8} collects the configuration used throughout.
+
+\begin{table}[htbp]
+  \centering
+  \caption{CFL-EDLSTM Configuration}
+  \label{tab:3.8}
+  \footnotesize
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabular}{@{}L{5.2cm} L{8.0cm}@{}}
+    \toprule
+    \textbf{Setting} & \textbf{Value} \\
+    \midrule
+    Input window & 30 days (150 observations) \\
+    Forecast window & 15 days (75 observations) \\
+    Input features & 42 \\
+    Encoder & 2-layer LSTM, 128 hidden units \\
+    Decoder & 2-layer LSTM, 128 hidden units, linear output layer \\
+    Dropout & 0.2 \\
+    Loss & Huber ($\delta = 1$) on standardized targets \\
+    Optimizer & Adam, learning rate 0.005 \\
+    Batch size & 64 \\
+    Gradient clipping & maximum norm 1.0 \\
+    Federated clients & 4 (one per cluster) \\
+    Aggregation & Weighted FedAvg (weight = stations in cluster) \\
+    Federated rounds & 30 \\
+    Local epochs per round & 3 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 \subsection{Encoder--Decoder Architecture}
 \label{sec:3.12.1}
 
+Forecasting 75 future water-level values from 150 past observations is a sequence-to-sequence problem, and the encoder--decoder pattern \cite{Sutskever2014,Cho2014} is built for exactly that: one network reads the input sequence and compresses it into a state, and a second network unrolls that state into the output sequence. The Vanilla LSTM baseline in Section~\ref{sec:3.13.1} does the same job with a single dense layer that emits all 75 values at once; the encoder--decoder instead generates them one step at a time, so each forecast value can condition on the one before it. In hydrology, an LSTM encoder--decoder has been shown to hold up better than a feed-forward encoder--decoder as the horizon grows \cite{Kao2020}, to accumulate less error than recursive decoding when the decoder is given suitable extra inputs \cite{Cui2022}, and to remain competitive in recent multi-step flood work \cite{Lim2025,Yuan2023}.
+
+For a station $s$ and window start $t$, the encoder receives the previous 30 days of observations, 150 time steps at five observations per day, and the model forecasts the next 15 days, 75 steps:
+\begin{equation}
+  \mathbf{X}_{t,s} = \big[\mathbf{x}_{t,s},\, \mathbf{x}_{t+1,s},\, \dots,\, \mathbf{x}_{t+149,s}\big], \qquad
+  \mathbf{Y}_{t,s} = \big[y_{t+150,s},\, y_{t+151,s},\, \dots,\, y_{t+224,s}\big],
+  \label{eq:3.2}
+\end{equation}
+where $\mathbf{x}_{t,s} \in \mathbb{R}^{42}$ is the feature vector and $y_{t,s}$ is water level (mMSL). Each feature vector holds the five base variables (water level, rainfall, MDD, evaporation, temperature); four rainfall accumulations over 3, 7, 14, and 30 days; 24 lagged values (six lags each for rainfall, MDD, temperature, and evaporation); four rolling means of MDD; and five time features (sine and cosine of hour of day and of day of year, plus the elapsed time since the previous observation). Water level is both the target and one of the inputs, so the encoder sees recent water-level history alongside everything else. How these features are built is described in Section~\ref{sec:3.9.6}.
+
+The encoder is a two-layer LSTM \cite{HochreiterSchmidhuber1997} with 128 hidden units per layer and dropout of 0.2 \cite{Srivastava2014}. It reads the 150 input steps in order, updating a hidden state and a cell state at each step through the usual input, forget, and output gates:
+\begin{equation}
+\begin{aligned}
+  \mathbf{i}_j &= \sigma(\mathbf{W}_i \mathbf{x}_j + \mathbf{U}_i \mathbf{h}_{j-1} + \mathbf{b}_i), &
+  \mathbf{f}_j &= \sigma(\mathbf{W}_f \mathbf{x}_j + \mathbf{U}_f \mathbf{h}_{j-1} + \mathbf{b}_f),\\
+  \mathbf{o}_j &= \sigma(\mathbf{W}_o \mathbf{x}_j + \mathbf{U}_o \mathbf{h}_{j-1} + \mathbf{b}_o), &
+  \mathbf{g}_j &= \tanh(\mathbf{W}_g \mathbf{x}_j + \mathbf{U}_g \mathbf{h}_{j-1} + \mathbf{b}_g),\\
+  \mathbf{c}_j &= \mathbf{f}_j \odot \mathbf{c}_{j-1} + \mathbf{i}_j \odot \mathbf{g}_j, &
+  \mathbf{h}_j &= \mathbf{o}_j \odot \tanh(\mathbf{c}_j),
+\end{aligned}
+\label{eq:3.3}
+\end{equation}
+written here for a single layer, with $\sigma$ the logistic sigmoid and $\odot$ the element-wise product; in the second layer, the first layer's hidden state takes the place of $\mathbf{x}_j$. The encoder's final hidden and cell states act as a compressed summary of the 30-day history and are handed directly to the decoder.
+
+The decoder is a second two-layer LSTM, again with 128 hidden units, initialized from those final states:
+\begin{equation}
+  \big(\mathbf{h}^{\mathrm{dec}}_0,\, \mathbf{c}^{\mathrm{dec}}_0\big) = \big(\mathbf{h}^{\mathrm{enc}}_{150},\, \mathbf{c}^{\mathrm{enc}}_{150}\big).
+  \label{eq:3.4}
+\end{equation}
+It then generates the 75 forecast values one at a time. At step $q$ it takes the previous water-level value $u_q$ as input, updates its states, and a linear layer projects its hidden state to a single water-level value:
+\begin{equation}
+\begin{aligned}
+  \big(\mathbf{h}^{\mathrm{dec}}_q,\, \mathbf{c}^{\mathrm{dec}}_q\big) &= \mathrm{LSTM}_{\mathrm{dec}}\big(u_q,\, \mathbf{h}^{\mathrm{dec}}_{q-1},\, \mathbf{c}^{\mathrm{dec}}_{q-1}\big),\\
+  \hat{y}_q &= \mathbf{W}_o \mathbf{h}^{\mathrm{dec}}_q + b_o, \qquad q = 1, \dots, 75.
+\end{aligned}
+\label{eq:3.5}
+\end{equation}
+Where $u_q$ comes from depends on the mode. During training it can be the observed value, a practice known as teacher forcing \cite{WilliamsZipser1989}; at inference no observations of the future exist, so the decoder is fed its own previous prediction. The first step is seeded with the last observed water level in the input window.
+
+Generating the sequence step by step has a known cost. Because inference feeds predictions back in, early errors can compound, and a decoder trained on observed values never practices recovering from its own mistakes, the error-accumulation and exposure-bias problem that \cite{Cui2022} describe for recursive decoding. The framework accepts this risk in exchange for a decoder that produces a coherent trajectory, and Chapter~4 reports error at each of the seven horizon checkpoints precisely so that any such degradation is visible rather than averaged away.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures2/fig3-8-edlstm-architecture.png}
+    \caption{Encoder--decoder LSTM architecture: a 150-step, 42-feature input window is encoded into hidden and cell states, which initialize the decoder that generates the 75-step water-level forecast.}
+    \label{fig:3.8}
+\end{figure}
+
 \subsection{Local Model Training}
 \label{sec:3.12.2}
+
+Each of the four clusters in Table~\ref{tab:3.5} is one federated client, $c_1$ through $c_4$, and holds every training window for the stations that belong to it. Before training, the cluster definitions are validated: no station may appear in two clusters, every station in the dataset must be assigned to one, and every station named in a cluster must exist in the data. The number of stations in cluster $k$, written $n_k = |S_k|$, later serves as that client's weight in aggregation (Section~\ref{sec:3.12.4}).
+
+Before windows can be built, all stations are placed on a common time axis. Each station's date and time fields are combined into a timestamp, rows with invalid or duplicate timestamps are dropped, and the rest are sorted chronologically; the common axis is then the intersection of every station's timestamps, and only observations on that axis are kept. This gives every station the same temporal index and lets the data be arranged as a [time, station, feature] array with a matching [time, station] array of water-level targets. Any remaining gaps are filled by interpolation, then forward and backward filling, with a final zero fill where nothing else is possible, and the pipeline rejects any non-finite value that survives. The price of a shared axis is that a timestamp missing at even one station is lost for all of them, so CFL-EDLSTM is evaluated on fewer windows than the station-wise baselines of Section~\ref{sec:3.13}, and Chapter~4 reads the comparison with that in mind.
+
+The common series is then split chronologically: the first 70\% is used for training, the next 15\% for validation, and the final 15\% for testing, and time is never shuffled. Windows are generated separately inside each split, so none crosses a split boundary; a window starting at $t$ is valid only if it fits entirely within its split, that is, $a \le t \le b - 150 - 75$ for a split spanning indices $a$ to $b$. Inputs are standardized feature by feature, and water level is standardized again with its own target scaler. Both scalers are fitted on the training portion only and applied unchanged to validation and test, and the target scaler is later used to convert predictions back into metres.
+
+Each client trains against Huber loss on the standardized targets \cite{Huber1964},
+\begin{equation}
+  \ell_\delta(r) =
+  \begin{cases}
+    \tfrac{1}{2}\, r^{2}, & |r| \le \delta,\\[2pt]
+    \delta\big(|r| - \tfrac{1}{2}\delta\big), & |r| > \delta,
+  \end{cases}
+  \qquad
+  \mathcal{L}_{\mathrm{Huber}} = \frac{1}{M}\sum_{j=1}^{M} \ell_\delta(\hat{y}_j - y_j), \quad \delta = 1,
+  \label{eq:3.6}
+\end{equation}
+the same choice made for the neural baselines (Section~\ref{sec:3.14.3}). Optimization uses Adam \cite{Kingma2015} with a learning rate of 0.005 and a batch size of 64, with gradients clipped to a maximum norm of 1 to keep the recurrent updates stable \cite{Pascanu2013}. In every federated round, a client starts from the parameters it has just received from the server, trains on its own windows for three local epochs, and returns the result; over 30 rounds that amounts to 90 local epochs per client in total.
 
 \subsection{Federated Model Updates}
 \label{sec:3.12.3}
 
+Training proceeds in 30 federated rounds, each following the same five steps (Figure~\ref{fig:3.9}). The server broadcasts the current global parameters to all four clients; each client trains locally for three epochs on its own windows; each client returns its updated parameters; the server combines them into the next global model (Section~\ref{sec:3.12.4}); and each client's locally trained model is evaluated on that cluster's validation windows. Only parameter tensors travel between clients and server. Training windows and station records never do, which is the property that makes federated averaging attractive for distributed monitoring networks \cite{McMahan2017}. The federation in this thesis is simulated on a single workstation (Section~\ref{sec:3.19}): the four clients are separate data partitions with separate local training loops, and the aggregation step is the only point at which they interact.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures2/fig3-9-federated-workflow.png}
+    \caption{Federated workflow of CFL-EDLSTM: local training at each cluster client, weighted aggregation into a global model, redistribution, and retention of each cluster's personalized state for validation and testing.}
+    \label{fig:3.9}
+\end{figure}
+
+% \begin{figure}[t]
+% \centering
+% \resizebox{\textwidth}{!}{%
+% \begin{tikzpicture}[
+%     font=\small,
+%     srv/.style={draw, rounded corners=3pt, thick, fill=orange!15, minimum height=1.6cm, minimum width=14.4cm, align=center},
+%     cl/.style={draw, rounded corners=3pt, thick, fill=blue!12, minimum height=1.7cm, minimum width=3.0cm, align=center},
+%     chk/.style={draw, rounded corners=3pt, thick, fill=green!13, minimum height=1.4cm, minimum width=14.4cm, align=center},
+%     down/.style={-{Latex[length=2.4mm]}, thick, blue!60!black},
+%     up/.style={-{Latex[length=2.4mm]}, thick, red!60!black},
+%     lab/.style={font=\footnotesize}
+% ]
+% % server
+% \node[srv] (server) at (0,0) {\textbf{Server}\\ weighted FedAvg: $w^{(r+1)}=\sum_{k=1}^{4}\alpha_k w_k^{(r)}$};
+
+% % clients
+% \node[cl] (c2) at (-1.85,-4.0) {\textbf{Cluster $c_2$}\\ $n_2$ stations\\ 3 local epochs};
+% \node[cl] (c1) at (-5.55,-4.0) {\textbf{Cluster $c_1$}\\ $n_1$ stations\\ 3 local epochs};
+% \node[cl] (c3) at ( 1.85,-4.0) {\textbf{Cluster $c_3$}\\ $n_3$ stations\\ 3 local epochs};
+% \node[cl] (c4) at ( 5.55,-4.0) {\textbf{Cluster $c_4$}\\ $n_4$ stations\\ 3 local epochs};
+
+% % broadcast (down) and upload (up)
+% \foreach \c in {c1,c2,c3,c4}{
+%   \draw[down] ($(\c.north |- server.south)+(-0.35,0)$) -- ($(\c.north)+(-0.35,0)$);
+%   \draw[up]   ($(\c.north)+(0.35,0)$) -- ($(\c.north |- server.south)+(0.35,0)$);
+% }
+% \node[lab, blue!60!black, anchor=east] at (-6.4,-2.0) {broadcast $w^{(r)}$};
+% \node[lab, red!60!black,  anchor=east] at (-6.3,-2.5) {upload $w_k^{(r)}$};
+
+% % validation / checkpoint
+% \node[chk] (ck) at (0,-7.3)
+%   {Weighted validation loss $L_{val}=\sum_k m_kL_{val,k}\big/\sum_k m_k$\\
+%    save checkpoint if $L_{val}$ improves};
+% \foreach \c in {c1,c2,c3,c4}{
+%   \draw[-{Latex[length=2.2mm]}, thick, gray!70!black] (\c.south) -- ($(\c.south |- ck.north)$);
+% }
+
+% % round counter
+% \node[lab, anchor=west] at (7.4,0) {$\times 30$ rounds};
+% \end{tikzpicture}}
+% \caption{One communication round of the clustered federated scheme. The server broadcasts the global parameters to the four cluster clients, each cluster trains locally for three epochs and returns its parameters, and the server aggregates them with station-count weights. Validation loss is tracked after every round and the best checkpoint is kept.}
+% \label{fig:fedloop}
+% \end{figure}
+
+Only weighted Federated Averaging is used. Variants such as FedProx \cite{Li2020FedProx} and SCAFFOLD \cite{Karimireddy2020} add a proximal term or a control-variate correction to counter client drift when local data differ, but neither is applied here. That is a deliberate simplification: whatever heterogeneity handling the framework has comes from the cluster structure and the locally adapted models of Section~\ref{sec:3.12.5}, not from corrections added to the local objective, which keeps the contribution of clustering easy to isolate. Client drift is a genuine concern in this setting, since clients with hydrologically different data can pull the shared parameters in different directions during local training \cite{Zhu2021,Chen2025}. Grouping similar stations into one client makes each client's data more internally consistent, though differences between clients remain, and those are what the aggregation weights and local adaptation described next have to handle.
+
 \subsection{Cluster-Wise Aggregation}
 \label{sec:3.12.4}
+
+Aggregation happens at the level of clusters. With $K = 4$ clients, the server computes each client's weight from the number of stations in its cluster and takes a weighted average of every parameter tensor,
+\begin{equation}
+  \alpha_k = \frac{n_k}{\sum_{j=1}^{K} n_j}, \qquad
+  \mathbf{w}^{(r+1)} = \sum_{k=1}^{K} \alpha_k\, \mathbf{w}_k^{(r)}, \qquad
+  \sum_{k=1}^{K} \alpha_k = 1,
+  \label{eq:3.7}
+\end{equation}
+where $\mathbf{w}_k^{(r)}$ are client $k$'s parameters after local training in round $r$. A cluster therefore contributes to the next global model in proportion to how many stations it represents. Given the cluster sizes in Table~\ref{tab:3.5}, the Upstream, Middle, Downstream, and Urban clusters carry weights of $6/25$, $8/25$, $5/25$, and $6/25$, that is 0.24, 0.32, 0.20, and 0.24, which sum to one.
+
+Weighting by station count rather than by raw window count might look like a departure from the original FedAvg rule, which weights each client by its number of local training examples \cite{McMahan2017}. In this design the two coincide in practice: because every station is aligned to the same time axis, each station produces the same number of windows, so a cluster's window count is simply its station count times a constant. Weighting by stations also states the intent plainly, that every station should count equally in the global model, whichever cluster it falls in.
+
+It is worth being clear about what this step does and does not produce. The aggregated model is a single global model that has learned from all 25 stations. The cluster-specific models used for forecasting are not these aggregated parameters but the locally adapted states each cluster reaches after its own local training in a round (Section~\ref{sec:3.12.5}). Keeping both is a common way of balancing shared learning against local fit in federated settings \cite{Zhu2021}. It is also a deliberately simple reading of ``clustered'' federated learning: here the cluster structure defines the clients, whereas methods such as IFCA let the server assign clients to groups and maintain a separate model for each group \cite{Ghosh2021}.
 
 \subsection{Model Redistribution}
 \label{sec:3.12.5}
 
+At the start of each round, the newly aggregated global parameters are sent back to all four clients and replace whatever parameters they held, so every round begins from the same shared starting point. A client's locally trained state from the end of the previous round is not simply thrown away, though. After local training, each cluster's model is evaluated on its own validation windows and kept as that cluster's personalized model, so each cluster can be assessed with the model that reflects its own data distribution.
+
+After every round, a single weighted validation loss is calculated across the four clusters,
+\begin{equation}
+  \mathcal{L}_{\mathrm{val}}^{(r)} = \frac{\sum_{k=1}^{K} m_k\, \mathcal{L}_{\mathrm{val},k}^{(r)}}{\sum_{k=1}^{K} m_k},
+  \label{eq:3.8}
+\end{equation}
+where $m_k$ is the number of validation windows in cluster $k$; unlike the aggregation weights, these are based on window counts. Whenever this loss improves on its best previous value, a checkpoint is saved containing the aggregated global model, each cluster's personalized state, both scalers, the station and cluster definitions, the 42 feature names, the input and output lengths, and the architecture metadata. Selecting the checkpoint by validation loss, rather than taking the final round, guards against late-round overfitting in the same way as for the baselines (Section~\ref{sec:3.14.1}).
+
+Once all 30 rounds are complete, the best checkpoint is loaded. For each cluster, a fresh encoder--decoder is created, that cluster's personalized state is loaded into it, and its test windows are forecast. All predictions and targets are inverse-transformed back into metres before any metric is calculated, and the mean absolute error and root mean squared error defined in Section~\ref{sec:3.16} are computed over the concatenated test predictions of all four clusters.
+
+One practical limitation should be stated plainly: no random seed was fixed for these runs, so repeating the training can produce slightly different results. The chronological split, training-only scalers, and independent windows per split are applied identically on every run, so any run-to-run variation comes from the training process itself (initialization, batch order, dropout) rather than from changes to the data pipeline.
+
+
 \section{Baseline Models}
 \label{sec:3.13}
 
-Four baseline models were trained and evaluated under an identical forecasting configuration to the proposed CFL-EDLSTM, so that any difference in performance reported in Chapter~4 can be attributed to the architecture itself rather than to a difference in setup: an input history of 30 days (150 observations at five observations per day) and a forecast horizon of 15 days (75 observations), evaluated at the checkpoint labels 3 hours, 6 hours, 12 hours, 1 day, 3 days, 7 days, and 15 days --- corresponding respectively to decoding/prediction steps 1, 2, 4, 5, 15, 35, and 75.
+Four baseline models were trained and evaluated to give the proposed CFL-EDLSTM something concrete to be measured against. They are matched to it as closely as their data representations allow: the same task (an input history of 30 days, 150 observations at five observations per day, and a forecast horizon of 15 days, 75 observations); the same seven horizon checkpoints (3 hours, 6 hours, 12 hours, 1 day, 3 days, 7 days, and 15 days, corresponding to decoding steps 1, 2, 4, 5, 15, 35, and 75); the same 70/15/15 chronological split proportions, with no window crossing a split boundary; and scalers fitted on training data only, which keeps information from the validation and test periods from leaking into the input representation. Missing values are handled in the same spirit: interpolation followed by forward and backward filling, with a final fallback value where interpolation alone is not possible (a median or zero for the baselines, zero for CFL-EDLSTM).
 
-All four share the same source data, the same chronological 70/15/15 train/validation/test split performed independently within each station (so that no window crosses a split boundary), and the same missing-value handling: interpolation, followed by forward/backward filling, with a median or zero fallback wherever interpolation alone isn't possible. Wherever a scaler is used, it is fitted on training data only, which keeps information from the validation and test periods from leaking into the input representation before the model ever sees it.
+The setups are not identical, however, and the difference matters for how Chapter~4 should be read. Vanilla LSTM, TCN, and XGBoost split each station's own record chronologically and independently, so every station contributes all of its available timestamps. GRU instead works on a joint representation aligned on the union of all stations' timestamps, and CFL-EDLSTM works on their intersection (Section~\ref{sec:3.12.2}), so that only timestamps present at every station survive. CFL-EDLSTM is therefore evaluated on fewer windows, and its validation and test periods are defined by the shared time axis rather than by each station's own record. Chapter~4 flags this wherever the models are compared.
 
 \subsection{Vanilla LSTM}
 \label{sec:3.13.1}
@@ -574,12 +757,12 @@ Across every neural model in this thesis --- Vanilla LSTM, GRU, TCN, and the pro
     \textbf{Setting} & \textbf{Vanilla LSTM} & \textbf{GRU} & \textbf{TCN} & \textbf{XGBoost} & \textbf{CFL-EDLSTM} \\
     \midrule
     Hidden units / channels & 128 & 128 & 64, 64, 128, 128 & --- & 128 \\
-    Layers / blocks & 2 & 2 & 4 residual blocks & 300 est. max & 2 (enc) + 1 (dec) \\
+    Layers / blocks & 2 & 2 & 4 residual blocks & 300 est. max & 2 (enc) + 2 (dec) \\
     Dropout & 0.2 & 0.2 & 0.2 & --- & 0.2 \\
     Batch size & 64 & 64 & 128 & --- & 64 \\
-    Epochs & 30 & 30 & 30 & --- & 30 (local) \\
+    Epochs & 30 & 30 & 30 & --- & 3 local epochs × 30 rounds \\
     Optimizer & Adam & Adam & Adam & --- & Adam \\
-    Learning rate & 1e-3 & 1e-3 & 1e-3 & 0.05 & 1e-3 \\
+    Learning rate & 1e-3 & 1e-3 & 1e-3 & 0.05 & 0.005 \\
     Gradient clip (max norm) & 1.0 & 1.0 & 1.0 & --- & 1.0 \\
     Max depth & --- & --- & --- & 6 & --- \\
     Subsample (row / col) & --- & --- & --- & 0.8 / 0.8 & --- \\
@@ -647,17 +830,11 @@ MSE (mean squared error, in square metres) is reported mainly as the intermediat
 \section{Experimental Procedure}
 \label{sec:3.19}
 
-Training and evaluation proceed in a fixed sequence, deliberately, so that each phase validates the one before it rather than introducing the added complexity of federation before the local models are even known to behave reasonably. Figure~\ref{fig:3.15} summarizes the full sequence described below in a single diagram.
+Training and evaluation proceed in a fixed order so that each stage gives the next something to be compared against. Figure~\ref{fig:3.15} summarizes the full sequence.
 
-XGBoost (Baseline 0) is trained first, at the shortest horizon, as a pipeline health check: if a later sequence model can't outperform it, that's read as a signal to revisit preprocessing rather than an invitation to add architectural complexity on top of a shaky foundation.
+The four baselines are trained first, each on its own data representation (Section~\ref{sec:3.13}). XGBoost serves as the sanity-check reference: if a sequence model cannot beat it, that points to a problem in preprocessing, not a need for more architectural complexity. Vanilla LSTM and GRU then provide the standard recurrent comparison and the LSTM-versus-GRU architecture ablation, with TCN as a secondary sequence comparison. CFL-EDLSTM is trained as described in Section~\ref{sec:3.12}: 30 federated rounds across the four cluster clients using weighted Federated Averaging \cite{McMahan2017}, with the checkpoint that has the lowest weighted validation loss retained and each cluster's locally adapted model used for its test forecasts.
 
-Vanilla LSTM (Baseline 1) and GRU (Baseline 2) are trained next, locally per station, which confirms that sequence modelling actually improves on the engineered-feature baseline and runs the LSTM-vs-GRU architecture ablation described in Section~3.13.
-
-CFL-EDLSTM is then trained locally, first at a short horizon and then extended out to the full 15-day horizon; after that, it's trained inside standard FedAvg \cite{McMahan2017}, and finally inside IFCA-based clustered federated learning \cite{Ghosh2021}, so that the contribution of clustering can be isolated from the contribution of federation itself rather than the two being bundled into one number.
-
-TCN is trained alongside this sequence as a secondary comparison rather than as a gating step in it.
-
-Every model is evaluated on the same held-out 15\% chronological test split per station, at the same seven horizon checkpoints, using the metrics defined in Section~3.16. Training and evaluation were carried out on an AMD Ryzen 5 3600 six-core processor at 3.60~GHz, 24~GB of installed RAM, and an NVIDIA GeForce RTX~3060 with 12~GB VRAM; PyTorch models use CUDA where available, and XGBoost is configured for the same CUDA device.
+Every model is evaluated on the final 15\% of its chronological data, at the same seven horizon checkpoints, using the metrics defined in Section~\ref{sec:3.16}. As noted in Section~\ref{sec:3.13}, CFL-EDLSTM's test windows come from the timestamps shared by all stations, so its comparison with the baselines carries the caveat described there. Training and evaluation were carried out on an AMD Ryzen 5 3600 six-core processor at 3.60~GHz, 24~GB of installed RAM, and an NVIDIA GeForce RTX~3060 with 12~GB VRAM; PyTorch models use CUDA where available, and XGBoost is configured for the same CUDA device.
 
 \begin{figure}[htbp]
     \centering

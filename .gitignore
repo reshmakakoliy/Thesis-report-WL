@@ -29,3 +29,5 @@ pdflatex*.fls
 .DS_Store
 Thumbs.db
 .vscode/
+!.vscode/
+!.vscode/settings.json

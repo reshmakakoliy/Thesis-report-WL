@@ -11,44 +11,92 @@ Throughout, model performance is judged mainly on MAE and RMSE in metres, since 
 \section{Experimental Setup and Dataset Characteristics}
 \label{sec:4.2}
 
-Results in this chapter come from station-wise data --- water level, rainfall, MDD, evaporation, and temperature, at five observations per day --- across the 25 monitoring stations described in Section~\ref{sec:3.5}. Every model is evaluated on a chronological 15\% test split held out independently for each station, using an input history of 30 days (150 observations) and a forecast horizon of 15 days (75 observations), reported at the seven horizon checkpoints defined in Section~\ref{sec:3.15}. All model performance figures are computed after inverse-transforming outputs back into the original water-level units (metres), and none has been rounded beyond what the underlying result files report. Training and evaluation ran on an AMD Ryzen 5 3600 six-core processor (3.60~GHz) with 24~GB of RAM and an NVIDIA GeForce RTX~3060 (12~GB VRAM); PyTorch models used CUDA where available, and XGBoost was configured for the same device.
+\subsection{Experimental Setup}
 
-Before turning to the models, Table~\ref{tab:4.1} summarizes the five input variables as they appear across the full set of stations.
+All results in this chapter use the station-wise records of water level, rainfall, MDD, evaporation, and temperature from the 25 monitoring stations described in Section~\ref{sec:3.5}. For every station, we hold out the last 15\% of the timeline as the test set, so the models are always judged on data that comes after what they were trained on. Each model looks back over 30 days of history (150 observations) and predicts the next 15 days (75 observations). We report accuracy at the seven horizon checkpoints defined in Section~\ref{sec:3.15}. Every figure is computed after converting the outputs back to metres, and we have not rounded anything beyond what the result files themselves contain.
+
+Training and evaluation ran on a single desktop machine with an AMD Ryzen 5 3600 six-core processor (3.60~GHz), 24~GB of RAM, and an NVIDIA GeForce RTX~3060 (12~GB VRAM). The PyTorch models used CUDA where it was available, and XGBoost was set up to run on the same GPU.
+
+\subsection{Raw Dataset Visualization}
+\label{sec:4.2.2}
+
+Prior to model development, the characteristics of the raw data were first examined. The observations were plotted across all monitoring stations and over the full study period. Since water level is the target variable of the forecasting task, it was used as the primary reference for this initial visualization.
+
+Figure~\ref{fig:raw-wl-heatmap} presents a station-by-time heatmap of the raw water-level observations. Time is represented along the horizontal axis, while the monitoring stations are listed along the vertical axis. The color intensity represents the observed water-level value, and white cells indicate periods with no observation. Two main characteristics are visible. First, the stations differ substantially in their overall water-level range. For example, SW291.5R remains close to 50~mMSL throughout much of the study period, whereas stations such as SW179, SW180, SW302, and SW42 remain near the lower end of the scale. Second, the gaps are not distributed uniformly across the stations. Most stations are relatively complete, while a few, particularly SW68.5, contain longer and repeated periods without observations.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{figures2/fig4-3-raw-wl-heatmap.png}
+    \caption{Station-by-time heatmap of raw water-level observations (mMSL) for the 25 stations. White cells indicate missing observations.}
+    \label{fig:raw-wl-heatmap}
+\end{figure}
+
+Figure~\ref{fig:raw-wl-timeseries} presents the same water-level observations as time series. The stations operate at different overall levels, while most exhibit recurring rises and falls over the study period. These patterns are consistent with the seasonal nature of river flows. The magnitude of the variations and the shape of the peaks also differ between stations, which indicates the heterogeneity of the monitoring locations. This heterogeneity motivated the use of station clustering rather than treating all stations as a single homogeneous group. A few short and abrupt changes are also visible in the early years of one or two series and are retained as characteristics of the raw observations.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{figures2/fig4-4-raw-wl-timeseries.png}
+    \caption{Raw water-level time series (mMSL) for all 25 stations, 2010--2026.}
+    \label{fig:raw-wl-timeseries}
+\end{figure}
+
+The same visualization approach was applied to the four input variables (discharge, rainfall, temperature, and evaporation) to examine their temporal behavior and to identify gaps or unusual values in the raw records. These visualizations were used for exploratory examination of the dataset only. They do not represent model results and were not used to evaluate model performance.
+% \paragraph{Interactive river visualization.}
+% Static plots only show one view of the data at a time, so we also built a small interactive dashboard (Figure~\ref{fig:raw-dashboard}). It loads the raw station file and gives a summary of the dataset (25 stations, 741{,}750 observations, and 5 numeric features). For each variable it shows the station-by-time heatmap, the time series, and a river profile. The river profile plots the value at every station for one chosen time stamp, and a slider lets us move that time stamp across the full record. The dashboard also lets us choose which stations to display and restrict the time range. This made it much easier to compare stations side by side, see how conditions change along the river over time, and find missing stretches or odd values before modelling. Like the figures above, the dashboard was used only for data inspection.
+
+% \begin{figure}[htbp]
+%     \centering
+%     \includegraphics[width=0.95\textwidth]{figures2/fig4-5-dashboard.png}
+%     \caption{The interactive Station Feature Visualizer used to explore the raw data, showing the dataset summary, the water-level heatmap and time series, and the river profile at a selected time (here, 2026-03-31 18:00).}
+%     \label{fig:raw-dashboard}
+% \end{figure}
+
+\subsection{Processed Dataset}
+
+The final dataset brings together hydrological and meteorological records from 25 gauge stations in the Brahmaputra basin. It starts on 1 January 2010 and ends on 31 March 2026, which is 5{,}934 days, or a little over sixteen years. Each station contributes 29{,}670 observations, giving 741{,}750 rows and 44 columns in total. Since every station covers the same period and uses the same set of columns, the panel is balanced. This is useful for the clustered federated setup, because each station can act as a client with the same time span and the same input structure.
+
+\paragraph{Temporal structure.}
+Observations are recorded five times a day, at 06:00, 09:00, 12:00, 15:00, and 18:00. About 80\% of consecutive records are 3 hours apart, and the rest are the 12-hour overnight gap between 18:00 and 06:00 the next morning. We chose to keep this uneven spacing instead of forcing the data onto a regular grid. To help the models cope with it, a \texttt{delta\_hours} column stores the normalised time gap (0.25 for a 3-hour step and 1.0 for the overnight jump).
+
+\paragraph{Variables.}
+Water level is what we are forecasting, and it is the only variable measured several times a day. The other variables describe the conditions around it. Some of them are recorded at a coarser resolution, so their value stays the same across all observations within a day.
+
+Rainfall, evaporation, and temperature come from fewer measurement points than there are water-level stations, so each station is matched to its closest relevant record and neighbouring stations sometimes share the same series. Across the 25 stations there are 12 distinct rainfall series, 7 evaporation series, and 9 temperature series. Discharge is available at 15 of the 25 stations and is recorded as zero at the other 10.
+
+In the processed data, water level averages 12.51~mMSL (SD 11.28, range $-0.92$ to 52.90) and differs a lot from one station to another. Rainfall averages 4.79~mm with a maximum of 540~mm, and about 75\% of records are zero, which is what we would expect with a long dry season. Evaporation averages 1.67~mm, and temperature averages 25.58~\textdegree C, ranging from 8.65 to 36.83~\textdegree C.
+
+\paragraph{Engineered features.}
+To give the models some memory of recent conditions, we added look-back features. These include lagged values at 1, 2, 3, 5, 7, and 14 days for rainfall, discharge, temperature, and evaporation (24 columns), cumulative rainfall over 3, 7, 14, and 30 days (4 columns) to reflect how saturated the catchment is, and rolling mean discharge over the same four windows (4 columns). We did not create lags of water level, because it is the target. Hour of day and day of year are each encoded as a sine and cosine pair (4 columns), so that 18:00 sits close to 06:00 and 31 December sits close to 1 January. The forecast horizons (3~h, 6~h, 12~h, and 1, 3, 7, and 15 days) are created when the training windows are built, so they do not appear as separate columns in the file.
+
+\paragraph{Missing data.}
+The raw records had gaps, mostly in rainfall, discharge, temperature, and evaporation, and the amount missing differed from station to station (see Table~\ref{tab:4.1}). Our first idea was to recover these values from outside sources, so we went through the available reports from the Flood Forecasting and Warning Centre (FFWC). Unfortunately, this helped very little. The reports covered only part of the gaps and often did not match the stations or time stamps we were missing, so we could fill only a small number of values this way. The remaining gaps were filled using forward filling followed by backward filling, and the final dataset has no missing values. It is worth remembering that filled values are estimates, not measurements. The long dry-season stretches with constant values, and the 10 stations with no discharge record at all, should be kept in mind when reading the results.
+
+\subsection{Descriptive Statistics}
+
+Table~\ref{tab:4.1} summarises the five input variables across all stations as they were before imputation, which is why it includes the percentage of missing values.
 
 \begin{table}[htbp]
   \centering
-  \caption{Dataset Statistics Across the 25 Stations}
+  \caption{Dataset Statistics Across the 25 Stations (Before Imputation)}
   \label{tab:4.1}
   \small
   \renewcommand{\arraystretch}{1.15}
   \begin{tabular}{@{}l r r r r r@{}}
     \toprule
-    \textbf{Variable} & \textbf{Mean} & \textbf{SD}$^{*}$ & \textbf{Min} & \textbf{Max} & \textbf{Missing (\%)} \\
+    \textbf{Variable} & \textbf{Mean} & \textbf{SD} & \textbf{Min} & \textbf{Max} & \textbf{Missing (\%)} \\
     \midrule
     Water Level (mMSL) & 12.528 & 2.033 & $-0.92$ & 52.9 & 3.38 \\
-    Discharge, MDD (m\textsuperscript{3}/s) & 1534.785 & 462.86 & 0 & 73{,}226.6 & 68.44$^{\dagger}$ \\
+    Discharge, MDD (m\textsuperscript{3}/s) & 1534.785 & 462.86 & 0 & 73{,}226.6 & 68.44 \\
     Rainfall (mm) & 4.753 & 15.024 & 0 & 540 & 0.48 \\
     Temperature (\textdegree C) & 25.342 & 4.862 & 8.65 & 36.83 & 24.08 \\
     Evaporation (mm) & 1.663 & 3.100 & $-145.796$ & 115.15 & 1.66 \\
     \bottomrule
   \end{tabular}
-  \end{table}
+\end{table}
 
-Each entry in Table~\ref{tab:4.1} is built from 25 rows of per-station descriptive statistics --- one mean, SD, minimum, maximum, and missing percentage per station, per variable --- rather than from the raw observation-level data directly, so it is worth being explicit about how each column was pooled across stations.
+Each entry in Table~\ref{tab:4.1} was built from 25 rows of per-station descriptive statistics (one mean, SD, minimum, maximum, and missing percentage per station, per variable) rather than from the raw observations directly. For this reason, the SD column in particular should not be compared directly with the observation-level figures quoted in the previous subsection.
 
-% Min and Max are exact. The lowest value recorded anywhere in the dataset has to be the lowest of the 25 station-level minimums, and the same logic applies to the maximum, so no information is lost by pooling this way: Water Level's $-0.92$~m minimum comes from station SW147.5, and its 52.9~m maximum from SW291.5R.
-
-% Mean is the unweighted average of the 25 station means --- for Water Level, the sum of all 25 station means divided by 25, giving 12.528~m; for Discharge, the same calculation but divided by 15, since the ten stations without a discharge sensor are excluded from both the sum and the count rather than treated as zero. This is a reasonable summary but not, strictly, the true pooled mean of every individual observation: the mathematically correct pooled mean would weight each station by how many valid readings it actually contributed, and that per-station observation count was not available from the summary file this table was built from. Two stations with very different record lengths count equally in the average reported here, which is worth keeping in mind if a station with an unusually short record turns out to be pulling a variable's mean in one direction.
-
-% SD is the weakest number in the table, which is why it carries the asterisk. It is simply the average of the 25 stations' own standard deviations, and that calculation only captures how spread out readings are \emph{within} each station --- it says nothing about how much the stations' means differ \emph{from each other}. Water level ranges from a mean of under 2~m at some stations to over 50~m at others, reflecting different physical baselines along the river network, so the between-station spread is almost certainly large. A properly pooled SD, using the law of total variance, would combine the within-station variance with that between-station term and would very likely come out meaningfully higher than the 2.033~m reported here. Computing it correctly needs the raw per-station observation counts (or the original time series), neither of which this table draws from, so it is reported as-is with this caveat attached rather than corrected with an unsupported estimate.
-
-% Missing~\% is reported two ways for exactly this reason. The 68.44\% figure for Discharge in the main table is the average missing percentage across all 25 stations, and it comes out high mainly because the ten stations with no discharge sensor at all are counted as 100\% missing rather than excluded. The 47.41\% figure in the footnote instead averages only across the 15 stations that do have a sensor, which is the more useful number for judging how gappy that instrument's record actually is once it exists. The two answer different questions --- the first is closer to "how complete is discharge across the full station panel," the second to "how reliable is the discharge sensor where one is installed" --- and both are kept because both matter for different parts of the pipeline described in Section~\ref{sec:3.9.2}.
-
-% With that groundwork in place, two things stand out in the table itself. Missingness is uneven: water level (3.38\%), rainfall (0.48\%), and evaporation (1.66\%) are largely complete, while temperature is missing for 24.08\% of records and discharge for 68.44\%. Much of that reflects coverage rather than failure --- discharge is measured at only 15 of the 25 stations, and even among those the missing share is 47.41\%, while temperature's collection period is shorter than the study period (Table~\ref{tab:3.2}). It is also why discharge is never filled from a global average or borrowed from another station (Section~\ref{sec:3.9.2}).
-
-% The second point is the extremes. The evaporation range ($-145.796$ to 115.15~mm) lies far outside any physically plausible daily value and most likely reflects recording errors in the source records rather than real evaporation; it is noted here for transparency rather than corrected, since the underlying cause has not been confirmed. Rainfall, by contrast, is heavily skewed as expected for a monsoon climate, with a mean of 4.753~mm against a maximum of 540~mm.
-
-Figure~\ref{fig:4.1} shows representative historical series for one station, and Figure~\ref{fig:4.2} the correlations among the five variables. The correlation matrix describes linear association only and should not be read as evidence of causation.
+Figure~\ref{fig:4.1} shows representative historical series for one station, and Figure~\ref{fig:4.2} shows how the five variables correlate with each other. The correlation matrix only captures linear association, so it should not be read as evidence of causation.
 
 \begin{figure}[htbp]
     \centering
@@ -71,10 +119,12 @@ Figure~\ref{fig:4.1} shows representative historical series for one station, and
 \section{Overall Performance of CFL-EDLSTM}
 \label{sec:4.4}
 
+% Needed in preamble: \usepackage[table]{xcolor}  and  \usepackage{array}
+
 \section{Comparison with Baseline Models}
 \label{sec:4.5}
 
-Table~\ref{tab:4.2} reports overall test-set performance for the four baseline models specified in Chapter~3. 
+Table~\ref{tab:4.2} reports overall test-set performance for the four baseline models specified in Chapter~3 and for the proposed CFL-EDLSTM, which is highlighted in the table.
 
 \begin{table}[htbp]
   \centering
@@ -90,54 +140,58 @@ Table~\ref{tab:4.2} reports overall test-set performance for the four baseline m
     Vanilla LSTM & 105{,}675 & 0.496084 & 0.721850 & 0.521068 & 0.995983 & 0.996663 & 0.999000 \\
     GRU & 105{,}675 & 0.501721 & 0.743300 & 0.552495 & 0.995741 & 0.995845 & 0.998929 \\
     TCN & 105{,}675 & 0.573665 & 0.852950 & 0.727523 & 0.994391 & 0.994697 & 0.998603 \\
-    % CFL-EDLSTM & --- & --- & --- & --- & --- & --- & --- \\
+    \midrule
+    \rowcolor{gray!15}
+    \textbf{CFL-EDLSTM} & \textbf{111{,}275} & \textbf{0.320996} & \textbf{0.520711} & \textbf{0.271140} & \textbf{0.997910} & \textbf{0.997922} & \textbf{0.999476} \\
     \bottomrule
   \end{tabular}
-  \caption*{\footnotesize MAE and RMSE in metres; MSE in square metres. CFL-EDLSTM row pending (Section~4.4).}
+  \caption*{\footnotesize MAE and RMSE in metres; MSE in square metres. The shaded row is the proposed model.}
 \end{table}
 
-XGBoost comes out on top, with the lowest overall MAE and RMSE of the four. That fits the role Chapter~3 gave it as a sanity-check baseline: the lag and rolling features it works from already capture much of the predictable structure in this dataset, so it sets a bar the sequence models must approach or beat rather than one they clear simply by being more complex. It also fits the wider picture in the literature, where XGBoost has matched or outperformed LSTM in comparable hydrological settings \cite{Hameed2025} and no single architecture wins everywhere \cite{Aghenda2025}.
+XGBoost still has the lowest overall error, with an MAE of 0.303~m and an RMSE of 0.501~m. CFL-EDLSTM comes second (MAE 0.321~m, RMSE 0.521~m), and the gap is small: 0.018~m in MAE (about 6\%) and 0.020~m in RMSE (about 4\%). Its NSE/R\textsuperscript{2} is 0.9979, against 0.9981 for XGBoost. Against the other sequence models the difference is much larger. CFL-EDLSTM lowers MAE by about 35\% relative to Vanilla LSTM, 36\% relative to GRU, and 44\% relative to TCN, and lowers RMSE by roughly 28\%, 30\%, and 39\%. Among the neural models it is therefore clearly the strongest, and it is the only one that gets close to XGBoost.
 
-Below XGBoost, Vanilla LSTM and GRU sit close together (overall MAE 0.496 and 0.502~m), with TCN clearly behind at 0.574~m. Because NSE/R\textsuperscript{2} \cite{NashSutcliffe1970} is already at or above 0.994 for every model, it does little to separate them; the differences show up in MAE and RMSE, where they can be read directly in metres. The LSTM--GRU comparison deserves one caution: GRU was trained jointly across all stations while LSTM was trained station by station (Section~\ref{sec:3.13}), so the gap between them reflects that difference in data representation as well as the cell design, and should not be attributed to gating alone.
+XGBoost's lead fits the role Chapter~3 gave it as a sanity-check baseline: the lag and rolling features it works from already capture much of the predictable structure in this dataset, so it sets a bar the sequence models must approach rather than one they clear simply by being more complex. It also fits the wider literature, where XGBoost has matched or outperformed LSTM in comparable hydrological settings \cite{Hameed2025} and no single architecture wins everywhere \cite{Aghenda2025}. The more informative comparison for the proposed design is the one with Vanilla LSTM, since both use LSTM cells. The improvement over it comes from the encoder--decoder structure and the clustered federated training together, and this table cannot separate the two. The role of clustering is examined in Section~\ref{sec:4.7}.
 
-One further detail concerns the window counts. XGBoost is evaluated on 109{,}425 test windows and the three neural models on 105{,}675 --- a difference of 3{,}750, or exactly 150 per station, the length of one input window. This most likely reflects how XGBoost's windows may draw lag inputs from just before the test boundary while the neural models' windows must lie entirely inside the test split (Section~\ref{sec:3.9.5}); the effect on the comparison is small.
+Because NSE/R\textsuperscript{2} \cite{NashSutcliffe1970} is already at or above 0.994 for every model, it does little to separate them. The differences show up in MAE and RMSE, where they can be read directly in metres. The LSTM--GRU comparison deserves one caution: GRU was trained jointly across all stations while LSTM was trained station by station (Section~\ref{sec:3.13}), so the gap between them reflects that difference in data representation as well as the cell design, and should not be attributed to gating alone.
 
-The overall figures in Table~\ref{tab:4.2} average across every station, which hides how much performance actually varies from one station to the next. Tables~\ref{tab:4.2a} and~\ref{tab:4.2b} break MAE and RMSE down per station for all four baselines.
+One further detail concerns the window counts. XGBoost is evaluated on 109{,}425 test windows and the three neural baselines on 105{,}675, a difference of 3{,}750, or exactly 150 per station, the length of one input window. This most likely reflects how XGBoost's windows may draw lag inputs from just before the test boundary, while the neural baselines' windows must lie entirely inside the test split (Section~\ref{sec:3.9.5}). CFL-EDLSTM is evaluated on 111{,}275 windows, which is 224 more per station than the neural baselines and most likely comes from the common timestamp axis the federated pipeline builds across stations (Section~\ref{sec:3.12}). Since every metric is averaged over the windows a model sees, the five models are scored on slightly different window sets. The differences are small relative to the totals, but the comparison is not strictly like for like.
+
+The overall figures in Table~\ref{tab:4.2} average across every station, which hides how much performance varies from one station to the next. Tables~\ref{tab:4.2a} and~\ref{tab:4.2b} break MAE and RMSE down per station for all five models.
 
 \begin{table}[htbp]
   \centering
   \caption{Station-Wise MAE (m) by Model}
   \label{tab:4.2a}
   \small
-  \begin{tabular}{@{}l r r r r@{}}
+  \begin{tabular}{@{}l r r r r >{\columncolor{gray!15}\bfseries}r@{}}
     \toprule
-    \textbf{Station} & \textbf{XGBoost} & \textbf{Vanilla LSTM} & \textbf{GRU} & \textbf{TCN} \\
+    \textbf{Station} & \textbf{XGBoost} & \textbf{Vanilla LSTM} & \textbf{GRU} & \textbf{TCN} & \textbf{CFL-EDLSTM} \\
     \midrule
-    SW137A & 0.277673 & 0.466605 & 0.410133 & 1.769512 \\
-    SW147.5 & 0.377989 & 0.428984 & 0.900652 & 1.971066 \\
-    SW151 & 0.313205 & 0.521329 & 0.537704 & 2.432516 \\
-    SW15J & 0.390190 & 0.501520 & 0.823017 & 2.648381 \\
-    SW179 & 0.198654 & 0.354841 & 0.329764 & 1.029500 \\
-    SW180 & 0.211806 & 0.364207 & 0.344643 & 0.986906 \\
-    SW225 & 0.377354 & 0.654162 & 0.627983 & 1.973415 \\
-    SW228.5 & 0.321414 & 0.502303 & 0.366557 & 2.367414 \\
-    SW291.5R & 0.215751 & 0.370344 & 0.284317 & 0.872887 \\
-    SW294 & 0.181804 & 0.326250 & 0.263855 & 0.947263 \\
-    SW302 & 0.208231 & 0.365782 & 0.343326 & 1.095598 \\
-    SW42 & 0.217841 & 0.379603 & 0.363657 & 1.011922 \\
-    SW45 & 0.315137 & 0.742365 & 0.555102 & 1.557479 \\
-    SW45.5 & 0.334343 & 0.788972 & 0.831862 & 1.930331 \\
-    SW46.9R & 0.363803 & 0.495427 & 0.907602 & 2.047331 \\
-    SW49 & 0.360238 & 0.490615 & 0.707820 & 2.364663 \\
-    SW49A & 0.365934 & 0.521901 & 0.758412 & 2.432896 \\
-    SW62 & 0.266083 & 0.409733 & 0.348949 & 0.399035 \\
-    SW63 & 0.429282 & 0.578238 & 1.039369 & 0.959453 \\
-    SW65 & 0.395873 & 0.524739 & 1.002189 & 0.875295 \\
-    SW68.5 & 0.214796 & 0.437419 & 0.388730 & 1.510207 \\
-    SW68A & 0.315693 & 0.459111 & 0.489497 & 1.702843 \\
-    SW7.5 & 0.202718 & 0.353655 & 0.322145 & 1.030922 \\
-    SW77 & 0.299032 & 0.700208 & 0.472538 & 1.229090 \\
-    SW97 & 0.416394 & 0.663792 & 0.921811 & 1.358701 \\
+    SW137A & 0.277673 & 0.466605 & 0.410133 & 1.769512 & 0.308941 \\
+    SW147.5 & 0.377989 & 0.428984 & 0.900652 & 1.971066 & 0.396255 \\
+    SW151 & 0.313205 & 0.521329 & 0.537704 & 2.432516 & 0.303813 \\
+    SW15J & 0.390190 & 0.501520 & 0.823017 & 2.648381 & 0.401802 \\
+    SW179 & 0.198654 & 0.354841 & 0.329764 & 1.029500 & 0.251583 \\
+    SW180 & 0.211806 & 0.364207 & 0.344643 & 0.986906 & 0.271211 \\
+    SW225 & 0.377354 & 0.654162 & 0.627983 & 1.973415 & 0.465872 \\
+    SW228.5 & 0.321414 & 0.502303 & 0.366557 & 2.367414 & 0.298806 \\
+    SW291.5R & 0.215751 & 0.370344 & 0.284317 & 0.872887 & 0.378073 \\
+    SW294 & 0.181804 & 0.326250 & 0.263855 & 0.947263 & 0.177151 \\
+    SW302 & 0.208231 & 0.365782 & 0.343326 & 1.095598 & 0.243582 \\
+    SW42 & 0.217841 & 0.379603 & 0.363657 & 1.011922 & 0.291525 \\
+    SW45 & 0.315137 & 0.742365 & 0.555102 & 1.557479 & 0.321180 \\
+    SW45.5 & 0.334343 & 0.788972 & 0.831862 & 1.930331 & 0.290862 \\
+    SW46.9R & 0.363803 & 0.495427 & 0.907602 & 2.047331 & 0.364128 \\
+    SW49 & 0.360238 & 0.490615 & 0.707820 & 2.364663 & 0.378679 \\
+    SW49A & 0.365934 & 0.521901 & 0.758412 & 2.432896 & 0.363743 \\
+    SW62 & 0.266083 & 0.409733 & 0.348949 & 0.399035 & 0.295934 \\
+    SW63 & 0.429282 & 0.578238 & 1.039369 & 0.959453 & 0.399016 \\
+    SW65 & 0.395873 & 0.524739 & 1.002189 & 0.875295 & 0.426732 \\
+    SW68.5 & 0.214796 & 0.437419 & 0.388730 & 1.510207 & 0.200706 \\
+    SW68A & 0.315693 & 0.459111 & 0.489497 & 1.702843 & 0.295717 \\
+    SW7.5 & 0.202718 & 0.353655 & 0.322145 & 1.030922 & 0.251179 \\
+    SW77 & 0.299032 & 0.700208 & 0.472538 & 1.229090 & 0.298286 \\
+    SW97 & 0.416394 & 0.663792 & 0.921811 & 1.358701 & 0.350113 \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -147,64 +201,66 @@ The overall figures in Table~\ref{tab:4.2} average across every station, which h
   \caption{Station-Wise RMSE (m) by Model}
   \label{tab:4.2b}
   \small
-  \begin{tabular}{@{}l r r r r@{}}
+  \begin{tabular}{@{}l r r r r >{\columncolor{gray!15}\bfseries}r@{}}
     \toprule
-    \textbf{Station} & \textbf{XGBoost} & \textbf{Vanilla LSTM} & \textbf{GRU} & \textbf{TCN} \\
+    \textbf{Station} & \textbf{XGBoost} & \textbf{Vanilla LSTM} & \textbf{GRU} & \textbf{TCN} & \textbf{CFL-EDLSTM} \\
     \midrule
-    SW137A & 0.406873 & 0.600848 & 0.544429 & 2.015990 \\
-    SW147.5 & 0.590556 & 0.635665 & 1.264799 & 2.211798 \\
-    SW151 & 0.463981 & 0.632909 & 0.777236 & 2.681621 \\
-    SW15J & 0.604403 & 0.784162 & 1.101736 & 2.904288 \\
-    SW179 & 0.268856 & 0.435222 & 0.418524 & 1.202832 \\
-    SW180 & 0.285048 & 0.443943 & 0.434496 & 1.136126 \\
-    SW225 & 0.725709 & 1.262189 & 0.949687 & 2.210596 \\
-    SW228.5 & 0.621755 & 0.712650 & 0.623370 & 2.700119 \\
-    SW291.5R & 0.296285 & 0.429879 & 0.377957 & 0.992086 \\
-    SW294 & 0.265741 & 0.379261 & 0.364523 & 1.068770 \\
-    SW302 & 0.275467 & 0.444618 & 0.447392 & 1.342805 \\
-    SW42 & 0.290251 & 0.463001 & 0.458122 & 1.186967 \\
-    SW45 & 0.491215 & 0.952022 & 0.729816 & 1.898679 \\
-    SW45.5 & 0.504621 & 1.040896 & 1.076985 & 2.187715 \\
-    SW46.9R & 0.584241 & 0.797829 & 1.190440 & 2.290345 \\
-    SW49 & 0.562334 & 0.673522 & 0.985382 & 2.624179 \\
-    SW49A & 0.555255 & 0.739176 & 1.034661 & 2.700881 \\
-    SW62 & 0.466671 & 0.604727 & 0.590344 & 0.625429 \\
-    SW63 & 0.765266 & 0.967077 & 1.396799 & 1.202921 \\
-    SW65 & 0.676372 & 0.823403 & 1.364260 & 1.050411 \\
-    SW68.5 & 0.347195 & 0.539673 & 0.543641 & 1.629919 \\
-    SW68A & 0.507731 & 0.596641 & 0.728672 & 1.884764 \\
-    SW7.5 & 0.278503 & 0.434613 & 0.407049 & 1.196476 \\
-    SW77 & 0.473816 & 0.877603 & 0.640719 & 1.400343 \\
-    SW97 & 0.619729 & 0.897973 & 1.191294 & 1.586056 \\
+    SW137A & 0.406873 & 0.600848 & 0.544429 & 2.015990 & 0.514371 \\
+    SW147.5 & 0.590556 & 0.635665 & 1.264799 & 2.211798 & 0.625164 \\
+    SW151 & 0.463981 & 0.632909 & 0.777236 & 2.681621 & 0.466806 \\
+    SW15J & 0.604403 & 0.784162 & 1.101736 & 2.904288 & 0.619345 \\
+    SW179 & 0.268856 & 0.435222 & 0.418524 & 1.202832 & 0.274432 \\
+    SW180 & 0.285048 & 0.443943 & 0.434496 & 1.136126 & 0.298331 \\
+    SW225 & 0.725709 & 1.262189 & 0.949687 & 2.210596 & 0.802588 \\
+    SW228.5 & 0.621755 & 0.712650 & 0.623370 & 2.700119 & 0.632402 \\
+    SW291.5R & 0.296285 & 0.429879 & 0.377957 & 0.992086 & 0.428139 \\
+    SW294 & 0.265741 & 0.379261 & 0.364523 & 1.068770 & 0.256698 \\
+    SW302 & 0.275467 & 0.444618 & 0.447392 & 1.342805 & 0.285109 \\
+    SW42 & 0.290251 & 0.463001 & 0.458122 & 1.186967 & 0.297246 \\
+    SW45 & 0.491215 & 0.952022 & 0.729816 & 1.898679 & 0.549339 \\
+    SW45.5 & 0.504621 & 1.040896 & 1.076985 & 2.187715 & 0.543719 \\
+    SW46.9R & 0.584241 & 0.797829 & 1.190440 & 2.290345 & 0.589804 \\
+    SW49 & 0.562334 & 0.673522 & 0.985382 & 2.624179 & 0.619928 \\
+    SW49A & 0.555255 & 0.739176 & 1.034661 & 2.700881 & 0.529887 \\
+    SW62 & 0.466671 & 0.604727 & 0.590344 & 0.625429 & 0.460197 \\
+    SW63 & 0.765266 & 0.967077 & 1.396799 & 1.202921 & 0.782549 \\
+    SW65 & 0.676372 & 0.823403 & 1.364260 & 1.050411 & 0.681777 \\
+    SW68.5 & 0.347195 & 0.539673 & 0.543641 & 1.629919 & 0.351756 \\
+    SW68A & 0.507731 & 0.596641 & 0.728672 & 1.884764 & 0.517804 \\
+    SW7.5 & 0.278503 & 0.434613 & 0.407049 & 1.196476 & 0.269143 \\
+    SW77 & 0.473816 & 0.877603 & 0.640719 & 1.400343 & 0.518269 \\
+    SW97 & 0.619729 & 0.897973 & 1.191294 & 1.586056 & 0.511972 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-The spread across stations is considerably wider than the overall averages in Table~\ref{tab:4.2} suggest on their own. For XGBoost, station MAE ranges from 0.182~m at SW294 up to 0.429~m at SW63 --- more than double, within a model whose overall MAE is 0.303~m. TCN shows the widest spread of any model by far: its MAE at SW62 (0.399~m) is actually lower than XGBoost's worst station, while at SW15J it reaches 2.648~m, nearly seven times higher. That is a wider range within one model than separates XGBoost from TCN on the overall table.
+The spread across stations is considerably wider than the overall averages in Table~\ref{tab:4.2} suggest on their own. For XGBoost, station MAE ranges from 0.182~m at SW294 up to 0.429~m at SW63, more than double, within a model whose overall MAE is 0.303~m. CFL-EDLSTM shows a similar spread, from 0.177~m at SW294 to 0.466~m at SW225. TCN shows the widest spread of any model by far: its MAE at SW62 (0.399~m) is actually lower than XGBoost's worst station, while at SW15J it reaches 2.648~m, nearly seven times higher.
 
-A pattern worth flagging, even before the formal cluster-wise analysis in Section~4.7: the stations where every model, and TCN especially, struggles most --- SW15J, SW49A, SW49, SW228.5, SW97, SW46.9R --- sit predominantly in the Middle and Downstream clusters (Table~\ref{tab:3.5}), while several of the consistently easiest stations for every model --- SW179, SW180, SW7.5, SW294, SW291.5R --- are Urban or Upstream. This is only a visual pattern at this stage, not a formal cluster-level result, but it points in the direction the clustering argument in Chapters~1 and~2 anticipated: a single global model is being asked to perform well across stations whose difficulty differs by a wide margin, and Section~4.7 returns to this with the proper cluster-level breakdown once CFL-EDLSTM's own results are available for the comparison.
+CFL-EDLSTM is not simply a weaker copy of XGBoost at the station level. It has a lower MAE than XGBoost at 10 of the 25 stations (SW151, SW228.5, SW294, SW45.5, SW49A, SW63, SW68.5, SW68A, SW77, and SW97), although the margin is very thin at a few of them, for example 0.0007~m at SW77. In RMSE it comes out ahead at only 5 stations (SW294, SW49A, SW62, SW7.5, and SW97). The fact that it wins more often on MAE than on RMSE suggests that a small number of larger errors weigh more heavily on CFL-EDLSTM than on XGBoost, though we did not examine the error distributions here. Against the neural baselines the picture is more consistent. By our reading of the tables, CFL-EDLSTM has a lower MAE than Vanilla LSTM, GRU, and TCN at 24 of the 25 stations, and a lower RMSE at 23. The clear exception is SW291.5R, the station sitting near 50~mMSL, far above all the others (Figure~\ref{fig:raw-wl-timeseries}). There CFL-EDLSTM has an MAE of 0.378~m, compared with 0.216~m for XGBoost and 0.284~m for GRU. This is the largest station-level gap in the table, and a single station-specific level is a plausible reason, though we did not test it.
+
+A pattern worth flagging before the formal cluster-wise analysis in Section~\ref{sec:4.7}: the stations where the baselines struggle most, SW15J, SW49A, SW49, SW228.5, SW97, and SW46.9R, sit predominantly in the Middle and Downstream clusters (Table~\ref{tab:3.5}), while several of the consistently easiest stations, SW179, SW180, SW7.5, SW294, and SW291.5R, are Urban or Upstream. Three of those six harder stations (SW49A, SW228.5, and SW97) are also among the ones where CFL-EDLSTM beats XGBoost on MAE. This is only a visual pattern at this stage, not a formal cluster-level result. It points in the direction the clustering argument in Chapters~1 and~2 anticipated: a single global model is asked to perform well across stations whose difficulty differs by a wide margin. Section~\ref{sec:4.7} returns to this with the proper cluster-level breakdown.
 
 \section{Multi-Horizon Forecasting Results}
 \label{sec:4.6}
 
-Tables~\ref{tab:4.3} and~\ref{tab:4.4} report MAE and RMSE at each of the seven horizon checkpoints, computed over all test windows and stations at that forecast step.
+Tables~\ref{tab:4.3} and~\ref{tab:4.4} report MAE and RMSE at each of the seven horizon checkpoints for all five models, computed over all test windows and stations at that forecast step.
 
 \begin{table}[htbp]
   \centering
   \caption{MAE (m) by Forecast Horizon}
   \label{tab:4.3}
   \small
-  \begin{tabular}{@{}l r r r r@{}}
+  \begin{tabular}{@{}l r r r r >{\columncolor{gray!15}\bfseries}r@{}}
     \toprule
-    \textbf{Horizon} & \textbf{XGBoost} & \textbf{Vanilla LSTM} & \textbf{GRU} & \textbf{TCN} \\
+    \textbf{Horizon} & \textbf{XGBoost} & \textbf{Vanilla LSTM} & \textbf{GRU} & \textbf{TCN} & \textbf{CFL-EDLSTM} \\
     \midrule
-    3 hours & 0.058431 & 0.258757 & 0.307044 & 0.416184 \\
-    6 hours & 0.068343 & 0.265423 & 0.323841 & 0.416167 \\
-    12 hours & 0.086931 & 0.278525 & 0.325624 & 0.417941 \\
-    1 day & 0.093267 & 0.297403 & 0.320197 & 0.419426 \\
-    3 days & 0.186510 & 0.364102 & 0.413494 & 0.444992 \\
-    7 days & 0.323418 & 0.494566 & 0.579290 & 0.499945 \\
-    15 days & 0.449376 & 0.675014 & 0.583328 & 0.776767 \\
+    3 hours & 0.058431 & 0.258757 & 0.307044 & 0.416184 & 0.146071 \\
+    6 hours & 0.068343 & 0.265423 & 0.323841 & 0.416167 & 0.146148 \\
+    12 hours & 0.086931 & 0.278525 & 0.325624 & 0.417941 & 0.153372 \\
+    1 day & 0.093267 & 0.297403 & 0.320197 & 0.419426 & 0.159568 \\
+    3 days & 0.186510 & 0.364102 & 0.413494 & 0.444992 & 0.226135 \\
+    7 days & 0.323418 & 0.494566 & 0.579290 & 0.499945 & 0.331961 \\
+    15 days & 0.449376 & 0.675014 & 0.583328 & 0.776767 & 0.436420 \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -214,26 +270,30 @@ Tables~\ref{tab:4.3} and~\ref{tab:4.4} report MAE and RMSE at each of the seven 
   \caption{RMSE (m) by Forecast Horizon}
   \label{tab:4.4}
   \small
-  \begin{tabular}{@{}l r r r r@{}}
+  \begin{tabular}{@{}l r r r r >{\columncolor{gray!15}\bfseries}r@{}}
     \toprule
-    \textbf{Horizon} & \textbf{XGBoost} & \textbf{Vanilla LSTM} & \textbf{GRU} & \textbf{TCN} \\
+    \textbf{Horizon} & \textbf{XGBoost} & \textbf{Vanilla LSTM} & \textbf{GRU} & \textbf{TCN} & \textbf{CFL-EDLSTM} \\
     \midrule
-    3 hours & 0.117684 & 0.331713 & 0.470305 & 0.644916 \\
-    6 hours & 0.135106 & 0.340609 & 0.491384 & 0.644908 \\
-    12 hours & 0.163643 & 0.358016 & 0.496604 & 0.646916 \\
-    1 day & 0.174558 & 0.377158 & 0.491877 & 0.648385 \\
-    3 days & 0.319076 & 0.481770 & 0.609966 & 0.676390 \\
-    7 days & 0.514327 & 0.693839 & 0.829935 & 0.736779 \\
-    15 days & 0.671593 & 0.989720 & 0.838073 & 1.119514 \\
+    3 hours & 0.117684 & 0.331713 & 0.470305 & 0.644916 & 0.225115 \\
+    6 hours & 0.135106 & 0.340609 & 0.491384 & 0.644908 & 0.228514 \\
+    12 hours & 0.163643 & 0.358016 & 0.496604 & 0.646916 & 0.241373 \\
+    1 day & 0.174558 & 0.377158 & 0.491877 & 0.648385 & 0.249913 \\
+    3 days & 0.319076 & 0.481770 & 0.609966 & 0.676390 & 0.353110 \\
+    7 days & 0.514327 & 0.693839 & 0.829935 & 0.736779 & 0.524839 \\
+    15 days & 0.671593 & 0.989720 & 0.838073 & 1.119514 & 0.690191 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-XGBoost has the lowest MAE and RMSE at every one of the seven horizons. Its lead is largest where forecasts are easiest: at 3 hours its MAE is about 0.058~m, roughly 6~cm and more than four times lower than Vanilla LSTM's. That lead narrows steadily with lead time. By 15 days XGBoost's MAE is 0.449~m, about 1.5 times lower than LSTM's and 1.3 times lower than GRU's. Its error also grows fastest in relative terms, rising about 7.7-fold in MAE from 3 hours to 15 days, against roughly 2.6-fold for LSTM and 1.9-fold for both GRU and TCN. The neural models start from a higher floor but degrade more gently, so the gap to XGBoost closes as the horizon lengthens.
+XGBoost has the lowest RMSE at all seven horizons and the lowest MAE at the first six. Its lead is largest where forecasts are easiest: at 3 hours its MAE is about 0.058~m, roughly 2.5 times lower than CFL-EDLSTM's 0.146~m and more than four times lower than Vanilla LSTM's. The lead narrows steadily with lead time. At 7 days the two MAE values are close (0.323 and 0.332~m), and at 15 days CFL-EDLSTM moves ahead, with an MAE of 0.436~m against 0.449~m for XGBoost, about 3\% lower. The crossover is only partial, because in RMSE XGBoost is still slightly better at 15 days (0.672 against 0.690~m). The margin is also small and, since CFL-EDLSTM was trained without a fixed random seed, we read it as a sign that the two models converge at long horizons rather than as clear superiority at 15 days.
 
-Among the neural baselines the ordering is not fixed. Vanilla LSTM beats GRU at every horizon from 3 hours through 7 days on both metrics, but at 15 days GRU takes over (MAE 0.583 against 0.675~m; RMSE 0.838 against 0.990~m). That makes GRU the strongest neural baseline at the longest horizon, and so the neural figure CFL-EDLSTM most needs to beat there. TCN behaves differently again. Its MAE is almost flat from 3 hours to 1 day (0.416 to 0.419~m), and its 3-hour error is larger than XGBoost's at 7 days, which suggests something other than forecast difficulty sets its floor at short horizons. It does edge past GRU at 7 days on both metrics, but it is the weakest model at 15 days. It also trails Vanilla LSTM at every horizon, a less favourable showing than the competitive TCN performance reported by \cite{Lin2021}, though on a different dataset.
+The same trend shows up in how fast error grows. XGBoost's MAE rises about 7.7-fold from 3 hours to 15 days, against roughly 3.0-fold for CFL-EDLSTM, 2.6-fold for Vanilla LSTM, and 1.9-fold for both GRU and TCN. CFL-EDLSTM therefore starts from a much lower floor than the other neural models, about half of Vanilla LSTM's at 3 hours, and degrades fairly gently, so the gap to XGBoost closes as the horizon lengthens. Its MAE is almost flat over the first day (0.146 to 0.160~m), which suggests the model holds up well for short-range forecasts.
 
-The general rise in error with lead time is the pattern earlier multi-step flood-forecasting studies describe \cite{Kao2020,Cui2022,Yuan2023}. These four baselines settle the bar the proposed model has to clear, and Figures~\ref{fig:4.4} and~\ref{fig:4.5} show it visually.
+CFL-EDLSTM has a lower MAE and RMSE than every neural baseline at every horizon. At 3 hours its MAE is about 44\% below Vanilla LSTM's, the best neural baseline at that horizon. At 15 days, where GRU is the strongest neural baseline, CFL-EDLSTM still has an MAE about 25\% lower (0.436 against 0.583~m) and an RMSE about 18\% lower (0.690 against 0.838~m).
+
+Among the neural baselines the ordering is not fixed. Vanilla LSTM beats GRU at every horizon from 3 hours through 7 days on both metrics, but at 15 days GRU takes over (MAE 0.583 against 0.675~m; RMSE 0.838 against 0.990~m). TCN behaves differently again. Its MAE is almost flat from 3 hours to 1 day (0.416 to 0.419~m), and its 3-hour error is larger than XGBoost's at 7 days, which suggests something other than forecast difficulty sets its floor at short horizons. It edges past GRU at 7 days on both metrics, but it is the weakest model at 15 days. It also trails Vanilla LSTM at every horizon, a less favourable showing than the competitive TCN performance reported by \cite{Lin2021}, though on a different dataset.
+
+The general rise in error with lead time is the pattern earlier multi-step flood-forecasting studies describe \cite{Kao2020,Cui2022,Yuan2023}. Figures~\ref{fig:4.4} and~\ref{fig:4.5} show how the five models compare across horizons.
 
 \begin{figure}[htbp]
     \centering

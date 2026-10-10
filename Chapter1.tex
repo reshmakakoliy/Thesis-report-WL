@@ -73,7 +73,7 @@ That is the gap this thesis sets out to close, with a Clustered Federated Learni
 
 \section{Aim of the Study}
 
-The aim of this study is to design, build, and evaluate a Clustered Federated Learning framework based on an Encoder--Decoder LSTM (CFL-EDLSTM), for privacy-preserving, multi-horizon, and interpretable water-level forecasting across 25 hydrologically diverse monitoring stations along the Brahmaputra River system in Bangladesh.
+The aim of this study is to design, build, and evaluate a Clustered Federated Learning framework based on an Encoder--Decoder LSTM (CFL-EDLSTM) for multi-horizon, interpretable water-level forecasting across 25 hydrologically diverse monitoring stations in Bangladesh, without pooling raw station data across regions.
 
 Alongside the forecasting framework itself, the study also demonstrates how these outputs might actually be presented to someone using them, through a web-based visualization platform. The platform gives station-level forecast information and lets a user compare CFL-EDLSTM's predictions against water-level information published by the Flood Forecasting and Warning Centre (FFWC), used here as an external point of comparison rather than as ground truth.
 
@@ -86,8 +86,8 @@ The objectives of this study are:
 
     \item To develop an Encoder--Decoder LSTM (EDLSTM) architecture capable of multivariate, multi-horizon water-level forecasting across seven lead times, ranging from 3 hours to 15 days.
 
-    \item To integrate the EDLSTM architecture within a Clustered Federated Learning (CFL) framework using Federated Averaging (FedAvg) for cluster-specific parameter aggregation without centralizing raw station-level data.
-
+    \item To integrate the EDLSTM architecture within a Clustered Federated Learning (CFL) framework in which each of the four clusters acts as a federated client, using weighted Federated Averaging (FedAvg) to combine the clients into a shared model while each cluster retains a locally adapted model, so that raw data are not pooled across clusters.
+    
     \item To benchmark the proposed CFL-EDLSTM framework against four baseline architectures --- Vanilla LSTM, GRU, XGBoost, and TCN --- across different station clusters and forecast horizons.
 
     \item To apply SHAP-based interpretability to the trained models in order to identify and rank the hydrometeorological variables contributing to model predictions.
@@ -104,8 +104,8 @@ This study is guided by the following questions:
 
     \item How effectively can an Encoder--Decoder LSTM architecture forecast water levels across horizons ranging from short-term (3 hours) to long-term (15 days)?
 
-    \item How well does the proposed Clustered Federated Learning approach handle heterogeneity among the four station clusters while keeping station-level data private?
-
+    \item How well does the proposed Clustered Federated Learning approach handle heterogeneity among the four station clusters without pooling raw data across them?
+        
     \item How does the proposed CFL-EDLSTM framework perform relative to Vanilla LSTM, GRU, XGBoost, and TCN baselines across different clusters and lead times?
 
     \item Which input variables --- water level, discharge, rainfall, temperature, or evaporation --- contribute most to model predictions according to SHAP, and do those contributions make hydrological sense?
@@ -130,8 +130,8 @@ This thesis makes the following contributions:
 \begin{enumerate}
     \item A clustering strategy that groups 25 monitoring stations within the Brahmaputra River system into four meaningful federated client groups: Upstream, Middle, Downstream, and Urban.
 
-    \item A Clustered Federated Learning framework based on an Encoder--Decoder LSTM (CFL-EDLSTM), for privacy-preserving, multivariate, multi-horizon water-level forecasting across heterogeneous monitoring stations.
-
+    \item A Clustered Federated Learning framework based on an Encoder--Decoder LSTM (CFL-EDLSTM), for multivariate, multi-horizon water-level forecasting across heterogeneous monitoring stations, in which each cluster acts as a federated client and raw data are not pooled across clusters.
+    
     \item A comparative evaluation of CFL-EDLSTM against four established baseline architectures across multiple station clusters and seven forecast horizons.
 
     \item A SHAP-based interpretability analysis identifying which hydrometeorological variables matter most, and where, across the different station clusters.
@@ -141,15 +141,15 @@ This thesis makes the following contributions:
 
 \section{Overview of the Proposed Framework}
 
-At a high level, CFL-EDLSTM combines a sequence-to-sequence Encoder--Decoder LSTM \cite{Kao2020,Cui2022} with a Clustered Federated Learning training procedure. The federated part of this borrows directly from McMahan et al.'s original idea: model updates travel from distributed clients to a central point of aggregation, but the raw data behind those updates never does \cite{McMahan2017}.
+At a high level, CFL-EDLSTM pairs a sequence-to-sequence Encoder--Decoder LSTM \cite{Kao2020,Cui2022} with a clustered federated training procedure. The 25 monitoring stations are first grouped into four clusters --- Upstream, Middle, Downstream, and Urban --- using their position along the river system and how they are grouped operationally by FFWC, and each cluster then acts as one federated client, training the model on the multivariate data of its own stations.
 
-In this framework, the 25 monitoring stations are first grouped into four clusters based on their hydrological characteristics and position within the river network. Each station then acts as a local client within its cluster, training the EDLSTM model on its own multivariate data. Rather than being sent anywhere, that data stays local; only the resulting model parameters are shared, and Federated Averaging (FedAvg) is used to combine them into a single model per cluster \cite{McMahan2017}.
+The federated part borrows directly from McMahan et al.'s original idea: clients train locally, and only model parameters, never training windows, travel to a server that combines them \cite{McMahan2017}. Here the server uses Federated Averaging, weighting each cluster by the number of stations it contains, to produce a shared global model that has learned from all four clusters. Each cluster does not simply adopt that global model for its forecasts, though. It keeps the version it reaches after its own local training, so every cluster is forecast with a model adapted to its own hydrological character.
 
-This is a deliberate departure from a conventional federated setup, where all clients would ultimately contribute to one shared global model. Here, each cluster keeps its own model. The reasoning follows directly from the literature reviewed above: non-IID data across clients can genuinely hurt standard federated learning \cite{Zhu2021,Chen2025}, whereas clustering clients with similar characteristics tends to produce better, more specialized models \cite{Ghosh2021,Harshvardhan2022,BenAli2026}.
+This arrangement responds directly to the literature reviewed above. Non-IID data across clients can hurt standard federated learning \cite{Zhu2021,Chen2025}, while grouping similar clients tends to produce better-suited models \cite{Ghosh2021,Harshvardhan2022,BenAli2026}. In this thesis the grouping is fixed in advance from domain knowledge rather than learned during training, and raw data are pooled only within a cluster, never across clusters.
 
-Once trained, the four cluster models generate water-level forecasts across all seven horizons. SHAP is then applied to interpret those forecasts and see which variables are actually driving them \cite{Lundberg2017,Huang2024,Khorrami2025}. Finally, everything is made accessible through an interactive web-based map, with a separate section for comparing the model's output against FFWC's published water-level information.
+Once trained, the four cluster models generate water-level forecasts across all seven horizons. SHAP is then applied to interpret those forecasts and see which variables are driving them \cite{Lundberg2017,Huang2024,Khorrami2025}. Finally, everything is made accessible through an interactive web-based map, with a separate section for comparing the model's output against FFWC's published water-level information.
 
-The full implementation and experimental design behind this framework are described in Chapter 3.
+The full implementation and experimental design behind this framework are described in Chapter~3.
 
 \section{Organization of the Thesis}
 
