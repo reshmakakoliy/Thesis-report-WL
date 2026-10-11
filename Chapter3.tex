@@ -154,6 +154,8 @@ Water level is the variable with the widest coverage in this study and effective
 \section{Data Sources}
 \label{sec:3.6}
 
+Not every station carries every variable. Water level has by far the widest footprint, at 25 stations; evaporation is the narrowest, at 7. Temperature is district-level rather than station-level, so it has to be mapped onto individual stations by district rather than read directly from a gauge --- this is discussed further in \S\ref{sec:3.9.1} and \S\ref{sec:3.9.3}.
+
 \begin{landscape}
 \begin{table}[htbp]
   \centering
@@ -190,8 +192,6 @@ Water level is the variable with the widest coverage in this study and effective
   \end{tabularx}
 \end{table}
 \end{landscape}
-
-Not every station carries every variable. Water level has by far the widest footprint, at 25 stations; evaporation is the narrowest, at 7. Temperature is district-level rather than station-level, so it has to be mapped onto individual stations by district rather than read directly from a gauge --- this is discussed further in \S\ref{sec:3.9.1} and \S\ref{sec:3.9.3}.
 
 % ------------------------------------------------------------
 \section{Dataset Description}
@@ -551,7 +551,7 @@ Generating the sequence step by step has a known cost. Because inference feeds p
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.95\textwidth]{figures2/fig3-8-edlstm-architecture.png}
-    \caption{Encoder--decoder LSTM architecture: a 150-step, 42-feature input window is encoded into hidden and cell states, which initialize the decoder that generates the 75-step water-level forecast.}
+    \caption{Encoder--decoder LSTM architecture.}
     \label{fig:3.8}
 \end{figure}
 
@@ -585,7 +585,7 @@ Training proceeds in 30 federated rounds, each following the same five steps (Fi
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.95\textwidth]{figures2/fig3-9-federated-workflow.png}
-    \caption{Federated workflow of CFL-EDLSTM: local training at each cluster client, weighted aggregation into a global model, redistribution, and retention of each cluster's personalized state for validation and testing.}
+    \caption{Federated workflow of CFL-EDLSTM.}
     \label{fig:3.9}
 \end{figure}
 
@@ -747,6 +747,14 @@ Across every neural model in this thesis --- Vanilla LSTM, GRU, TCN, and the pro
 \subsection{Tuned Hyperparameters}
 \label{sec:3.14.2}
 
+Every model in this thesis was trained with a fixed, documented configuration rather than with a separate hyperparameter search. The values in Table~\ref{tab:3.7} are the ones used for every result reported in Chapter~4, and the only selection made on validation data is the choice of checkpoint (and, for XGBoost, the stopping point) described in Section~\ref{sec:3.14.1}. That keeps the comparison simple to describe and to reproduce, but it also means the results reflect these particular settings and not the best each architecture could reach with extensive tuning. A baseline that improved with more careful tuning would narrow its gap to the other models, so Chapter~4 should be read with that in mind.
+
+Where the architectures allow it, the neural baselines share their settings. Vanilla LSTM and GRU use the same two layers of 128 hidden units, dropout of 0.2 \cite{Srivastava2014}, the Adam optimizer \cite{Kingma2015} at a learning rate of $1\times10^{-3}$, 30 epochs, a batch size of 64, and gradient clipping at a maximum norm of 1 \cite{Pascanu2013}. Holding all of this fixed is what lets the comparison between them isolate the architectural difference, as discussed in Section~\ref{sec:3.13}. TCN follows the same optimizer, loss, dropout, and epoch budget, and differs mainly where its structure requires it: four residual blocks with channel widths (64, 64, 128, 128) in place of recurrent layers, and a larger batch size of 128, since convolution parallelizes more readily than recurrence.
+
+XGBoost has its own set of controls, because it learns by adding trees and not by gradient descent on network weights. Each of its 75 regressors uses at most 300 trees of depth 6, with row and column subsampling of 0.8, L1 and L2 regularization of 0.1 and 1.0, and early stopping after 30 rounds without validation improvement \cite{ChenGuestrin2016}. Its learning rate of 0.05 is a shrinkage factor applied to each new tree, so it should not be compared directly with the learning rates of the neural models.
+
+CFL-EDLSTM shares the baselines' hidden size, dropout, batch size, loss, optimizer, and gradient clipping, but its training schedule is organized differently because it is federated. Instead of a single run of 30 epochs, each of the four cluster clients trains for three local epochs in each of 30 federated rounds \cite{McMahan2017}, for 90 local epochs in total, and it uses a higher local learning rate of 0.005 and a two-layer decoder alongside its two-layer encoder (Section~\ref{sec:3.12}). These differences come with the federated setup and are not a tuned advantage, but they do mean the settings of CFL-EDLSTM and the baselines are comparable and not identical.
+
 \begin{table}[htbp]
   \centering
   \caption{Training Configuration by Model}
@@ -830,18 +838,18 @@ MSE (mean squared error, in square metres) is reported mainly as the intermediat
 \section{Experimental Procedure}
 \label{sec:3.19}
 
-Training and evaluation proceed in a fixed order so that each stage gives the next something to be compared against. Figure~\ref{fig:3.15} summarizes the full sequence.
+Training and evaluation proceed in a fixed order so that each stage gives the next something to be compared against. 
 
 The four baselines are trained first, each on its own data representation (Section~\ref{sec:3.13}). XGBoost serves as the sanity-check reference: if a sequence model cannot beat it, that points to a problem in preprocessing, not a need for more architectural complexity. Vanilla LSTM and GRU then provide the standard recurrent comparison and the LSTM-versus-GRU architecture ablation, with TCN as a secondary sequence comparison. CFL-EDLSTM is trained as described in Section~\ref{sec:3.12}: 30 federated rounds across the four cluster clients using weighted Federated Averaging \cite{McMahan2017}, with the checkpoint that has the lowest weighted validation loss retained and each cluster's locally adapted model used for its test forecasts.
 
 Every model is evaluated on the final 15\% of its chronological data, at the same seven horizon checkpoints, using the metrics defined in Section~\ref{sec:3.16}. As noted in Section~\ref{sec:3.13}, CFL-EDLSTM's test windows come from the timestamps shared by all stations, so its comparison with the baselines carries the caveat described there. Training and evaluation were carried out on an AMD Ryzen 5 3600 six-core processor at 3.60~GHz, 24~GB of installed RAM, and an NVIDIA GeForce RTX~3060 with 12~GB VRAM; PyTorch models use CUDA where available, and XGBoost is configured for the same CUDA device.
 
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.7\textwidth]{figures2/exp-workflow.png}
-    \caption{Experimental workflow for baseline comparison, federation ablation, and multi-horizon evaluation.}
-    \label{fig:3.15}
-\end{figure}
+% \begin{figure}[htbp]
+%     \centering
+%     \includegraphics[width=0.7\textwidth]{figures2/exp-workflow.png}
+%     \caption{Experimental workflow for baseline comparison, federation ablation, and multi-horizon evaluation.}
+%     \label{fig:3.15}
+% \end{figure}
 
 \section{Summary}
 \label{sec:3.20}
