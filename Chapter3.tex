@@ -18,7 +18,7 @@ This is a quantitative, experimental study built around a comparative design: on
 \section{Overall Proposed Framework}
 \label{sec:3.3}
 
-At its core, the framework combines two ideas that Chapter~2 examined separately: a sequence-to-sequence Encoder--Decoder LSTM for multi-step forecasting \cite{Kao2020,Cui2022}, and a clustered federated training procedure in which stations are grouped by hydrological similarity and each group acts as a federated client, trained and combined through Federated Averaging \cite{McMahan2017,Ghosh2021,Harshvardhan2022}. Rather than pooling every station's data into one central model, each of the four clusters trains on its own stations' data, and only model parameters --- never raw windows --- are shared and aggregated across clusters. The shared model that results is then adapted locally, so each cluster forecasts with a model that reflects its own hydrological character; Section~\ref{sec:3.12} sets out the details.
+At its core, the framework combines two ideas that Chapter~2 examined separately: a sequence-to-sequence Encoder--Decoder LSTM for multi-step forecasting \cite{Kao2020,Cui2022}, and a clustered federated training procedure in which stations are grouped by hydrological similarity and each group acts as a federated client, trained and combined through Federated Averaging \cite{McMahan2017,Ghosh2021,Harshvardhan2022}. Rather than pooling every station's data into one central model, each of the four clusters trains on its own stations' data, and only model parameters --- never raw windows --- are shared and aggregated across clusters. The shared model that results is then adapted locally, so each cluster forecasts with a model that reflects its own hydrological character; Section~\ref{sec:3.12} sets out the details.The overall workflow of the proposed framework is illustrated in Figure~\ref{fig:3.1}.
 
 \vspace{0.3cm}
 \begin{figure}[htbp]
@@ -35,7 +35,7 @@ At its core, the framework combines two ideas that Chapter~2 examined separately
 \section{Study Area}
 \label{sec:3.4}
 
-The study covers 25 water-level monitoring stations distributed across northern, central, western, and Dhaka-metropolitan parts of Bangladesh, spanning a network of 13 named river systems: the Teesta and Dharla in the north; the Deonai-Charalkata-Jamuneswari-Karatoa system; the Brahmaputra-Jamuna mainstem, which contains the largest number of monitoring stations in the study; the Ghagot; the Old Brahmaputra; the interconnected Karatoa-Atrai-Gur-Gumani-Hurasagar system; the Dhaleswari and Kaliganga-Bethua further downstream; and, around the greater Dhaka area, the Buriganga, Turag, Lakhya, and Balu.
+The study covers 25 water-level monitoring stations distributed across northern, central, western, and Dhaka-metropolitan parts of Bangladesh, spanning a network of 13 named river systems.Figure~\ref{fig:3.2a} illustrates the geographical distribution and connectivity of the selected river systems within the study area, providing a visual overview of the river network covered by the monitoring stations.The Teesta and Dharla in the north; the Deonai-Charalkata-Jamuneswari-Karatoa system; the Brahmaputra-Jamuna mainstem, which contains the largest number of monitoring stations in the study; the Ghagot; the Old Brahmaputra; the interconnected Karatoa-Atrai-Gur-Gumani-Hurasagar system; the Dhaleswari and Kaliganga-Bethua further downstream; and, around the greater Dhaka area, the Buriganga, Turag, Lakhya, and Balu.
 BWDB classifies each station as tidal or non-tidal: 5 of the 25 stations, all of them in the Urban cluster and located on the Buriganga, Turag, Lakhya, and Balu channels around Dhaka, are tidal; the remaining 20 are non-tidal. This distinction is reported here as descriptive context about the study area rather than as a formal input to the clustering procedure itself, which is defined separately in \S\ref{sec:3.10.1}.Table~\ref{tab:river-distribution} summarizes the distribution of monitoring stations across the selected river systems, their general locations, and tidal status.
 
 \setcounter{table}{-1}
@@ -177,7 +177,7 @@ Not every station carries every variable. Water level has by far the widest foot
     Used directly + trend features; mapped across the 5 WL slots per date &
     1 Jan 2010 -- 31 Dec 2024 & MDD (m\textsuperscript{3}/s) \\
 
-    Rainfall & BWDB / BMD & 13 stations &
+    Rainfall & BWDB & 13 stations &
     Used directly + cumulative windows; mapped across the 5 WL slots per date &
     1 Jan 2010 -- $\sim$30 Apr 2026 & mm \\
 
@@ -185,7 +185,7 @@ Not every station carries every variable. Water level has by far the widest foot
     Gaps filled via interpolation, mapped to stations by district, then mapped across the 5 WL slots &
     2012 -- 2024 & \textdegree C \\
 
-    Evaporation & BWDB & 7 stations (station-level) &
+    Evaporation & BWDB & 7 stations &
     Linearly interpolated to fill gaps; mapped across the 5 WL slots per date &
     1 Jan 2010 -- 28 Feb 2026 & mm/day \\
     \bottomrule
@@ -353,7 +353,7 @@ Whatever the grouping, every scaler's parameters are fit on training data only, 
 \subsection{Data Splitting}
 \label{sec:3.9.5}
 
-The data is split chronologically, never randomly --- a random split would scatter temporally adjacent, and even future, observations across training and test sets, which defeats the point of a forecasting evaluation. Rather than committing to a single split up front, several chronological configurations are being tried, with the boundary between training, validation, and test moved and re-evaluated to see which split actually yields the most reliable performance, consistent with the chronological (not random) approach used by \cite{Cui2022}. Each candidate boundary is chosen with the same considerations in mind --- what dates are actually available, how station coverage changes across the period, and how flood events are distributed across the timeline --- and whichever configuration is used, it's documented rather than left implicit.
+The data is split chronologically into training, validation, and test sets using a 70:15:15 proportion, respectively --- a random split would scatter temporally adjacent, and even future, observations across training and test sets, which defeats the point of a forecasting evaluation. Rather than committing to a single split up front, several chronological configurations are being tried, with the boundary between training, validation, and test moved and re-evaluated to see which split actually yields the most reliable performance, consistent with the chronological (not random) approach used by \cite{Cui2022}. Each candidate boundary is chosen with the same considerations in mind --- what dates are actually available, how station coverage changes across the period, and how flood events are distributed across the timeline --- and whichever configuration is used, it's documented rather than left implicit.
 
 Input and target windows are always built in temporal order, with every target strictly following its input, and the model, scalers, and any imputation parameters are fit using training data alone regardless of which split is being tested. Validation is reserved for model selection, and the test period only ever gets used for a final evaluation. Across all of this, the 15-day horizon (75 water-level observations) is the evaluation point, and errors are reported back in the original water-level units rather than left in scaled form.
 
@@ -417,7 +417,8 @@ Stations were grouped into four clusters using a combination of hydrological/geo
 
 \subsection{Cluster Formation and Characteristics}
 \label{sec:3.10.2}
-The monitoring stations are grouped into four clusters: Upstream, Mid-river, Downstream, and Urban, according to their hydrological and temporal characteristics. This grouping allows the federated learning framework to account for the differences in water-level and flow patterns across stations while learning from stations with similar behavior.
+
+The monitoring stations are grouped into four clusters: Upstream, Mid-river, Downstream, and Urban, according to their hydrological and temporal characteristics. This grouping allows the federated learning framework to account for differences in water-level and flow patterns across stations while learning from stations with similar behavior. Figure~\ref{fig:3.6} illustrates the spatial distribution of the 25 monitoring stations according to their assigned clusters, providing a geographical overview of the grouping. The main characteristics of each cluster, including the number of stations, rivers represented, general characteristics, and representative stations, are summarized in Table~\ref{tab:3.5}.
 
 \begin{landscape}
 \begin{table}[htbp]
@@ -817,23 +818,24 @@ R\textsuperscript{2} expresses the share of variance in the observed water-level
 
 MSE (mean squared error, in square metres) is reported mainly as the intermediate quantity RMSE is derived from, and appears in the full result tables for completeness rather than as something discussed on its own. EVS (explained variance score) is closely related to R\textsuperscript{2} but, unlike it, doesn't penalize a constant bias in the predictions the same way --- so a model whose EVS sits noticeably above its R\textsuperscript{2} is one that tracks the shape of the true series well but carries a systematic offset. IOA (index of agreement) is bounded between 0 and 1 and tends to be less sensitive than NSE/R\textsuperscript{2} to a small number of unusually large errors, which is why, in Section~4.6, IOA and NSE occasionally rank models slightly differently at the longest, 15-day horizon.
 
-\section{Explainability Using SHAP}
-\label{sec:3.17}
 
-\section{Web-Based Visualization Interface}
-\label{sec:3.18}
+% \section{Explainability Using SHAP}
+% \label{sec:3.17}
 
-\subsection{Interactive Map Module}
-\label{sec:3.18.1}
+% \section{Web-Based Visualization Interface}
+% \label{sec:3.18}
 
-\subsection{Station Selection and Details}
-\label{sec:3.18.2}
+% \subsection{Interactive Map Module}
+% \label{sec:3.18.1}
 
-\subsection{Forecast Display and Visualization}
-\label{sec:3.18.3}
+% \subsection{Station Selection and Details}
+% \label{sec:3.18.2}
 
-\subsection{FFWC Comparison Module}
-\label{sec:3.18.4}
+% \subsection{Forecast Display and Visualization}
+% \label{sec:3.18.3}
+
+% \subsection{FFWC Comparison Module}
+% \label{sec:3.18.4}
 
 \section{Experimental Procedure}
 \label{sec:3.19}
@@ -853,3 +855,9 @@ Every model is evaluated on the final 15\% of its chronological data, at the sam
 
 \section{Summary}
 \label{sec:3.20}
+
+This chapter has set out how the study was built, from the raw records to the models that will be judged against each other. The data come from 25 monitoring stations along the Brahmaputra river system and five variables --- water level, discharge, rainfall, temperature, and evaporation --- which were cleaned, aligned, and expanded into 42 input features (Section~\ref{sec:3.9}). The stations were grouped into four clusters, Upstream, Middle, Downstream, and Urban, using their position along the river and how they are grouped operationally by FFWC (Section~\ref{sec:3.10}). Each model reads the previous 30 days of observations and forecasts the next 15, with results reported at seven horizon checkpoints from 3 hours to 15 days (Sections~\ref{sec:3.11} and~\ref{sec:3.15}).
+
+The proposed CFL-EDLSTM treats each cluster as a federated client. The clients train a shared encoder--decoder LSTM locally, a weighted Federated Averaging step combines them into a global model, and each cluster keeps its own locally adapted version for forecasting, so raw data are never pooled across clusters (Section~\ref{sec:3.12}). It is compared with four baselines --- XGBoost, Vanilla LSTM, GRU, and TCN (Section~\ref{sec:3.13}) --- under fixed, documented configurations and not a separate hyperparameter search (Section~\ref{sec:3.14}). All models are scored on the same seven metrics (Section~\ref{sec:3.16}), and SHAP and a web-based interface with an FFWC comparison view cover interpretation and presentation (Sections~3.17 and~3.18).
+
+Two limits are worth carrying into the results. The federation is simulated on a single workstation, and CFL-EDLSTM works on the timestamps shared by all stations, so its test windows are fewer than those of the station-wise baselines. Chapter~4 reads the comparison with both in mind and reports what the procedure produced.
