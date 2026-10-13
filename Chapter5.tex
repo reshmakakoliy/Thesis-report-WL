@@ -1,43 +1,128 @@
-\chapter{Conclusion and Future Work}
-\label{Ch_Chapter6}
+\chapter{Remaining Work and Future Directions}
+\label{ch:5}
 
-\section{Conclusion}
+\section{Introduction}
+\label{sec:5.1}
 
-Hepatocellular carcinoma (HCC) is a highly heterogeneous malignancy whose clinical outcome largely depends on the stage at diagnosis. The complexity of its molecular mechanisms often limits the effectiveness of conventional diagnostic biomarkers and treatment strategies. This study presented an integrated computational framework that combines transcriptomic and DNA methylation data with machine learning, explainable artificial intelligence, external validation, and computational drug discovery to improve stage-specific biomarker identification in HCC.
+The work presented in Chapters~3 and~4 covers the core forecasting pipeline: the processed dataset, the station clusters, the CFL-EDLSTM model, the four baselines, and an evaluation across seven forecast horizons. Several parts of the planned research are not yet complete. This chapter sets out what has been done, what remains, how each remaining part will be carried out, and how the work is scheduled. Longer-term directions that go beyond the scope of this thesis are noted at the end. The conclusions drawn from the completed work are given in Chapter~\ref{ch:6}.
 
-Initially, RNA-seq expression profiles and DNA methylation data were collected from the TCGA-LIHC dataset and processed through an integrated bioinformatics pipeline. Differential expression analysis and differential methylation analysis were performed independently to identify significant molecular alterations associated with disease progression. By integrating both omics datasets, a set of candidate biomarkers was identified that demonstrated strong discriminatory ability between early-stage and advanced-stage HCC patients.
+\section{Current Status of the Work}
+\label{sec:5.2}
 
-Several supervised machine learning algorithms, including Support Vector Machine (SVM), Random Forest (RF), XGBoost, and an Ensemble Learning model, were trained to classify HCC stages. Comparative evaluation demonstrated that the Ensemble Learning model achieved the best overall performance, providing robust classification accuracy and improved generalization. To ensure the reliability of the identified biomarkers, external validation was conducted using the independent GEO dataset GSE14520, where eight biomarkers were successfully validated.
+Table~\ref{tab:5.status} lists each component of the research with its current status.
 
-To improve model interpretability, SHAP (Shapley Additive Explanations) analysis was incorporated into the proposed framework. SHAP identified the relative contribution of individual biomarkers toward model prediction and confirmed that several validated genes consistently exhibited high predictive importance. This explainability analysis increased the transparency of the developed machine learning models and provided biological evidence supporting the identified biomarkers.
+\begin{table}[htbp]
+  \centering
+  \caption{Status of the Research Components}
+  \label{tab:5.status}
+  \small
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabularx}{\textwidth}{@{}p{4.6cm} p{2.3cm} X@{}}
+    \toprule
+    \textbf{Component} & \textbf{Status} & \textbf{Comment} \\
+    \midrule
+    Data collection and preprocessing & Completed & 25 stations, 2010--2026; gaps filled by forward and backward filling; engineered features (Section~\ref{sec:4.2}) \\
+    Station clustering & Completed & Four clusters: Upstream, Mid-river, Downstream, Urban (Section~\ref{sec:4.3}) \\
+    CFL-EDLSTM implementation and training & Completed (first version) & Weighted federated averaging over four cluster-level clients (Section~\ref{sec:3.12}) \\
+    Baseline models & Completed & XGBoost, Vanilla LSTM, GRU, and TCN \\
+    Overall, horizon, cluster, and station evaluation & Completed & Sections~\ref{sec:4.4} to~\ref{sec:4.10} \\
+    Comparison with previous studies & Completed & Indirect comparison with three studies (Section~\ref{sec:4.13}) \\
+    SHAP-based interpretability & Remaining & Including a per-cluster analysis \\
+    Comparison with FFWC & Remaining & FFWC used as an external reference \\
+    Web-based visualization interface & Remaining & Interactive station map with forecasts at the seven horizons \\
+    Model improvements and further experiments & Remaining & Ablations, repeated runs, tuning, and weak-spot analysis \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
 
-Beyond biomarker identification, the study extended into computational drug discovery. Among the validated biomarkers, SRY (Sex-determining Region Y) was selected as a potential therapeutic target based on its biological relevance and differential methylation pattern. Protein structure preparation, molecular docking, and binding affinity analysis were performed to investigate potential interactions between the target protein and selected FDA-approved anticancer drugs. The docking results demonstrated favorable binding affinities for several compounds, suggesting their potential as repurposed therapeutic candidates for HCC.
+In short, the modelling and evaluation are in place, and what remains is the interpretability analysis, the comparison with FFWC, the interface, and a round of improvements and checks on the model itself.
 
-To further evaluate the suitability of the identified compounds, SwissADME analysis was conducted to investigate pharmacokinetic characteristics, drug-likeness, and physicochemical properties, while ProTox-3 analysis assessed their predicted toxicity profiles. The integrated docking, ADME, and toxicity analyses identified promising compounds that satisfied acceptable pharmacological and safety criteria, thereby providing valuable candidates for future experimental validation.
+\section{Remaining Work}
+\label{sec:5.3}
 
-Overall, this research demonstrates that integrating multi-omics analysis, explainable machine learning, and computational drug discovery provides an effective framework for identifying clinically relevant biomarkers and potential therapeutic candidates for hepatocellular carcinoma. The proposed methodology contributes toward precision oncology by combining predictive modeling with biological interpretation and rational drug repurposing strategies.
-\vspace{1.5cm}
+\subsection{SHAP-Based Interpretability Analysis}
+\label{sec:5.3.1}
 
+Deep-learning forecasts are often hard to explain, and a forecasting tool for flood preparedness is more useful when users can see what drives its predictions. The planned analysis will apply SHAP to the trained cluster models in order to answer three questions. Which input variables and engineered features contribute most to the forecasts? Does their importance differ from one cluster to another? And does the ranking agree with what is known about the hydrology of each cluster (Section~\ref{sec:4.3})? The per-cluster analysis is also needed to fulfil the commitment made in Chapter~2.
 
+The main practical difficulty is that the models take long input windows (150 time steps) with many features, which makes SHAP computation expensive. We plan to explain a sampled set of test windows, use an explainer suited to recurrent networks, and aggregate contributions over time steps and over groups of related features (for example lagged values, cumulative rainfall, and seasonal encodings). For XGBoost, SHAP values from the tree explainer will give a cross-check on the importance rankings. The output will be a global importance ranking, a ranking per cluster, and, if time allows, a view by forecast horizon.
 
-\section{Limitations of the Study}
+\subsection{Web-Based Visualization Interface}
+\label{sec:5.3.2}
 
-Although the proposed framework achieved promising results, several limitations should be acknowledged.
+The second remaining part is a web interface that makes the forecasts usable by people who do not run the model. It will show an interactive map of the 25 stations, coloured or grouped by cluster, with current, previous, and predicted water levels for each of the seven forecast horizons, and a time-series view for any selected station. An exploratory dashboard was already used internally to inspect the raw station data, and it will serve as a starting point for the layout.
 
-The machine learning models were trained using retrospective data and therefore require prospective clinical validation before clinical implementation.
+The work breaks down into four steps: exporting the model's forecasts in a form the interface can read, building a service that supplies them, building the map and station views, and testing the whole system on stored forecasts. The comparison view described in Section~\ref{sec:5.3.3} will be added once the FFWC data are ready. The technology choices will be made at the start of this stage, and the interface will be evaluated for correctness and clarity of presentation, not for operational deployment.
 
-The molecular docking analysis provides only computational predictions of protein–ligand interactions. Binding affinity alone cannot confirm biological activity or therapeutic efficacy.
+\subsection{Comparison with FFWC}
+\label{sec:5.3.3}
 
-Finally, wet-laboratory experiments such as gene expression validation, methylation assays, protein expression analysis, and biological functional studies were beyond the scope of this research.
+The Flood Forecasting and Warning Centre of the Bangladesh Water Development Board issues forecasts for many river stations, and setting our forecasts next to them gives an external point of reference. FFWC is used here as a comparison source and not as validated ground truth. The plan is to identify the stations and dates where FFWC forecasts and observations overlap with our test period, align them to a common time stamp, and compare errors at the horizons for which FFWC forecasts are available. We expect the overlap to be partial. In the earlier attempt to recover missing values from FFWC reports, only a small part of the gaps could be matched to our stations and time stamps (Section~\ref{sec:4.2}), and the matching problem may recur here. If the overlap is too small for a reliable statistical comparison, the results will be presented as a case-based comparison, with this limitation stated openly.
 
-\section{Future Work}
+% \subsection{Model Improvements and Additional Experiments}
+% \label{sec:5.3.4}
 
-Several directions can be explored to further extend this research.
+% The first version of CFL-EDLSTM leaves several questions open, and the planned experiments are listed in Table~\ref{tab:5.improve}. The first group addresses the main limitation noted in Section~\ref{sec:4.12}, that the contributions of clustering, federation, and the encoder--decoder structure cannot yet be separated. The second group addresses the robustness and tuning of the current model. The third looks at the weak spots found in Chapter~4.
 
-Future studies may integrate additional omics layers, including proteomics, metabolomics, single-cell sequencing, mutation data, and copy number variation, to construct a more comprehensive molecular landscape of hepatocellular carcinoma.
+% \begin{table}[htbp]
+%   \centering
+%   \caption{Planned Model Improvements and Additional Experiments}
+%   \label{tab:5.improve}
+%   \small
+%   \renewcommand{\arraystretch}{1.2}
+%   \begin{tabularx}{\textwidth}{@{}p{3.6cm} X p{2.2cm}@{}}
+%     \toprule
+%     \textbf{Experiment} & \textbf{Purpose} & \textbf{Priority} \\
+%     \midrule
+%     Global and local-only comparison & Train a single global encoder--decoder on all stations, and one with clustering but no federation, to test whether clustering and federation improve accuracy & High \\
+%     Encoder--decoder ablation & Train a standard LSTM under the same clustered federated scheme to isolate the encoder--decoder contribution & High \\
+%     Repeated runs with fixed seeds & Measure run-to-run variation, since the current results come from a single run without a fixed seed & High \\
+%     Hyperparameter tuning & Search the main settings (for example hidden size, learning rate, and dropout) systematically instead of using a single configuration & Medium \\
+%     Alternative aggregation & Test aggregation methods designed for heterogeneous clients as alternatives to weighted averaging & Medium \\
+%     Weak-spot analysis & Investigate the highest-level station (SW291.5R), the Mid-river cluster, and the large XGBoost errors at six low-level stations, and verify the XGBoost run & Medium \\
+%     Imputation sensitivity & Test whether results change under alternative gap-filling methods, given the missing discharge at ten stations & Medium \\
+%     Event-focused evaluation & Report accuracy on high-water events and peak errors in addition to averages, and add NSE by horizon & If time allows \\
+%     \bottomrule
+%   \end{tabularx}
+% \end{table}
 
-Deep learning architectures, graph neural networks, transformer-based models, and multimodal learning techniques may further improve predictive performance and capture complex biological relationships.
+% If the improved model changes the headline numbers, the current results will be kept as the first version and used as the reference point, so that any improvement can be reported honestly and traced.
 
-The computationally identified drug candidates should undergo molecular dynamics simulations, MM-PBSA free-energy calculations, and experimental validation to investigate binding stability and therapeutic potential.
+\section{Work Plan}
+\label{sec:5.4}
 
-Finally, the proposed computational framework can be adapted to other cancer types by integrating disease-specific multi-omics datasets and clinical information, thereby supporting broader applications in precision medicine and personalized oncology.
+The remaining work is organised in five stages, shown in Table~\ref{tab:5.plan}. The model experiments come first, because they may change the numbers that the interpretability analysis and the interface depend on.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Work Plan for the Remaining Research}
+  \label{tab:5.plan}
+  \small
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabularx}{\textwidth}{@{}p{0.8cm} X X p{2.4cm}@{}}
+    \toprule
+    \textbf{Stage} & \textbf{Task} & \textbf{Main output} & \textbf{Planned period} \\
+    \midrule
+    1 & Model improvements and ablations  & Final trained models; evidence on the role of clustering, federation, and the encoder--decoder & [\textbf{fill in}] \\
+    2 & SHAP analysis (Section~\ref{sec:5.3.1}) & Global and per-cluster importance rankings & [\textbf{fill in}] \\
+    3 & FFWC comparison (Section~\ref{sec:5.3.3}) & Comparison results and a statement of their limits & [\textbf{fill in}] \\
+    4 & Web interface (Section~\ref{sec:5.3.2}) & Working interface with map, forecasts, and comparison view & [\textbf{fill in}] \\
+    5 & Writing and finalisation & Complete thesis with updated Chapters~4 and~6 & [\textbf{fill in}] \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\section{Expected Outcomes and Anticipated Risks}
+\label{sec:5.5}
+
+On completion, the thesis should contain an interpretable account of which inputs drive the forecasts, evidence on whether clustering and federation improve accuracy, a comparison with an external operational reference, and a working interface that presents the forecasts. Three risks stand out. The first is computation time: SHAP on long sequences and repeated training runs are both costly on a single GPU, so we will start with sampled windows and a limited number of seeds and extend them if time allows. The second is data availability: the FFWC overlap may be smaller than hoped, in which case the comparison will be reduced in scope. The third is that retraining may change the current results. Keeping the first version as a reference and changing the final chapters only once, after all experiments are done, will limit this risk.
+
+\section{Longer-Term Research Directions}
+\label{sec:5.6}
+
+Some directions lie beyond this thesis. The first is to extend the framework to other river basins, since the current dataset covers only the Brahmaputra system. The second is to add forecast-driven inputs, such as numerical rainfall forecasts, which would address the limit that the model sees only past observations. The third is to produce probabilistic forecasts with uncertainty bounds, which are more useful for warning decisions than a single value. The fourth is to test the federated design in a genuinely distributed setting, with data held by separate agencies, instead of clusters simulated within one dataset. Finally, evaluation on historical extreme flood events and a pilot with end users would show how the system performs where it matters most.
+
+\section{Summary of the Chapter}
+\label{sec:5.7}
+
+This chapter has described the remaining work: the SHAP analysis, the comparison with FFWC, the web interface, and a set of model improvements and experiments, together with a staged plan and the main risks. Chapter~\ref{ch:6} concludes with what the work has achieved so far.
