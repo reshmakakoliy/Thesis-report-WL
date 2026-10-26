@@ -1,67 +1,67 @@
-\chapter{Conclusion}
-\label{ch:6}
+% \chapter{Conclusion}
+% \label{ch:6}
 
-\section{Introduction}
-\label{sec:6.1}
+% \section{Introduction}
+% \label{sec:6.1}
 
-This chapter summarises what the thesis has achieved so far. The research is still in progress, and the interpretability analysis, the interface, and a round of model improvements are planned for the next stage (Chapter~\ref{ch:5}). The conclusions below therefore apply to the completed part of the work and will be updated when the rest is finished.
+% This chapter summarises what the thesis has achieved so far. The research is still in progress, and the interpretability analysis, the interface, and a round of model improvements are planned for the next stage (Chapter~\ref{ch:5}). The conclusions below therefore apply to the completed part of the work and will be updated when the rest is finished.
 
-\section{Summary of the Study}
-\label{sec:6.2}
+% \section{Summary of the Study}
+% \label{sec:6.2}
 
-Bangladesh's flood risk is shaped by its river network and seasonal rainfall, and the monitoring stations differ widely in hydrological setting. This thesis proposed CFL-EDLSTM, a clustered federated learning framework built on an encoder--decoder LSTM, for multi-horizon water-level forecasting. The study used 3-hourly water level, rainfall, discharge, evaporation, and temperature records from 25 stations in the Brahmaputra river system for 2010 to 2026. The stations were grouped into four clusters (Upstream, Mid-river, Downstream, and Urban), each of which acted as a federated client. The clients trained locally, a weighted federated-averaging step combined their updates, and each cluster kept its adapted model for forecasting. The model reads 30 days of history and forecasts 15 days ahead, and it was evaluated at seven horizons from 3 hours to 15 days against XGBoost, Vanilla LSTM, GRU, and TCN.
+% Bangladesh's flood risk is shaped by its river network and seasonal rainfall, and the monitoring stations differ widely in hydrological setting. This thesis proposed CFL-EDLSTM, a clustered federated learning framework built on an encoder--decoder LSTM, for multi-horizon water-level forecasting. The study used 3-hourly water level, rainfall, discharge, evaporation, and temperature records from 25 stations in the Brahmaputra river system for 2010 to 2026. The stations were grouped into four clusters (Upstream, Mid-river, Downstream, and Urban), each of which acted as a federated client. The clients trained locally, a weighted federated-averaging step combined their updates, and each cluster kept its adapted model for forecasting. The model reads 30 days of history and forecasts 15 days ahead, and it was evaluated at seven horizons from 3 hours to 15 days against XGBoost, Vanilla LSTM, GRU, and TCN.
 
-\section{Major Findings}
-\label{sec:6.3}
+% \section{Major Findings}
+% \label{sec:6.3}
 
-\begin{enumerate}
-  \item \textbf{The clusters are clearly different.} Average water level falls from 28.2~mMSL in the Upstream cluster to 2.1~mMSL in the Urban cluster, and the Mid-river cluster stands out in rainfall, while temperature differs little (Section~\ref{sec:4.3}).
-  \item \textbf{CFL-EDLSTM was the most accurate model overall.} It reached an MAE of 0.321~m, an RMSE of 0.521~m, and an NSE of 0.998. Its MAE was about 35\% lower than that of Vanilla LSTM and about 40\% lower than that of XGBoost (Section~\ref{sec:4.5}).
-  \item \textbf{The best model depends on the horizon.} XGBoost was more accurate up to a one-day lead, but its error grew about sixteen-fold by 15 days, against about threefold for CFL-EDLSTM, which was the most accurate from three days onward (15-day MAE of 0.436~m against 1.149~m) (Sections~\ref{sec:4.6} and~\ref{sec:4.8}).
-  \item \textbf{CFL-EDLSTM was consistent across stations.} It had the lowest MAE at 24 of the 25 stations, and its worst station was better than the worst station of any baseline. Its clear exception was the highest-level station, SW291.5R (Section~\ref{sec:4.10}).
-  \item \textbf{Performance differed between clusters.} MAE ranged from 0.252~m in the Urban cluster to 0.394~m in the Mid-river cluster (Section~\ref{sec:4.7}).
-  \item \textbf{The results are in line with earlier work.} The accuracy and the gradual decline with lead time are consistent with the regional benchmark, although the comparison is indirect (Section~\ref{sec:4.13}).
-\end{enumerate}
+% \begin{enumerate}
+%   \item \textbf{The clusters are clearly different.} Average water level falls from 28.2~mMSL in the Upstream cluster to 2.1~mMSL in the Urban cluster, and the Mid-river cluster stands out in rainfall, while temperature differs little (Section~\ref{sec:4.3}).
+%   \item \textbf{CFL-EDLSTM was the most accurate model overall.} It reached an MAE of 0.321~m, an RMSE of 0.521~m, and an NSE of 0.998. Its MAE was about 35\% lower than that of Vanilla LSTM and about 40\% lower than that of XGBoost (Section~\ref{sec:4.5}).
+%   \item \textbf{The best model depends on the horizon.} XGBoost was more accurate up to a one-day lead, but its error grew about sixteen-fold by 15 days, against about threefold for CFL-EDLSTM, which was the most accurate from three days onward (15-day MAE of 0.436~m against 1.149~m) (Sections~\ref{sec:4.6} and~\ref{sec:4.8}).
+%   \item \textbf{CFL-EDLSTM was consistent across stations.} It had the lowest MAE at 24 of the 25 stations, and its worst station was better than the worst station of any baseline. Its clear exception was the highest-level station, SW291.5R (Section~\ref{sec:4.10}).
+%   \item \textbf{Performance differed between clusters.} MAE ranged from 0.252~m in the Urban cluster to 0.394~m in the Mid-river cluster (Section~\ref{sec:4.7}).
+%   \item \textbf{The results are in line with earlier work.} The accuracy and the gradual decline with lead time are consistent with the regional benchmark, although the comparison is indirect (Section~\ref{sec:4.13}).
+% \end{enumerate}
 
-\section{Achievement of Research Objectives}
-\label{sec:6.4}
+% \section{Achievement of Research Objectives}
+% \label{sec:6.4}
 
-Table~\ref{tab:6.objectives} relates the research objectives to what has been achieved so far.
+% Table~\ref{tab:6.objectives} relates the research objectives to what has been achieved so far.
 
-\begin{table}[htbp]
-  \centering
-  \caption{Progress Against the Research Objectives}
-  \label{tab:6.objectives}
-  \small
-  \renewcommand{\arraystretch}{1.2}
-  \begin{tabularx}{\textwidth}{@{}X p{2.4cm} X@{}}
-    \toprule
-    \textbf{Objective} & \textbf{Status} & \textbf{Evidence or next step} \\
-    \midrule
-    Prepare a processed multi-station hydrological and meteorological dataset & Achieved & 25 stations, 741{,}750 rows, engineered features (Section~\ref{sec:4.2}) \\
-    Group stations into hydrologically meaningful clusters & Achieved & Four clusters with distinct characteristics (Section~\ref{sec:4.3}) \\
-    Develop a clustered federated encoder--decoder LSTM for multi-horizon forecasting & Achieved (first version) & CFL-EDLSTM trained and evaluated (Sections~\ref{sec:3.12} and~\ref{sec:4.4}) \\
-    Evaluate it against baseline models at seven horizons & Achieved & Four baselines; overall, horizon, cluster, and station results (Sections~\ref{sec:4.5} to~\ref{sec:4.10}) \\
-    Explain the predictions with SHAP, including per cluster & Pending & Section~\ref{sec:5.3.1} \\
-    Compare forecasts with FFWC & Pending & Section~\ref{sec:5.3.3} \\
-    Provide a web-based visualization interface & Pending & Section~\ref{sec:5.3.2} \\
-    \bottomrule
-  \end{tabularx}
-\end{table}
+% \begin{table}[htbp]
+%   \centering
+%   \caption{Progress Against the Research Objectives}
+%   \label{tab:6.objectives}
+%   \small
+%   \renewcommand{\arraystretch}{1.2}
+%   \begin{tabularx}{\textwidth}{@{}X p{2.4cm} X@{}}
+%     \toprule
+%     \textbf{Objective} & \textbf{Status} & \textbf{Evidence or next step} \\
+%     \midrule
+%     Prepare a processed multi-station hydrological and meteorological dataset & Achieved & 25 stations, 741{,}750 rows, engineered features (Section~\ref{sec:4.2}) \\
+%     Group stations into hydrologically meaningful clusters & Achieved & Four clusters with distinct characteristics (Section~\ref{sec:4.3}) \\
+%     Develop a clustered federated encoder--decoder LSTM for multi-horizon forecasting & Achieved (first version) & CFL-EDLSTM trained and evaluated (Sections~\ref{sec:3.12} and~\ref{sec:4.4}) \\
+%     Evaluate it against baseline models at seven horizons & Achieved & Four baselines; overall, horizon, cluster, and station results (Sections~\ref{sec:4.5} to~\ref{sec:4.10}) \\
+%     Explain the predictions with SHAP, including per cluster & Pending & Section~\ref{sec:5.3.1} \\
+%     Compare forecasts with FFWC & Pending & Section~\ref{sec:5.3.3} \\
+%     Provide a web-based visualization interface & Pending & Section~\ref{sec:5.3.2} \\
+%     \bottomrule
+%   \end{tabularx}
+% \end{table}
 
-Four of the seven objectives are achieved and three are pending, and the pending ones are those that depend on the trained models and are scheduled for the next stage.
+% Four of the seven objectives are achieved and three are pending, and the pending ones are those that depend on the trained models and are scheduled for the next stage.
 
-\section{Research Contributions}
-\label{sec:6.5}
+% \section{Research Contributions}
+% \label{sec:6.5}
 
-The contributions achieved so far are the following. First, a clustered federated encoder--decoder LSTM framework in which hydrologically defined clusters act as clients and each cluster keeps its own adapted model. Second, a processed 16-year, 25-station, 3-hourly dataset with a documented preparation procedure. Third, a multi-horizon evaluation of five models, with station-level and cluster-level analysis, that shows how the ranking of models changes with lead time. Fourth, a comparison with earlier studies along the dimensions of regional forecasting, federated learning, and encoder--decoder modelling. To our knowledge, none of the studies reviewed combines all three on a sub-daily, multivariate dataset. The interpretability analysis and the interface, which were planned as further contributions, are still to be completed.
+% The contributions achieved so far are the following. First, a clustered federated encoder--decoder LSTM framework in which hydrologically defined clusters act as clients and each cluster keeps its own adapted model. Second, a processed 16-year, 25-station, 3-hourly dataset with a documented preparation procedure. Third, a multi-horizon evaluation of five models, with station-level and cluster-level analysis, that shows how the ranking of models changes with lead time. Fourth, a comparison with earlier studies along the dimensions of regional forecasting, federated learning, and encoder--decoder modelling. To our knowledge, none of the studies reviewed combines all three on a sub-daily, multivariate dataset. The interpretability analysis and the interface, which were planned as further contributions, are still to be completed.
 
-\section{Limitations of the Study}
-\label{sec:6.6}
+% \section{Limitations of the Study}
+% \label{sec:6.6}
 
-The conclusions above should be read with the following limits in mind. The contributions of clustering, federation, and the encoder--decoder structure are not separated, because no global or non-federated comparison has been run yet. The model was trained once without a fixed random seed, so small differences are uncertain. Gaps in the data were filled by forward and backward filling, discharge is absent at ten of the 25 stations, and most rainfall records are zero. The models were scored on slightly different sets of test windows, and each station was evaluated on a single chronological split. The comparison with earlier studies is indirect, since the datasets and protocols differ. Finally, SHAP, the FFWC comparison, and the interface are not yet in place. Most of these limits are addressed by the plan in Chapter~\ref{ch:5}.
+% The conclusions above should be read with the following limits in mind. The contributions of clustering, federation, and the encoder--decoder structure are not separated, because no global or non-federated comparison has been run yet. The model was trained once without a fixed random seed, so small differences are uncertain. Gaps in the data were filled by forward and backward filling, discharge is absent at ten of the 25 stations, and most rainfall records are zero. The models were scored on slightly different sets of test windows, and each station was evaluated on a single chronological split. The comparison with earlier studies is indirect, since the datasets and protocols differ. Finally, SHAP, the FFWC comparison, and the interface are not yet in place. Most of these limits are addressed by the plan in Chapter~\ref{ch:5}.
 
-\section{Final Conclusion}
-\label{sec:6.7}
+% \section{Final Conclusion}
+% \label{sec:6.7}
 
-The work completed so far shows that a clustered federated encoder--decoder LSTM can forecast water level across heterogeneous stations with lower overall error than the four baselines, and with errors that grow slowly as the lead time extends to 15 days. XGBoost remains the better choice for lead times up to one day, which shows that no single model is best at every horizon. Performance is reasonably even across stations and differs between clusters in ways that appear to follow their hydrological character, although the evidence is descriptive and does not by itself prove that clustering improves accuracy. The interpretability analysis, the comparison with FFWC, the web interface, and the planned experiments will test and extend these results, and the final conclusions will be confirmed once they are complete.
+% The work completed so far shows that a clustered federated encoder--decoder LSTM can forecast water level across heterogeneous stations with lower overall error than the four baselines, and with errors that grow slowly as the lead time extends to 15 days. XGBoost remains the better choice for lead times up to one day, which shows that no single model is best at every horizon. Performance is reasonably even across stations and differs between clusters in ways that appear to follow their hydrological character, although the evidence is descriptive and does not by itself prove that clustering improves accuracy. The interpretability analysis, the comparison with FFWC, the web interface, and the planned experiments will test and extend these results, and the final conclusions will be confirmed once they are complete.
