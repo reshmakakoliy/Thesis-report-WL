@@ -4,16 +4,16 @@
 
 \section{Overview}
 
-Bangladesh sits on the lower deltaic plain of the Ganges--Brahmaputra--Meghna river system, one of the largest and most hydrologically active river networks in the world. This setting, together with heavy monsoon rainfall, discharge arriving from upstream catchments, and generally low-lying terrain, leaves the country persistently exposed to flooding and water-logging. Monitoring and forecasting river water levels is, as a result, a core part of how flood risk is managed in the country.
+Bangladesh sits on the lower deltaic plain of the Ganges--Brahmaputra--Meghna river system, one of the largest and most hydrologically active river networks in the world. This setting, together with heavy monsoon rainfall, discharge arriving from upstream catchments, and generally low-lying terrain, leaves the country persistently exposed to flooding and water-logging. The elevation distribution across the country, illustrated in Figure~\ref{fig:hydro-context}, highlights the predominantly low-lying nature of Bangladesh's landscape . Monitoring and forecasting river water levels is, therefore, an important part of flood risk management in Bangladesh.
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.85\textwidth]{figures2/fig1_1_hydro_context.png}
-\caption{Bangladesh's hydrological context, showing major rivers, cities, and the study's monitoring stations.}
+\caption{Elevation and topography of Bangladesh. Source: Adapted from \cite{Dewan2022}.}
 \label{fig:hydro-context}
 \end{figure}
 
-Figure~\ref{fig:hydro-context} gives a sense of the terrain this thesis is actually about, before the next section gets into why that terrain behaves so differently from place to place.
+% Figure~\ref{fig:hydro-context} gives a sense of the terrain this thesis is actually about, before the next section gets into why that terrain behaves so differently from place to place.
 
 That risk is not distributed evenly. Rainfall, upstream discharge, the way the river network interacts with itself, and local drainage all vary from place to place, and this shows up as real differences in water-level behaviour across the country. A model built for one location will not necessarily transfer cleanly to another. This is, in effect, the starting point for the present thesis: any forecasting approach worth building for Bangladesh has to take that spatial variability seriously rather than treat it as noise.
 
@@ -139,17 +139,17 @@ This thesis makes the following contributions:
     \item A web-based visualization and comparison platform that presents CFL-EDLSTM forecasts alongside FFWC water-level information, showing how the framework's results might practically be used.
 \end{enumerate}
 
-\section{Overview of the Proposed Framework}
+% \section{Overview of the Proposed Framework}
 
-At a high level, CFL-EDLSTM pairs a sequence-to-sequence Encoder--Decoder LSTM \cite{Kao2020,Cui2022} with a clustered federated training procedure. The 25 monitoring stations are first grouped into four clusters --- Upstream, Middle, Downstream, and Urban --- using their position along the river system and how they are grouped operationally by FFWC, and each cluster then acts as one federated client, training the model on the multivariate data of its own stations.
+% At a high level, CFL-EDLSTM pairs a sequence-to-sequence Encoder--Decoder LSTM \cite{Kao2020,Cui2022} with a clustered federated training procedure. The 25 monitoring stations are first grouped into four clusters --- Upstream, Middle, Downstream, and Urban --- using their position along the river system and how they are grouped operationally by FFWC, and each cluster then acts as one federated client, training the model on the multivariate data of its own stations.
 
-The federated part borrows directly from McMahan et al.'s original idea: clients train locally, and only model parameters, never training windows, travel to a server that combines them \cite{McMahan2017}. Here the server uses Federated Averaging, weighting each cluster by the number of stations it contains, to produce a shared global model that has learned from all four clusters. Each cluster does not simply adopt that global model for its forecasts, though. It keeps the version it reaches after its own local training, so every cluster is forecast with a model adapted to its own hydrological character.
+% The federated part borrows directly from McMahan et al.'s original idea: clients train locally, and only model parameters, never training windows, travel to a server that combines them \cite{McMahan2017}. Here the server uses Federated Averaging, weighting each cluster by the number of stations it contains, to produce a shared global model that has learned from all four clusters. Each cluster does not simply adopt that global model for its forecasts, though. It keeps the version it reaches after its own local training, so every cluster is forecast with a model adapted to its own hydrological character.
 
-This arrangement responds directly to the literature reviewed above. Non-IID data across clients can hurt standard federated learning \cite{Zhu2021,Chen2025}, while grouping similar clients tends to produce better-suited models \cite{Ghosh2021,Harshvardhan2022,BenAli2026}. In this thesis the grouping is fixed in advance from domain knowledge rather than learned during training, and raw data are pooled only within a cluster, never across clusters.
+% This arrangement responds directly to the literature reviewed above. Non-IID data across clients can hurt standard federated learning \cite{Zhu2021,Chen2025}, while grouping similar clients tends to produce better-suited models \cite{Ghosh2021,Harshvardhan2022,BenAli2026}. In this thesis the grouping is fixed in advance from domain knowledge rather than learned during training, and raw data are pooled only within a cluster, never across clusters.
 
-Once trained, the four cluster models generate water-level forecasts across all seven horizons. SHAP is then applied to interpret those forecasts and see which variables are driving them \cite{Lundberg2017,Huang2024,Khorrami2025}. Finally, everything is made accessible through an interactive web-based map, with a separate section for comparing the model's output against FFWC's published water-level information.
+% Once trained, the four cluster models generate water-level forecasts across all seven horizons. SHAP is then applied to interpret those forecasts and see which variables are driving them \cite{Lundberg2017,Huang2024,Khorrami2025}. Finally, everything is made accessible through an interactive web-based map, with a separate section for comparing the model's output against FFWC's published water-level information.
 
-The full implementation and experimental design behind this framework are described in Chapter~3.
+% The full implementation and experimental design behind this framework are described in Chapter~3.
 
 \section{Organization of the Thesis}
 
