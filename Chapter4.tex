@@ -413,8 +413,8 @@ The last column of Table~\ref{tab:4.8} shows how the comparison with XGBoost cha
 \paragraph{Practical reading.}
 Put in practical terms, CFL-EDLSTM's average error is about 0.16~m at a one-day lead, 0.23~m at three days, 0.33~m at seven days, and 0.44~m at fifteen days. All of these are averages over all stations and test windows, so individual stations and individual events can do better or worse (Section~\ref{sec:4.7}). Whether errors of this size are acceptable depends on how the forecast is used, and Section 4.11 puts them next to the forecasts issued by FFWC.
 
-% \section{SHAP-Based Interpretability Results}
-% \label{sec:4.9}
+\section{SHAP-Based Interpretability Results}
+\label{sec:4.9}
 
 \section{Station-Level Forecast Visualization}
 \label{sec:4.10}
@@ -509,8 +509,8 @@ CFL-EDLSTM has the lowest MAE of all five models at 24 of the 25 stations, and t
 \paragraph{Link to the cluster analysis.}
 Taken together, the station results show that CFL-EDLSTM's advantage is not the product of a few easy stations. It holds at most stations across a very wide range of water levels, and no station produces the large errors seen with XGBoost or TCN. Section~\ref{sec:4.7} looks at these differences at the level of the four clusters.
 
-% \section{Comparison with FFWC}
-% \label{sec:4.11}
+\section{Comparison with FFWC}
+\label{sec:4.11}
 
 \section{Discussion of Findings}
 \label{sec:4.12}
@@ -543,10 +543,11 @@ Several limitations should be kept in mind when reading these results, and the f
 
 The remaining limitations concern the model and the evaluation. CFL-EDLSTM performs poorly at some stations, with average errors of up to about 1~m, and the causes are still being investigated, so those stations should be read as open questions and not dismissed as noise. The framework's advantage is also not uniform across horizons. At short range, up to about one day ahead, the centralized XGBoost baseline is more accurate than CFL-EDLSTM, and CFL-EDLSTM leads only from three days onward (Section~4.6), so it is better described as a longer-horizon forecaster than as a replacement for centralized models at every lead time. 
 
+
 \section{Comparison with Previous Studies}
 \label{sec:4.13}
 
-This section places the results of this thesis next to earlier work. A strict numerical comparison is not possible, because no previous study uses the same stations, period, forecast horizons, or evaluation split. We therefore compare along the three ideas that define CFL-EDLSTM: multi-station water-level forecasting in Bangladesh, federated learning with explainable analysis, and the LSTM encoder--decoder for multi-step forecasting. For each one we chose the closest study in the reviewed literature: \cite{Ruma2023}, \cite{Mahir2025}, and \cite{Kao2020}. Table~\ref{tab:4.cmp} summarises them. All figures quoted from these papers are taken as published and are treated as indicative only.
+This section places the results of this thesis next to earlier work. No previous study uses the same stations, period, forecast horizons, or evaluation split, so only an indirect comparison is possible. We therefore compare along the three ideas that define CFL-EDLSTM: multi-station water-level forecasting in Bangladesh, federated learning with explainable analysis, and the LSTM encoder--decoder for multi-step forecasting. For each one we chose the closest study in the reviewed literature: Ruma et al.~\cite{Ruma2023}, Mahir et al.~\cite{Mahir2025}, and Kao et al.~\cite{Kao2020}. Table~\ref{tab:4.cmp} summarises them. Figures quoted from these papers are taken as published and are treated as indicative.
 
 \begin{table}[htbp]
   \centering
@@ -585,30 +586,96 @@ This section places the results of this thesis next to earlier work. A strict nu
 \end{table}
 
 \subsection{Regional Benchmark: Ruma et al.}
+\label{sec:4.13.1}
 
-The study of \cite{Ruma2023} is the closest regional counterpart to this work. It forecasts water level at gauge stations across Bangladesh's river network, uses data from the same agency, and reaches lead times of up to 15 days. Seven of our stations (SW42, SW45, SW45.5, SW49, SW77, SW225, and SW294) also appear in their study. Their model is an LSTM whose hyperparameters are tuned by particle swarm optimisation, and it outperformed ANN, PSO-ANN, and a plain LSTM at every station they tested.
+Ruma et al.~\cite{Ruma2023} is the closest regional counterpart to this work. It forecasts water level at gauge stations across Bangladesh's river network, uses data from the same agency, and reaches lead times of up to 15 days. Seven of our stations (SW42, SW45, SW45.5, SW49, SW77, SW225, and SW294) also appear in their study. Their model is an LSTM whose hyperparameters are tuned by particle swarm optimisation (PSO), and it outperformed ANN, PSO-ANN, and a plain LSTM in every sub-network they tested.
 
-The reported numbers point the same way as ours. At 1 day, they report an NSE of 0.989 for their best sub-network. At 15 days, the average NSE of their PSO-LSTM across sub-networks ranges from 0.76 to 0.95, with RMSE values between 0.85 and 1.70~m. For comparison, CFL-EDLSTM reaches an RMSE of 0.690~m and an MAE of 0.436~m at 15 days. The RMSE is numerically below all ten of their sub-network values, and the MAE is below nine of the ten. This should not be read as a head-to-head result. The two studies differ in period (1979--2014 against 2010--2026), time resolution (daily against 3-hourly), evaluation split, and input variables, and the paper does not state explicitly whether its RMSE and MAE are in the original water-level units.
+The two studies differ in several further ways (Table~\ref{tab:4.ruma-setup}). Their stations are arranged as cascaded sub-networks in which upstream gauges feed downstream ones, whereas ours are modelled station by station within their clusters. Because of these differences, and because the RMSE and MAE reported in their paper could not be reconciled with the other statistics in the same paper, we do not compare absolute errors. We compare instead how much each proposed method improves on a plain LSTM.
 
-A fairer comparison is relative. In their study, PSO-LSTM lowers the 15-day RMSE by between under 1\% and about 30\% relative to the plain LSTM, depending on the sub-network. In ours, CFL-EDLSTM lowers it by about 30\% and the MAE by about 35\% relative to Vanilla LSTM, which sits at the upper end of that range. Both studies also show a gradual decline with lead time and no breakdown at 15 days. Their NSE for Net~1 falls by roughly 0.03 between 1 and 15 days, and our MAE rises about 2.7-fold, from 0.160~m at 1 day to 0.436~m at 15 days.
+\begin{table}[htbp]
+  \centering
+  \caption{Further Setup Differences Between \cite{Ruma2023} and This Study}
+  \label{tab:4.ruma-setup}
+  \small
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabularx}{\textwidth}{@{}p{3.0cm} X X@{}}
+    \toprule
+    \textbf{Item} & \textbf{Ruma et al.} & \textbf{This study} \\
+    \midrule
+    Resolution & Daily & Five observations per day (3-hourly) \\
+    Inputs & Water level of upstream gauges only & Five variables per station (42 features) \\
+    Imputation & k-nearest neighbours & Forward and backward filling \\
+    Split & 80/20 (predictions plotted for 2010--2014) & 70/15/15, chronological, per station \\
+    Baselines & ANN, PSO-ANN, LSTM & XGBoost, Vanilla LSTM, GRU, TCN \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
 
-Several things distinguish this thesis. It works at a sub-daily resolution and uses rainfall, discharge, evaporation, and temperature alongside water level, whereas \cite{Ruma2023} used water level only and named weather and rainfall data as a direction for future work. It compares against four baselines, including a tree-based model and two other sequence models, and it reports results per horizon, per station, and per cluster. On the other side, their study draws on a much longer record and tunes its hyperparameters systematically, and a similar search would be a natural extension for CFL-EDLSTM.
+At a 15-day lead time, for the three sub-networks that contain our shared stations, their PSO-LSTM lowers RMSE relative to the plain LSTM by 0.8\% to 30.0\% and MAE by 1.3\% to 32.6\% (Table~\ref{tab:4.ruma-gain}). Over all 25 stations at the same lead time, CFL-EDLSTM lowers RMSE by about 30\% and MAE by about 35\% relative to Vanilla LSTM. This is comparable to the best of their three groups (Net~1) and well above the other two. The comparison needs care, because the improvements come from different changes: hyperparameter tuning against an untuned LSTM in their case, and the encoder--decoder with clustered federated training in ours. It shows that the gains are of a similar size, not that one method is better than the other. Both studies also show a gradual decline in accuracy with lead time and no breakdown at 15 days. In our case, MAE rises about 2.7-fold, from 0.160~m at 1 day to 0.436~m at 15 days.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Improvement over a Plain LSTM at a 15-Day Lead Time}
+  \label{tab:4.ruma-gain}
+  \small
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabular}{@{}l r r@{}}
+    \toprule
+    \textbf{Study and group} & \textbf{RMSE reduction} & \textbf{MAE reduction} \\
+    \midrule
+    Ruma et al.: Net~1 (SW45, SW45.5, SW225, SW49) & 30.0\% & 32.6\% \\
+    Ruma et al.: Net~2 (SW294, SW77) & 0.8\% & 1.3\% \\
+    Ruma et al.: SW42 & 8.0\% & 9.7\% \\
+    \rowcolor{gray!15}
+    \textbf{This study}: CFL-EDLSTM vs.\ Vanilla LSTM (all 25 stations) & \textbf{30.3\%} & \textbf{35.3\%} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+This thesis differs in working at sub-daily resolution, using rainfall, discharge, evaporation, and temperature alongside water level (which Ruma et al. named as a direction for future work), and comparing against a wider set of baselines, with results per horizon, station, and cluster. Their study has a much longer record and a systematic hyperparameter search, which would be a natural extension for CFL-EDLSTM.
 
 \subsection{Federated Learning Counterpart: Mahir et al.}
+\label{sec:4.13.2}
 
-The work of \cite{Mahir2025} is the nearest federated study in Bangladesh and, like this thesis, pairs federated training with SHAP. They train FNN, LSTM-RNN, and TFT-CNN models for Sylhet on a 78-year dataset that includes upstream rainfall from Meghalaya and Assam, split across five simulated clients. Federation improved R\textsuperscript{2} for all three models, by 0.012 to 0.016, and SHAP pointed to upstream rainfall as the main driver. A modest but consistent gain from federation matches the motivation for the federated design in this thesis.
+Mahir et al.~\cite{Mahir2025} is the nearest federated study in Bangladesh and, like this thesis, pairs federated training with SHAP. They train FNN, LSTM-RNN, and TFT-CNN models for Sylhet on a 78-year dataset that includes upstream rainfall from Meghalaya and Assam, split across five simulated clients. Federation raised R\textsuperscript{2} for all three models, by 0.012 to 0.016, and SHAP pointed to upstream rainfall as the main driver. A modest but consistent gain from federation supports the motivation for the federated design used here.
 
-The two studies still differ in what they predict. Their data are monthly and the target is a flood-severity measure, not a continuous water level, and they do not consider lead time at all; the authors themselves list longer lead times as a limitation. Their R\textsuperscript{2} therefore cannot be set against our errors in metres. Their clients are random non-IID splits, whereas ours are the four hydrological clusters of Section~\ref{sec:4.3}, which gives each client a physical meaning. In one respect their study goes further than ours: they compare federated and non-federated training directly, whereas this chapter does not include a single global model trained on the same stations (Section~\ref{sec:4.7}). Our own SHAP results are reported in Section 4.9.
-
+The two studies still differ in what they predict. Their data are monthly and the target is a flood-severity measure, not a continuous water level, and lead time is not considered; the authors themselves list longer lead times as a limitation. Their R\textsuperscript{2} therefore cannot be set against our errors in metres. Their clients are random non-IID splits, whereas ours are the four hydrological clusters of Section~\ref{sec:4.3}, which gives each client a physical meaning. 
 \subsection{Architectural Counterpart: Kao et al.}
+\label{sec:4.13.3}
 
-\cite{Kao2020} introduced the LSTM encoder--decoder for multi-step flood forecasting. On the Shihmen Reservoir catchment they showed that it gave more reliable and accurate forecasts of up to six hours ahead than a feed-forward encoder--decoder. This is the same design idea we use: an encoder summarises the recent past, and a decoder produces the whole forecast sequence, here 75 steps covering 15 days. Their result supports the choice of an encoder--decoder for this kind of task.
+Kao et al.~\cite{Kao2020} introduced the LSTM encoder--decoder for multi-step flood forecasting. On the Shihmen Reservoir catchment, they showed that it gave more reliable and accurate forecasts, up to six hours ahead, than a feed-forward encoder--decoder. This is the design idea we use: an encoder summarises the recent past, and a decoder produces the whole forecast sequence, here 75 steps covering 15 days. Their result supports the choice of an encoder--decoder for this kind of task.
 
-The setting is very different, however. They forecast reservoir inflow in hours, during typhoon events at a single catchment, while we forecast water level at 25 stations over a continuous 16-year record with horizons of up to 15 days. We also cannot say how much of CFL-EDLSTM's advantage comes from the encoder--decoder structure and how much from the clustered federated training, because the chapter has no ablation that separates the two (Section~\ref{sec:4.5}).
+The setting is very different, however. They forecast reservoir inflow in hours, during typhoon events at a single catchment, while we forecast water level at 25 stations over a continuous 16-year record with horizons of up to 15 days. We also cannot say how much of CFL-EDLSTM's advantage comes from the encoder--decoder structure and how much from the clustered federated training, because no ablation separates the two yet (Section~\ref{sec:4.5}).
 
-\subsection{Summary}
+\subsection{Position of This Study}
+\label{sec:4.13.4}
 
-Taken together, these studies cover the ingredients of CFL-EDLSTM separately: deep learning for a multi-station Bangladeshi river network, federated learning with explainable analysis, and the LSTM encoder--decoder for multi-step forecasting. None of the studies reviewed here combines all three on a sub-daily, multivariate dataset with horizons from 3 hours to 15 days, and this is where the present work sits. The results are competitive with the regional benchmark and, within the limits of an indirect comparison, at least as accurate. These conclusions are limited by the differences in data and protocol noted above, by the absence of a non-federated comparison, and by the fact that CFL-EDLSTM was trained without a fixed random seed.
+Table~\ref{tab:4.matrix} summarises what each study covers. Each earlier study covers part of this set, and none of the studies reviewed covers all of it. This thesis combines multi-station water-level forecasting, federated learning with hydrological clusters, and an encoder--decoder on a sub-daily, multivariate dataset with horizons from 3 hours to 15 days . 
+
+\begin{table}[htbp]
+  \centering
+  \caption{Features Covered by the Compared Studies}
+  \label{tab:4.matrix}
+  \small
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabular}{@{}l c c c >{\columncolor{gray!15}}c@{}}
+    \toprule
+    \textbf{Feature} & \textbf{Ruma et al.} & \textbf{Mahir et al.} & \textbf{Kao et al.} & \textbf{This study} \\
+    \midrule
+    Bangladesh river data & Yes & Yes & -- & Yes \\
+    Many individual gauge stations & Yes & -- & -- & Yes \\
+    Sub-daily data & -- & -- & Yes & Yes \\
+    Lead times up to 15 days & Yes & -- & -- & Yes \\
+    Rainfall or weather inputs & -- & Yes & Yes & Yes \\
+    Encoder--decoder architecture & -- & -- & Yes & Yes \\
+    Federated learning & -- & Yes & -- & Yes \\
+    Hydrologically defined client clusters & -- & -- & -- & Yes \\
+    SHAP-based explanation & -- & Yes & -- & Yes \\
+    Web-based interactive interface & -- & -- & -- & Yes \\
+    \bottomrule
+  \end{tabular}
+  \end{table}
+
 
 \section{Summary}
 \label{sec:4.14}
