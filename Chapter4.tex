@@ -291,7 +291,7 @@ CFL-EDLSTM has a lower MAE and RMSE than every neural baseline at every horizon.
 
 Among the neural baselines the ordering is not fixed. Vanilla LSTM beats GRU at every horizon from 3 hours through 7 days on both metrics, but at 15 days GRU takes over (MAE 0.583 against 0.675~m; RMSE 0.838 against 0.990~m). TCN behaves differently again. Its MAE is almost flat from 3 hours to 1 day (0.416 to 0.419~m), which suggests something other than forecast difficulty sets its floor at short horizons. It edges past GRU at 7 days on both metrics, but it is the weakest neural model at 15 days. It also trails Vanilla LSTM at every horizon, a less favourable showing than the competitive TCN performance reported by \cite{Lin2021}, though on a different dataset.
 
-The general rise in error with lead time is the pattern earlier multi-step flood-forecasting studies describe \cite{Kao2020,Cui2022,Yuan2023}. Figures~\ref{fig:4.4} and~\ref{fig:4.5} show how the five models compare across horizons.
+The general rise in error with lead time is the pattern earlier multi-step flood-forecasting studies describe \cite{Kao2020,Cui2022,Yuan2023}. Figures~\ref{fig:4.4} and~\ref{fig:4.5} show how the five models compare across horizons.Figure~\ref{fig:4.5} shows that the error of every model grows with the forecast horizon. The curves of the neural models rise gently, whereas XGBoost starts lowest but climbs steeply and ends as the weakest model at 7 and 15~days.
 
 \begin{figure}[htbp]
     \centering
@@ -402,12 +402,13 @@ A likely reason for the steady rise is that the model's inputs contain only past
 The ratio of RMSE to MAE stays between 1.54 and 1.58 at every horizon. Since RMSE penalises large errors more than MAE does, a stable ratio suggests that the overall shape of the error distribution does not change much with lead time. Longer horizons appear to shift errors upward more or less uniformly, instead of adding a heavier tail of occasional large misses. This is an indirect reading based on two summary metrics, and the actual error distributions were not examined.
 
 \paragraph{Gap to XGBoost.}
-The last column of Table~\ref{tab:4.8} shows how the comparison with XGBoost changes with horizon. At 3 hours CFL-EDLSTM's MAE is about twice XGBoost's (2.06 times). The ratio falls to 1.26 at 1 day, drops below 1 between 1 and 3 days, and reaches 0.75 at 3 days, 0.44 at 7 days, and 0.38 at 15 days . XGBoost's advantage is therefore confined to roughly the first day, and from 3 days onward CFL-EDLSTM is clearly more accurate. This crossover owes as much to how quickly XGBoost deteriorates (about 16-fold in MAE over the same range) as to CFL-EDLSTM's gentle growth. Differences of this size are unlikely to be due to run-to-run variation alone, although we did not repeat the runs.
+The last column of Table~\ref{tab:4.8} shows how the comparison with XGBoost changes with horizon, and Figure~\ref{fig:ratio} plots the same ratio of CFL-EDLSTM's MAE to XGBoost's. At 3~hours CFL-EDLSTM's MAE is about twice XGBoost's (2.06 times). The ratio falls to 1.26 at 1~day, drops below 1 between 1 and 3~days, and reaches 0.75 at 3~days, 0.44 at 7~days, and 0.38 at 15~days. XGBoost's advantage is therefore confined to roughly the first day, and from 3~days onward CFL-EDLSTM is clearly more accurate. This crossover owes as much to how quickly XGBoost deteriorates (about 16-fold in MAE over the same range) as to CFL-EDLSTM's gentle growth. Differences of this size are unlikely to be due to run-to-run variation alone, although we did not repeat the runs.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.75\textwidth]{figures2/fig4-8-ratio-to-xgboost.png}
     \caption{Ratio of CFL-EDLSTM MAE to XGBoost MAE at each forecast horizon. } 
+    \label{fig:ratio}
 \end{figure}
 
 \paragraph{Practical reading.}
