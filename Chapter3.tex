@@ -154,7 +154,7 @@ Water level is the variable with the widest coverage in this study and effective
 \section{Data Sources}
 \label{sec:3.6}
 
-Not every station carries every variable. Water level has by far the widest footprint, at 25 stations; evaporation is the narrowest, at 7. Temperature is district-level rather than station-level, so it has to be mapped onto individual stations by district rather than read directly from a gauge --- this is discussed further in \S\ref{sec:3.9.1} and \S\ref{sec:3.9.3}.
+Table~\ref{tab:3.2} lists the source, station coverage, use, collection period and unit of each variable. Water level, discharge, rainfall and evaporation come from BWDB gauge stations (25, 15, 13 and 7 stations respectively), while temperature is district-level data from the Mendeley dataset and NASA POWER covering 11 districts for 2012–2024. Water level is the only series that spans the full period, 1 January 2010 to 31 March 2026, so it sets the master timeline.Not every station carries every variable. Water level has by far the widest footprint, at 25 stations; evaporation is the narrowest, at 7. Temperature is district-level rather than station-level, so it has to be mapped onto individual stations by district rather than read directly from a gauge --- this is discussed further in \S\ref{sec:3.9.1} and \S\ref{sec:3.9.3}.
 
 \begin{landscape}
 \begin{table}[htbp]
@@ -205,7 +205,7 @@ Coverage across variables is genuinely uneven rather than a uniform grid. Of the
 \section{Input and Target Variables}
 \label{sec:3.8}
 
-Five variables make up the modeling input, one of which --- water level --- is also the forecasting target. Combining them this way directly answers the single-variable limitation flagged repeatedly in Chapter~2 \cite{Islam2026b,Ruma2023,Rakin2023,HemelSakib2024}, none of which brought discharge, water level, rainfall, temperature, and evaporation together in one framework.
+Table~\ref{tab:3.3} summarises the five variables and their roles. Water level is the forecasting target, while discharge, rainfall, temperature and evaporation are inputs. Water level is recorded five times a day (06:00–18:00), whereas the other four variables are daily, so they are mapped across the five slots of each day \S\ref{sec:3.9.1}.Five variables make up the modeling input, one of which --- water level --- is also the forecasting target. Combining them this way directly answers the single-variable limitation flagged repeatedly in Chapter~2 \cite{Islam2026b,Ruma2023,Rakin2023,HemelSakib2024}, none of which brought discharge, water level, rainfall, temperature, and evaporation together in one framework.
 
 \begin{table}[htbp]
   \centering
@@ -338,6 +338,8 @@ Daytime observations are approximately three hours apart, but the interval from 
     \bottomrule
   \end{tabular}
 \end{table}
+
+Table~\ref{tab:3.4} summarises the processing applied to each variable. Water level is kept at its native five-observations-per-day resolution, and the four daily variables are mapped to the five water-level slots of each date, so every variable ends up on the same timeline. Derived trend, rolling and cumulative features are built from discharge and rainfall, while temperature and evaporation gaps are filled by interpolation before mapping.
 
 \subsection{Normalization}
 \label{sec:3.9.4}
@@ -673,6 +675,8 @@ Once all 30 rounds are complete, the best checkpoint is loaded. For each cluster
 
 \section{Baseline Models}
 \label{sec:3.13}
+
+Table~\ref{tab:3.6} gives an overview of the four baseline models. XGBoost (300 estimators, depth 6, learning rate 0.05) acts as a simple sanity check (Baseline~0), and the Vanilla LSTM is the standard recurrent reference (Baseline~1). The GRU, which has no separate cell state, is included to test the effect of the recurrent architecture, and the TCN, built from four dilated causal blocks, offers a convolutional alternative. The three neural baselines are trained with the Huber loss, whereas XGBoost uses squared error.
 
 Four baseline models were trained and evaluated to give the proposed CFL-EDLSTM something concrete to be measured against. They are matched to it as closely as their data representations allow: the same task (an input history of 30 days, 150 observations at five observations per day, and a forecast horizon of 15 days, 75 observations); the same seven horizon checkpoints (3 hours, 6 hours, 12 hours, 1 day, 3 days, 7 days, and 15 days, corresponding to decoding steps 1, 2, 4, 5, 15, 35, and 75); the same 70/15/15 chronological split proportions, with no window crossing a split boundary; and scalers fitted on training data only, which keeps information from the validation and test periods from leaking into the input representation. Missing values are handled in the same spirit: interpolation followed by forward and backward filling, with a final fallback value where interpolation alone is not possible (a median or zero for the baselines, zero for CFL-EDLSTM).
 
