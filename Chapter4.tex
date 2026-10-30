@@ -417,6 +417,90 @@ Put in practical terms, CFL-EDLSTM's average error is about 0.16~m at a one-day 
 \section{SHAP-Based Interpretability Results}
 \label{sec:4.9}
 
+This section reports what SHAP shows about the proposed CFL-EDLSTM described in Section~\ref{sec:3.17}, which uses the same clusters,
+features, and federated training as CFL-EDLSTM. The results pool all four
+cluster models and the four explained horizons (day~1, 3, 7 and 15), giving 768
+explained test windows with equal weight. Figure~\ref{fig:shap_feature_overall}
+ranks the input features, and Figure~\ref{fig:shap_temporal_overall} shows how
+attribution is spread over the 30-day input window.
+
+\subsection{Which Inputs the Model Relies On}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{figures2/shap_overall_feature_importance.jpeg}
+    \caption{Top 20 features by mean absolute SHAP value (all clusters and horizons).}
+    \label{fig:shap_feature_overall}
+\end{figure}
+
+As Figure~\ref{fig:shap_feature_overall} shows, the two seasonal terms rank
+highest: the cosine of day of year has a mean absolute SHAP value of about
+$3.6\times10^{-4}$, and its sine counterpart about $2.5\times10^{-4}$. The
+temperature features follow, with current temperature at about
+$1.7\times10^{-4}$ and its 1-, 2-, 7-, 14-, 3- and 5-day lags between roughly
+$0.7$ and $1.5\times10^{-4}$. The hour-of-day terms come next, at around
+$0.8$--$1.0\times10^{-4}$.
+
+Rainfall-based features are weaker. The 14-day rainfall accumulation is the
+strongest of them (about $0.8\times10^{-4}$), followed by the 30-, 7- and 3-day
+accumulations, and raw rainfall is near the bottom of the chart together with
+the evaporation features, at roughly $0.4$--$0.5\times10^{-4}$. No
+discharge-related feature appears among the top 20. Adding up the bars within
+each group makes the pattern clearer: temperature features contribute roughly
+$8.6\times10^{-4}$ in total, the day-of-year terms about $6.1\times10^{-4}$,
+rainfall features about $2.8\times10^{-4}$, the hour-of-day terms about
+$1.8\times10^{-4}$, and evaporation about $1.3\times10^{-4}$. These totals are
+read from the chart and cover the top 20 features only, so they indicate
+relative size and not exact shares.
+
+Two cautions apply when reading these values. The absolute magnitudes are
+small because SHAP values are in standardised units and because the
+attribution of past water level, the dominant input, was removed before
+plotting (Section~\ref{sec:3.17}), so the ranking is the meaningful
+part. In addition, temperature varies smoothly with the monsoon cycle, so it
+may be acting partly as a seasonal indicator, which would fit the high ranking
+of the day-of-year terms. The model seems to depend on where in the year a
+forecast starts, and on recent temperature, more than on any single rainfall
+variable. This does not mean rainfall is physically unimportant. Rainfall, its
+lags and its accumulations are strongly correlated, and SHAP divides credit
+among correlated inputs, so each of them can look weaker than the signal they
+carry together.
+
+\subsection{How Far Back the Model Looks}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figures2/shap_overall_temporal_importance.jpeg}
+    \caption{Mean absolute SHAP value by input timestep (0 = oldest, 149 = latest).}
+    \label{fig:shap_temporal_overall}
+\end{figure}
+
+Figure~\ref{fig:shap_temporal_overall} shows that attribution is concentrated
+at the end of the window. Over the oldest 100 timesteps, roughly the first
+20 days, the mean absolute SHAP value stays at or below about
+$1\times10^{-4}$. It then rises slowly and climbs steeply over the last 20
+timesteps, about the final four days, to a peak of about $1.1\times10^{-3}$ at
+the most recent observation. The model therefore relies mainly on the latest
+observations, which agrees with the steady growth of error with forecast
+horizon reported in Section~\ref{sec:4.8}.
+
+This does not mean the distant past is ignored. The most recent timesteps
+already contain the 14-day lags and the 30-day rainfall accumulation, so they
+carry information about earlier conditions. The model can use a long history
+even though its attribution is concentrated at the end of the window.
+
+% \subsection{Limits of These Findings}
+
+% SHAP explains what a model has learned, not what drives water levels in the
+% river, so these values should not be read as causal effects. Each
+% cluster--horizon result rests on 48 test windows and 32 background windows,
+% which adds sampling noise, and small differences between neighbouring features
+% should not be over-interpreted. The attributions describe the four
+% personalised cluster models of CFL-EDLSTM together, not one shared global
+% model.
+
+
+
 \section{Station-Level Forecast Visualization}
 \label{sec:4.10}
 
