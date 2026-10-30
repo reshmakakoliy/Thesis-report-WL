@@ -35,9 +35,37 @@ At its core, the framework combines two ideas that Chapter~2 examined separately
 \section{Study Area}
 \label{sec:3.4}
 
-The study covers 25 water-level monitoring stations distributed across northern, central, western, and Dhaka-metropolitan parts of Bangladesh, spanning a network of 13 named river systems.Figure~\ref{fig:3.2a} illustrates the geographical distribution and connectivity of the selected river systems within the study area, providing a visual overview of the river network covered by the monitoring stations.The Teesta and Dharla in the north; the Deonai-Charalkata-Jamuneswari-Karatoa system; the Brahmaputra-Jamuna mainstem, which contains the largest number of monitoring stations in the study; the Ghagot; the Old Brahmaputra; the interconnected Karatoa-Atrai-Gur-Gumani-Hurasagar system; the Dhaleswari and Kaliganga-Bethua further downstream; and, around the greater Dhaka area, the Buriganga, Turag, Lakhya, and Balu.
-BWDB classifies each station as tidal or non-tidal: 5 of the 25 stations, all of them in the Urban cluster and located on the Buriganga, Turag, Lakhya, and Balu channels around Dhaka, are tidal; the remaining 20 are non-tidal. This distinction is reported here as descriptive context about the study area rather than as a formal input to the clustering procedure itself, which is defined separately in \S\ref{sec:3.10.1}.Table~\ref{tab:river-distribution} summarizes the distribution details .
+The study covers 25 water-level monitoring stations distributed across the
+northern, central, western and Dhaka-metropolitan parts of Bangladesh. Together
+they span a network of 13 named river systems.
+Figure~\ref{fig:3.2.a} shows how these stations are arranged along
+their rivers and how the rivers connect. It is a schematic drawn from the river
+and station listing in the Flood Forecasting and Warning Centre (FFWC)
+river-situation bulletin of 28 October 2026~\cite{ffwc_website}. It is not to
+scale, and north is at the top. Each coloured line is one river, each dot is a
+station, and the dashed grey line marks the Padma and Meghna, which are shown
+only for context because no station from this study lies on them.
 
+Reading the figure from north to south, the Teesta and Dharla in the north
+flow toward the Brahmaputra near Chilmari. The Brahmaputra continues as the
+Jamuna, which is the river with the most stations in the study (four of its
+own, and six including the two upstream Brahmaputra stations). To the west, the
+Karatoa system, which includes the Jamuneswari and the Deonai--Charalkata
+channels, runs south and is joined by the Ghagot. The Atrai is linked to this
+system through the Karatoa--Atrai--Gur--Gumani--Hurasagar network and reaches
+the Jamuna near Baghabari. East of the Jamuna, the Old Brahmaputra branches off
+toward Mymensingh and feeds the Lakhya. Further downstream, the Dhaleswari and
+the Kaliganga--Bethua carry water toward the Dhaka region, where the Buriganga,
+Turag, Lakhya and Balu complete the network around the capital.
+
+The Buriganga, Turag, Lakhya and Balu are also where the tidal stations are
+found. The Bangladesh Water Development Board (BWDB) classifies each station as
+tidal or non-tidal. Of the 25 stations, 5 are tidal, all in the Urban cluster
+on these four channels, and the remaining 20 are non-tidal. We report this
+distinction as background about the study area, not as an input to the
+clustering procedure, which is defined separately in Section~\ref{sec:3.10.1}.
+Table~\ref{tab:river-distribution} summarises the distribution of stations
+by river system.
 \setcounter{table}{-1}
 \begin{table}[htbp]
   \centering
@@ -72,9 +100,8 @@ BWDB classifies each station as tidal or non-tidal: 5 of the 25 stations, all of
     \centering
     \includegraphics[
         width=0.85\textwidth
-    ]{figures2/fig3-2a-river-connectivity.png}
-
-    \caption{River system connectivity within the study area.}
+    ]{figures2/fig3-2a-river-connectivity.jpeg}
+    \caption{Schematic of the 25 study stations by river (after FFWC~\cite{ffwc_website}).}
     \label{fig:3.2a}
 \end{figure}
 
@@ -683,6 +710,42 @@ Four baseline models were trained and evaluated to give the proposed CFL-EDLSTM 
 
 The setups are not identical, however, and the difference matters for how Chapter~4 should be read. Vanilla LSTM, TCN, and XGBoost split each station's own record chronologically and independently, so every station contributes all of its available timestamps. GRU instead works on a joint representation aligned on the union of all stations' timestamps, and CFL-EDLSTM works on their intersection (Section~\ref{sec:3.12.2}), so that only timestamps present at every station survive. CFL-EDLSTM is therefore evaluated on fewer windows, and its validation and test periods are defined by the shared time axis rather than by each station's own record. Chapter~4 flags this wherever the models are compared.
 
+
+\subsection{Rationale for Baseline Selection}
+\label{sec:baseline_rationale}
+
+The four baselines were chosen to answer a specific question: does the
+clustered federated encoder--decoder improve on established alternatives that
+differ from it in one clear respect? Each baseline therefore represents a
+different modelling family. XGBoost is a strong non-deep-learning reference for
+tabular lagged features. The Vanilla LSTM is the standard recurrent model and
+isolates the effect of the encoder--decoder design, since it shares the same
+recurrent core. The GRU tests whether a simpler gated cell is enough, and the
+TCN offers a convolutional alternative that has no recurrence. All four are
+also practical in this setting, because they are small enough to train per
+cluster on roughly 16 years of data per station and their parameters can be
+averaged in federated rounds.
+
+Several other models were considered and set aside. A plain RNN cannot retain
+the multi-day lag between upstream rainfall and downstream water level because
+of vanishing gradients, and the LSTM was designed to remove exactly this
+limitation. A bidirectional LSTM reads the sequence in both directions and
+would therefore use future values that are unavailable at forecast time, which
+makes its evaluation invalid for forecasting. CNN--LSTM models are suited to
+gridded inputs such as radar or satellite rasters, whereas our data are point
+series from gauge stations. A feed-forward network on lagged features performs
+the same role as XGBoost with less interpretability. Transformer-based models,
+including the Temporal Fusion Transformer, typically need much more data than
+we have per station, and their attention matrices are costly to exchange in a
+federated setting.
+
+Graph-based models were examined most closely, because stations along a river
+form a natural network. We experimented with a spatio-temporal graph neural
+network (ST-GNN). We did not include it in the comparison, because lagged upstream features already carry much of the station-to-station relationship, and because a graph model would
+need data to be shared across stations, which conflicts with our aim of keeping raw data within clusters. 
+
+% Graph and attention-based models are therefore left for future work (Section~\ref{sec:future_work}).
+
 \subsection{Vanilla LSTM}
 \label{sec:3.13.1}
 
@@ -828,6 +891,65 @@ MSE (mean squared error, in square metres) is reported mainly as the intermediat
 
 \section{Explainability Using SHAP}
 \label{sec:3.17}
+
+Forecast accuracy tells us how well a model performs, but not what it has learned. To look inside the trained models, we applied SHAP (SHapley Additive exPlanations), which assigns each input value a contribution to a prediction, measured against the model's output on a set of reference inputs. The analysis was designed to answer three questions: which input features drive the forecast most, how far back in the 30-day input window the model looks, and whether these patterns change between clusters and forecast horizons.
+
+\subsection{Model and Data Explained}
+
+The analysis was run on the proposed CFL-EDLSTM. Its four cluster-specific models, one per cluster, each use the 42 input features . Each cluster keeps its own personalised set of weights, and each of these four models was explained separately. Inputs were standardised with the scalers fitted on the training period, exactly as in training, and all explained windows were taken from the chronological test period (from 23 October 2023), so the explanations describe behaviour on data the models had not seen.
+
+\subsection{Reference and Explanation Windows}
+
+SHAP expresses a contribution relative to a baseline, so we first fixed a common reference. A background set of 32 windows was drawn at random from the training period across all 25 stations, and the same set was used for every cluster and horizon. For each cluster, 48 windows were then drawn at random from the test period, pooled across that cluster's stations. All sampling used a fixed seed (42), so the selected windows can be reproduced.
+
+\subsection{Explaining One Forecast Step}
+
+The model outputs 75 values, whereas SHAP explains one number at a time. We therefore explained the final step of four forecast days, day~1, day~3, day~7 and day~15, which correspond to the 1-, 3-, 7- and 15-day horizons evaluated in Chapter~4. The model was kept in evaluation mode so that dropout was off and the outputs were deterministic.
+
+\subsection{Expected Gradients}
+Attributions were computed with the gradient-based SHAP explainer, which
+implements Expected Gradients, a combination of Integrated Gradients and SHAP.
+For a model $f$, an explained input $x$ and a background distribution $D$, the
+attribution of input element $i$ is
+\begin{equation}
+\phi_i(x) = \mathbb{E}_{x' \sim D,\; \alpha \sim U(0,1)}
+\left[ (x_i - x'_i)\,
+\frac{\partial f\bigl(x' + \alpha (x - x')\bigr)}{\partial x_i} \right].
+\label{eq:expected_gradients}
+\end{equation}
+In words, a random background window $x'$ and a random point on the line
+between $x'$ and $x$ are chosen, the gradient of the output is taken there, and
+it is multiplied by the distance of $x$ from $x'$. Averaging over many draws
+gives each element's contribution; we used 100 draws per explained window.
+Because one window has $150 \times 42$ input elements, each window receives a
+matrix of 6{,}300 SHAP values, one for every pair of timestep and feature. The
+values approximately add up to the difference between the explained prediction
+and the average prediction on the background.
+
+
+\subsection{Excluding Water Level from the Reported Results}
+
+Water level is an input to the model, so SHAP also produces an attribution for it. Past water level is by far the strongest predictor of future water level, and reporting it would hide the contribution of everything else. We therefore computed the attributions with water level present, and then removed its column before any averaging, ranking or plotting. The attributions of the remaining 41 features are unchanged by this step. They describe each feature's contribution while the model can also see water level, not what the feature would contribute to a model trained without it.
+
+\subsection{Aggregation}
+Let $\Phi$ be the array of SHAP values with $N$ windows, $T=150$ timesteps and
+$F=41$ features. The importance of feature $f$ is its mean absolute SHAP value
+over all windows and timesteps, and the importance of input timestep $t$ is
+the mean absolute value over all windows and features:
+\begin{equation}
+I_f = \frac{1}{NT}\sum_{n=1}^{N}\sum_{t=1}^{T}\bigl|\Phi_{n,t,f}\bigr|,
+\qquad
+I_t = \frac{1}{NF}\sum_{n=1}^{N}\sum_{f=1}^{F}\bigl|\Phi_{n,t,f}\bigr|.
+\label{eq:shap_importance}
+\end{equation}
+Absolute values are used because SHAP values carry a sign, and a feature that
+raises the forecast in some windows and lowers it in others would otherwise
+cancel out and look unimportant. To obtain an overall picture, the results of
+all four clusters and four horizons were pooled, giving $4 \times 4 \times 48 =
+768$ windows with equal weight. Because the model is trained on standardised
+water level, SHAP values are in units of standard deviations of water level;
+they can be converted to metres by multiplying by the training standard
+deviation, and the rankings are the same in either unit.
 
 \section{Web-Based Visualization Interface}
 \label{sec:3.18}
