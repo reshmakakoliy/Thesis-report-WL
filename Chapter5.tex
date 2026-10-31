@@ -1,128 +1,194 @@
-% \chapter{Remaining Work and Future Directions}
-% \label{ch:5}
+\chapter{Conclusion and Future Work}
+\label{Ch_Chapter5}
 
-% \section{Introduction}
-% \label{sec:5.1}
+\section{Introduction}
+\label{sec:5.1}
 
-% The work presented in Chapters~3 and~4 covers the core forecasting pipeline: the processed dataset, the station clusters, the CFL-EDLSTM model, the four baselines, and an evaluation across seven forecast horizons. Several parts of the planned research are not yet complete. This chapter sets out what has been done, what remains, how each remaining part will be carried out, and how the work is scheduled. Longer-term directions that go beyond the scope of this thesis are noted at the end. The conclusions drawn from the completed work are given in Chapter~\ref{ch:6}.
+This chapter closes the thesis. It begins by recalling what the study set out
+to do (Section~\ref{sec:5.2}) and the main findings that came out of it
+(Section~\ref{sec:5.3}). It then checks the findings against the research
+objectives (Section~\ref{sec:5.4}), states the contributions of the work
+(Section~\ref{sec:5.5}), and is open about its limitations
+(Section~\ref{sec:5.6}). It ends with directions for future research
+(Section~\ref{sec:5.7}) and a final conclusion (Section~\ref{sec:5.8}). The
+detailed results are in Chapter~4, and this chapter only draws on them.
 
-% \section{Current Status of the Work}
-% \label{sec:5.2}
+\section{Summary of the Study}
+\label{sec:5.2}
 
-% Table~\ref{tab:5.status} lists each component of the research with its current status.
+Floods and water-logging are a recurring threat in Bangladesh, and the
+stations along its river network behave very differently from one another.
+Earlier forecasting studies tend to use a narrow set of variables, to assume
+that data can be pooled in one place, and to say little about why a model
+predicts what it does. This thesis addressed these gaps by proposing
+CFL-EDLSTM, a Clustered Federated Learning framework built on an
+encoder--decoder LSTM, for multi-horizon water-level forecasting.
 
-% \begin{table}[htbp]
-%   \centering
-%   \caption{Status of the Research Components}
-%   \label{tab:5.status}
-%   \small
-%   \renewcommand{\arraystretch}{1.2}
-%   \begin{tabularx}{\textwidth}{@{}p{4.6cm} p{2.3cm} X@{}}
-%     \toprule
-%     \textbf{Component} & \textbf{Status} & \textbf{Comment} \\
-%     \midrule
-%     Data collection and preprocessing & Completed & 25 stations, 2010--2026; gaps filled by forward and backward filling; engineered features (Section~\ref{sec:4.2}) \\
-%     Station clustering & Completed & Four clusters: Upstream, Mid-river, Downstream, Urban (Section~\ref{sec:4.3}) \\
-%     CFL-EDLSTM implementation and training & Completed (first version) & Weighted federated averaging over four cluster-level clients (Section~\ref{sec:3.12}) \\
-%     Baseline models & Completed & XGBoost, Vanilla LSTM, GRU, and TCN \\
-%     Overall, horizon, cluster, and station evaluation & Completed & Sections~\ref{sec:4.4} to~\ref{sec:4.10} \\
-%     Comparison with previous studies & Completed & Indirect comparison with three studies (Section~\ref{sec:4.13}) \\
-%     SHAP-based interpretability & Remaining & Including a per-cluster analysis \\
-%     Comparison with FFWC & Remaining & FFWC used as an external reference \\
-%     Web-based visualization interface & Remaining & Interactive station map with forecasts at the seven horizons \\
-%     Model improvements and further experiments & Remaining & Ablations, repeated runs, tuning, and weak-spot analysis \\
-%     \bottomrule
-%   \end{tabularx}
-% \end{table}
+Using observations from 25 monitoring stations within the Brahmaputra River
+system, with water level as the target and discharge, rainfall, temperature and
+evaporation as inputs, the stations were grouped into four clusters: Upstream,
+Mid-river, Downstream and Urban. Each cluster acted as a federated client,
+trained locally, and contributed to a weighted federated-averaging step, while
+keeping a model adapted to its own stations. Forecasts were produced at seven
+horizons from 3~hours to 15~days and compared with four baselines (Vanilla
+LSTM, GRU, XGBoost and TCN). The trained models were then examined with SHAP,
+and the forecasts were made available through a web interface that also
+compares them with FFWC forecasts.
 
-% In short, the modelling and evaluation are in place, and what remains is the interpretability analysis, the comparison with FFWC, the interface, and a round of improvements and checks on the model itself.
+\section{Major Findings}
+\label{sec:5.3}
 
-% \section{Remaining Work}
-% \label{sec:5.3}
+The results of Chapter~4 lead to five main findings.
 
-% \subsection{SHAP-Based Interpretability Analysis}
-% \label{sec:5.3.1}
+First, CFL-EDLSTM was the most accurate model overall, with an MAE of
+0.321~m, an RMSE of 0.521~m and an NSE of 0.998. Its MAE was about 35\% lower
+than that of the best neural baseline (Vanilla LSTM) and about 40\% lower than
+that of XGBoost (Section~\ref{sec:4.5}).
 
-% Deep-learning forecasts are often hard to explain, and a forecasting tool for flood preparedness is more useful when users can see what drives its predictions. The planned analysis will apply SHAP to the trained cluster models in order to answer three questions. Which input variables and engineered features contribute most to the forecasts? Does their importance differ from one cluster to another? And does the ranking agree with what is known about the hydrology of each cluster (Section~\ref{sec:4.3})? The per-cluster analysis is also needed to fulfil the commitment made in Chapter~2.
+Second, the best model depends on the horizon. XGBoost was more accurate up to
+a one-day lead, but its error grew roughly sixteen-fold by 15~days, against
+about threefold for CFL-EDLSTM, which was the most accurate model from three
+days onward (15-day MAE of 0.436~m against 1.149~m for XGBoost). The longer
+horizons are where an early warning is most useful (Sections~\ref{sec:4.6}
+and~\ref{sec:4.8}).
 
-% The main practical difficulty is that the models take long input windows (150 time steps) with many features, which makes SHAP computation expensive. We plan to explain a sampled set of test windows, use an explainer suited to recurrent networks, and aggregate contributions over time steps and over groups of related features (for example lagged values, cumulative rainfall, and seasonal encodings). For XGBoost, SHAP values from the tree explainer will give a cross-check on the importance rankings. The output will be a global importance ranking, a ranking per cluster, and, if time allows, a view by forecast horizon.
+Third, accuracy was fairly even across the network but not uniform. MAE ranged
+from 0.252~m in the Urban cluster to 0.394~m in the Mid-river cluster, and
+CFL-EDLSTM had the lowest MAE at 24 of the 25 stations. The exception was
+SW291.5R, the highest-level station, where three other models did better
+(Sections~\ref{sec:4.7} and~\ref{sec:4.10}).
 
-% \subsection{Web-Based Visualization Interface}
-% \label{sec:5.3.2}
+Fourth, SHAP showed that the models relied most on seasonal timing (day of
+year) and temperature, with rainfall accumulations contributing less and
+discharge features not appearing among the top 20, and that attribution was
+concentrated in the last few days of the 30-day input window
+(Section~\ref{sec:shap_results}). This describes what the models learned, not
+what drives the rivers.
 
-% The second remaining part is a web interface that makes the forecasts usable by people who do not run the model. It will show an interactive map of the 25 stations, coloured or grouped by cluster, with current, previous, and predicted water levels for each of the seven forecast horizons, and a time-series view for any selected station. An exploratory dashboard was already used internally to inspect the raw station data, and it will serve as a starting point for the layout.
+Fifth, in a short check against FFWC forecasts issued in October 2026,
+CFL-EDLSTM had the lower MAE for lead days 1 to 7 against FFWC's 10-day
+forecast and for days 1 to 3 against its 5-day forecast, while FFWC was ahead at
+the longest leads. The period was short and calm, so this is an encouraging
+first check and not a verdict (Section~\ref{sec:ffwc_comparison}).
 
-% The work breaks down into four steps: exporting the model's forecasts in a form the interface can read, building a service that supplies them, building the map and station views, and testing the whole system on stored forecasts. The comparison view described in Section~\ref{sec:5.3.3} will be added once the FFWC data are ready. The technology choices will be made at the start of this stage, and the interface will be evaluated for correctness and clarity of presentation, not for operational deployment.
+Compared with earlier work, the gain over a plain LSTM is of a similar size to
+that reported for the regional benchmark of Ruma et al.\ \cite{Ruma2023},
+within the limits of an indirect comparison (Section~\ref{sec:4.13}).
 
-% \subsection{Comparison with FFWC}
-% \label{sec:5.3.3}
+\section{Achievement of Research Objectives}
+\label{sec:5.4}
 
-% The Flood Forecasting and Warning Centre of the Bangladesh Water Development Board issues forecasts for many river stations, and setting our forecasts next to them gives an external point of reference. FFWC is used here as a comparison source and not as validated ground truth. The plan is to identify the stations and dates where FFWC forecasts and observations overlap with our test period, align them to a common time stamp, and compare errors at the horizons for which FFWC forecasts are available. We expect the overlap to be partial. In the earlier attempt to recover missing values from FFWC reports, only a small part of the gaps could be matched to our stations and time stamps (Section~\ref{sec:4.2}), and the matching problem may recur here. If the overlap is too small for a reliable statistical comparison, the results will be presented as a case-based comparison, with this limitation stated openly.
+Table~\ref{tab:5.1} sets each objective from Chapter~1 against what was
+delivered.
 
-% % \subsection{Model Improvements and Additional Experiments}
-% % \label{sec:5.3.4}
+\begin{table}[H]
+\centering
+\caption{Status of the research objectives.}
+\label{tab:5.1}
+\small
+\begin{tabular}{p{0.33\textwidth}p{0.48\textwidth}p{0.09\textwidth}}
+\hline
+\textbf{Objective} & \textbf{Outcome} & \textbf{Section} \\
+\hline
+1. Cluster the stations & Four clusters defined from river position and FFWC
+grouping, with clear differences in level and rainfall & 3.10, 4.3 \\
+2. Develop the encoder--decoder LSTM & Multi-horizon forecasts at seven lead
+times from 3~hours to 15~days & 3.12, 4.6 \\
+3. Integrate it in clustered federated learning & Each cluster trained as a
+client with weighted averaging, keeping an adapted model; federation simulated
+on one machine & 3.12 \\
+4. Benchmark against four baselines & Lowest overall error and best from three
+days onward; lowest MAE at 24 of 25 stations & 4.5--4.8 \\
+5. Apply SHAP & Inputs ranked overall; temperature and seasonal timing led &
+4.9 \\
+6. Build a web platform & Interface with map, station forecasts, performance
+and FFWC comparison & 3.18, 4.11 \\
+\hline
+\end{tabular}
+\end{table}
 
-% % The first version of CFL-EDLSTM leaves several questions open, and the planned experiments are listed in Table~\ref{tab:5.improve}. The first group addresses the main limitation noted in Section~\ref{sec:4.12}, that the contributions of clustering, federation, and the encoder--decoder structure cannot yet be separated. The second group addresses the robustness and tuning of the current model. The third looks at the weak spots found in Chapter~4.
+All six objectives were met, with the qualifications noted in the table and in
+Section~\ref{sec:5.6}.
 
-% % \begin{table}[htbp]
-% %   \centering
-% %   \caption{Planned Model Improvements and Additional Experiments}
-% %   \label{tab:5.improve}
-% %   \small
-% %   \renewcommand{\arraystretch}{1.2}
-% %   \begin{tabularx}{\textwidth}{@{}p{3.6cm} X p{2.2cm}@{}}
-% %     \toprule
-% %     \textbf{Experiment} & \textbf{Purpose} & \textbf{Priority} \\
-% %     \midrule
-% %     Global and local-only comparison & Train a single global encoder--decoder on all stations, and one with clustering but no federation, to test whether clustering and federation improve accuracy & High \\
-% %     Encoder--decoder ablation & Train a standard LSTM under the same clustered federated scheme to isolate the encoder--decoder contribution & High \\
-% %     Repeated runs with fixed seeds & Measure run-to-run variation, since the current results come from a single run without a fixed seed & High \\
-% %     Hyperparameter tuning & Search the main settings (for example hidden size, learning rate, and dropout) systematically instead of using a single configuration & Medium \\
-% %     Alternative aggregation & Test aggregation methods designed for heterogeneous clients as alternatives to weighted averaging & Medium \\
-% %     Weak-spot analysis & Investigate the highest-level station (SW291.5R), the Mid-river cluster, and the large XGBoost errors at six low-level stations, and verify the XGBoost run & Medium \\
-% %     Imputation sensitivity & Test whether results change under alternative gap-filling methods, given the missing discharge at ten stations & Medium \\
-% %     Event-focused evaluation & Report accuracy on high-water events and peak errors in addition to averages, and add NSE by horizon & If time allows \\
-% %     \bottomrule
-% %   \end{tabularx}
-% % \end{table}
+\section{Research Contributions}
+\label{sec:5.5}
 
-% % If the improved model changes the headline numbers, the current results will be kept as the first version and used as the reference point, so that any improvement can be reported honestly and traced.
+The thesis makes four contributions. It shows that stations in the Brahmaputra
+River system can be grouped by hydrological behavior into four clusters that
+work as federated clients without pooling raw data across them. It offers
+CFL-EDLSTM, a clustered federated encoder--decoder LSTM that, in these
+experiments, forecasts water level more accurately than four established
+baselines from three days to 15~days ahead. It provides a SHAP-based picture of
+which hydrometeorological inputs the models rely on. And it delivers a working
+web interface that places the forecasts beside FFWC's, so that the framework can
+be inspected by someone other than its authors. To our knowledge, no earlier
+study had brought these elements together for Bangladesh.
 
-% \section{Work Plan}
-% \label{sec:5.4}
+\section{Limitations of the Study}
+\label{sec:5.6}
 
-% The remaining work is organised in five stages, shown in Table~\ref{tab:5.plan}. The model experiments come first, because they may change the numbers that the interpretability analysis and the interface depend on.
+The findings should be read with the following limits in mind.
 
-% \begin{table}[htbp]
-%   \centering
-%   \caption{Work Plan for the Remaining Research}
-%   \label{tab:5.plan}
-%   \small
-%   \renewcommand{\arraystretch}{1.2}
-%   \begin{tabularx}{\textwidth}{@{}p{0.8cm} X X p{2.4cm}@{}}
-%     \toprule
-%     \textbf{Stage} & \textbf{Task} & \textbf{Main output} & \textbf{Planned period} \\
-%     \midrule
-%     1 & Model improvements and ablations  & Final trained models; evidence on the role of clustering, federation, and the encoder--decoder & [\textbf{fill in}] \\
-%     2 & SHAP analysis (Section~\ref{sec:5.3.1}) & Global and per-cluster importance rankings & [\textbf{fill in}] \\
-%     3 & FFWC comparison (Section~\ref{sec:5.3.3}) & Comparison results and a statement of their limits & [\textbf{fill in}] \\
-%     4 & Web interface (Section~\ref{sec:5.3.2}) & Working interface with map, forecasts, and comparison view & [\textbf{fill in}] \\
-%     5 & Writing and finalisation & Complete thesis with updated Chapters~4 and~6 & [\textbf{fill in}] \\
-%     \bottomrule
-%   \end{tabularx}
-% \end{table}
+\paragraph{Data.}
+The records contain unexpected gaps, and a few stations report only during the
+monsoon. Gaps were filled, so filled values are estimates and not observations.
+Discharge is missing entirely at ten of the 25 stations, and rainfall is zero on
+about three quarters of records. Data from the upstream river network in India
+were not available, so the models cannot see conditions beyond the border
+stations.
 
-% \section{Expected Outcomes and Anticipated Risks}
-% \label{sec:5.5}
+\paragraph{Model and evaluation.}
+The federation was simulated on a single machine, each model was trained once
+without a fixed seed, and no systematic hyperparameter search was carried out.
+No ablation separates the contributions of clustering, federation and the
+encoder--decoder, so we describe the combined design as effective without
+crediting any one part. The clusters were fixed in advance from domain
+knowledge and not learned. Performance was uneven at SW291.5R, and XGBoost
+remained better up to about one day.
 
-% On completion, the thesis should contain an interpretable account of which inputs drive the forecasts, evidence on whether clustering and federation improve accuracy, a comparison with an external operational reference, and a working interface that presents the forecasts. Three risks stand out. The first is computation time: SHAP on long sequences and repeated training runs are both costly on a single GPU, so we will start with sampled windows and a limited number of seeds and extend them if time allows. The second is data availability: the FFWC overlap may be smaller than hoped, in which case the comparison will be reduced in scope. The third is that retraining may change the current results. Keeping the first version as a reference and changing the final chapters only once, after all experiments are done, will limit this risk.
+\paragraph{Interpretation and comparison.}
+SHAP values describe the models and not causal effects, and correlated inputs
+share credit. The SHAP sample was small. The FFWC comparison covers a short,
+post-monsoon period of hindcasts with few matched points, and the comparison with
+earlier studies is indirect because datasets, periods and protocols differ. The
+web interface is a research prototype and not an operational warning system.
 
-% \section{Longer-Term Research Directions}
-% \label{sec:5.6}
+\section{Future Research Directions}
+\label{sec:5.7}
 
-% Some directions lie beyond this thesis. The first is to extend the framework to other river basins, since the current dataset covers only the Brahmaputra system. The second is to add forecast-driven inputs, such as numerical rainfall forecasts, which would address the limit that the model sees only past observations. The third is to produce probabilistic forecasts with uncertainty bounds, which are more useful for warning decisions than a single value. The fourth is to test the federated design in a genuinely distributed setting, with data held by separate agencies, instead of clusters simulated within one dataset. Finally, evaluation on historical extreme flood events and a pilot with end users would show how the system performs where it matters most.
+Several directions follow directly from these limits.
 
-% \section{Summary of the Chapter}
-% \label{sec:5.7}
+The most immediate is to strengthen the evidence. Ablation runs would separate
+the effects of clustering, federation and the encoder--decoder, with a global
+encoder--decoder, a clustered model without the encoder--decoder and local-only
+models as references, and repeated runs with different seeds would show how
+stable the results are. A systematic hyperparameter search and an evaluation
+over a full flood season, with a longer FFWC record, would also make the
+conclusions firmer.
 
-% This chapter has described the remaining work: the SHAP analysis, the comparison with FFWC, the web interface, and a set of model improvements and experiments, together with a staged plan and the main risks. Chapter~\ref{ch:6} concludes with what the work has achieved so far.
+A second direction is to improve the inputs and the clustering. Upstream data
+from across the border, satellite or forecast rainfall and more complete
+discharge records could help the Upstream and Mid-river clusters in particular.
+Clusters learned from the data, instead of fixed in advance, could be compared
+with the hydrological grouping used here.
+
+A third direction is to extend the method and its use. Graph-based and
+attention-based models, which we examined but did not include, could be combined
+with clustered federation, and probabilistic forecasts would give users an
+uncertainty range. On the deployment side, a truly distributed federated setup,
+a live data feed for the interface and a repeat of the SHAP analysis with a
+larger sample would move the work toward practical use.
+
+\section{Final Conclusion}
+\label{sec:5.8}
+
+This thesis asked whether a clustered federated encoder--decoder LSTM could
+forecast water level across hydrologically different stations in Bangladesh
+without pooling their raw data. Within the limits described above, the answer
+is yes. CFL-EDLSTM gave the lowest overall error of the five models, held its
+accuracy far better than XGBoost as the lead time grew, and was the most
+accurate model from three days to 15~days, the horizons that matter most for
+early warning. SHAP and a web interface that sits beside FFWC's forecasts make
+those predictions easier to inspect and trust. The results are an encouraging
+step and not a finished system, and the work that remains is mostly about
+testing these ideas more thoroughly and on live data.
