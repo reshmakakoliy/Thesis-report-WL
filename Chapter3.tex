@@ -951,20 +951,107 @@ water level, SHAP values are in units of standard deviations of water level;
 they can be converted to metres by multiplying by the training standard
 deviation, and the rankings are the same in either unit.
 
+% \section{Web-Based Visualization Interface}
+% \label{sec:3.18}
+
+% \subsection{Interactive Map Module}
+% \label{sec:3.18.1}
+
+% \subsection{Station Selection and Details}
+% \label{sec:3.18.2}
+
+% \subsection{Forecast Display and Visualization}
+% \label{sec:3.18.3}
+
+% \subsection{FFWC Comparison Module}
+% \label{sec:3.18.4}
+
+
 \section{Web-Based Visualization Interface}
-\label{sec:3.18}
+\label{sec:web_interface}
+
+To make the forecasts usable outside the notebook, we built Bonna, a web
+application that presents CFL-EDLSTM forecasts for the 25 BWDB stations
+(\texttt{https://bonna-bd.vercel.app}~\cite{bonna_app}). The application is
+built on the dataset assembled for this study, its forecasts come from the
+proposed CFL-EDLSTM, and the observed readings used for comparison are taken
+from FFWC. It has four views: an interactive map, a station forecast page, a
+forecast performance page and a comparison with FFWC forecasts, all reached
+from a sidebar.
+
 
 \subsection{Interactive Map Module}
-\label{sec:3.18.1}
+The home page (Figure~\ref{fig:bonna_map}) shows the 25 stations on a map of
+Bangladesh, colour-coded by cluster. Filter buttons restrict the view to the
+Upstream, Mid-river, Downstream or Urban cluster, so the four-cluster design of
+Section~\ref{sec:3.10} can be seen spatially. Users can zoom, reset the
+view and select a station directly from its marker.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures2/bonna_map.png}
+    \caption{Interactive map and station panel of the Bonna interface.}
+    \label{fig:bonna_map}
+\end{figure}
 
 \subsection{Station Selection and Details}
-\label{sec:3.18.2}
+A station can be chosen from the map or from a dropdown list. The side panel
+then shows its name and BWDB identifier, cluster, river system, tidal or
+non-tidal type, and location, together with the current and previous-day water
+levels, the station's danger level, the time of the last reading and a status
+badge (for example ``Normal''). A short observed-versus-predicted chart gives a
+preview, and the \emph{View Full Forecast} button opens the detailed page.
 
 \subsection{Forecast Display and Visualization}
-\label{sec:3.18.3}
+The station forecast page (Figure~\ref{fig:bonna_forecast}) combines summary
+cards with a chart in which a vertical line separates observed values from the
+dashed forecast. The horizon selector changes the length of the forecast, and
+hovering over the chart gives the date, time and water level of any point. The
+forecast summary lists the prediction at all seven horizons, from 3~hours to
+15~days, with its date and time and its change from the current level, and the
+table can be downloaded as a CSV file.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures2/bonna_forecast.png}
+    \caption{Station forecast page for Chak-Rahimpur (SW63).}
+    \label{fig:bonna_forecast}
+\end{figure}
+
+The forecast performance page (Figure~\ref{fig:bonna_performance}) checks the
+model against readings that have since arrived. For a chosen station and
+horizon it reports MAE, RMSE and NSE over the last 15~days, and the MAE of a
+persistence forecast that simply repeats the last reading. Each predicted point
+in its chart comes from the forecast issued that many days before the reading,
+so the chart shows genuine lead-time accuracy. A table gives the same metrics
+for all horizons, for one station or for all stations.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures2/bonna_performance.png}
+    \caption{Forecast performance page for Chak-Rahimpur (SW63).}
+    \label{fig:bonna_performance}
+\end{figure}
 
 \subsection{FFWC Comparison Module}
-\label{sec:3.18.4}
+The comparison page (Figure~\ref{fig:bonna_ffwc}) places CFL-EDLSTM forecasts
+beside the official forecasts of the Flood Forecasting and Warning Centre
+(FFWC) and the readings that followed~\cite{ffwc_website}. The user selects a
+station and an FFWC forecast issue (5-day or 10-day). Cards show the number of
+matched points and the MAE of each forecast, and the chart plots our forecast,
+the FFWC forecast and the observed series together. A lead-time table reports
+the MAE of both for each lead day, for the selected issue, for all issues, or
+for all stations. Errors are computed only where both forecasts exist and FFWC
+has posted the observed reading, and the lead day is the target day minus the
+issue day. The results are discussed in Section~\ref{sec:4.11}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures2/bonna_ffwc.png}
+    \caption{FFWC comparison page for Chak-Rahimpur (SW63).}
+    \label{fig:bonna_ffwc}
+\end{figure}
+
 
 \section{Experimental Procedure}
 \label{sec:3.19}
