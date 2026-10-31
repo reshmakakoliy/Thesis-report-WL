@@ -597,37 +597,169 @@ Taken together, the station results show that CFL-EDLSTM's advantage is not the 
 \section{Comparison with FFWC}
 \label{sec:4.11}
 
+
+The web interface also allowed a direct check against the operational
+forecasts of FFWC, which is a more demanding reference than the baselines of
+Section~\ref{sec:baseline_rationale}. For each FFWC forecast issue, we compared
+the MAE of CFL-EDLSTM and of FFWC against the same observed readings,
+separately for each lead day, using the page described in
+Section~\ref{sec:web_interface}. Our forecasts were issued from data up to
+18:00 on the issue day, and only times at which both forecasts exist and FFWC
+has posted the reading were scored. Errors are in metres. The forecasts issued
+before 30~October 2026 are hindcasts: the model was run afterwards, using only
+data available on the issue day.
+
+Table~\ref{tab:ffwc} gives the results over all stations with matching data.
+Against the FFWC 10-day forecast, CFL-EDLSTM has the lower MAE for lead days 1
+to 7. The gap is largest at the start, where the MAE is 0.062~m against
+0.285~m on day~1, and narrows to a few millimetres by days 6 and 7. FFWC is
+slightly better at days 8 and 9 (0.806~m against 0.822~m, and 0.923~m against
+0.931~m). Against the FFWC 5-day forecast, CFL-EDLSTM is ahead on days 1 to 3,
+although the two are practically equal on day~2 (0.122~m against 0.123~m),
+and FFWC is ahead on days 4 and 5 (by 0.018~m and 0.028~m).
+
+\begin{table}[H]
+    \centering
+    \caption{MAE (m) of CFL-EDLSTM and FFWC forecasts by lead day.}
+    \label{tab:ffwc}
+    \begin{tabular}{c|ccc|ccc}
+        \hline
+        & \multicolumn{3}{c|}{FFWC 10-day} & \multicolumn{3}{c}{FFWC 5-day} \\
+        Lead day & Points & Ours & FFWC & Points & Ours & FFWC \\
+        \hline
+        1 & 23 & \textbf{0.062} & 0.285 & 44 & \textbf{0.070} & 0.095 \\
+        2 & 23 & \textbf{0.130} & 0.327 & 44 & \textbf{0.122} & 0.123 \\
+        3 & 23 & \textbf{0.226} & 0.372 & 44 & \textbf{0.176} & 0.193 \\
+        4 & 23 & \textbf{0.365} & 0.457 & 32 & 0.245 & \textbf{0.227} \\
+        5 & 23 & \textbf{0.510} & 0.565 & 32 & 0.271 & \textbf{0.243} \\
+        6 & 23 & \textbf{0.639} & 0.660 & -- & -- & -- \\
+        7 & 23 & \textbf{0.728} & 0.740 & -- & -- & -- \\
+        8 & 23 & 0.822 & \textbf{0.806} & -- & -- & -- \\
+        9 & 23 & 0.931 & \textbf{0.923} & -- & -- & -- \\
+        \hline
+    \end{tabular}
+\end{table}
+
+The pattern is consistent with the horizon results of Chapter~4: the learned
+model is strongest in the first days and loses its advantage as the lead time
+grows. The results should be read with care. The comparison covers a short
+period in October 2026, after the monsoon peak, when water levels change slowly
+and errors are small, so it says little about flood conditions. The number of
+points is small, and the 5-day comparison changes from 44 points on days 1 to 3
+to 32 on days 4 and 5. Hindcasts are not a substitute for real-time
+operation, and the values cannot be compared directly with Section~\ref{sec:4.6},
+which uses a different period, different stations and many more points. The
+per-station page shows the same limits: at Chak-Rahimpur (SW63) the 7- and
+15-day errors were larger than a persistence forecast over the same two
+weeks, and a per-station NSE over so short and flat a window is not meaningful.
+We therefore treat this comparison as an encouraging first check at short and
+medium leads, not as evidence that CFL-EDLSTM outperforms FFWC. Because the
+period lies after the end of the training and test data (31~March 2026), it
+does provide an out-of-sample check, and a longer real-time record will be needed
+to confirm it.
+
+
+
 \section{Discussion of Findings}
 \label{sec:4.12}
 
-This chapter set out to test whether a clustered federated encoder--decoder LSTM can forecast water level across heterogeneous stations at horizons from 3 hours to 15 days. The short answer from the results is yes, with qualifications. CFL-EDLSTM gave the lowest overall error of the five models and kept its accuracy as the lead time grew. The sections below discuss why the results may look the way they do, what they imply in practice, and where they should not be over-read.
+This chapter asked whether a clustered federated encoder--decoder LSTM can
+forecast water level across heterogeneous stations at horizons from 3 hours to
+15 days. The short answer is yes, with qualifications. CFL-EDLSTM gave the
+lowest overall error of the five models and held its accuracy as the lead time
+grew. The points below explain what the results suggest and where they should
+not be over-read.
 
 \paragraph{Accuracy depends on the horizon.}
-No single model was best everywhere. XGBoost was the most accurate up to a one-day lead, and CFL-EDLSTM was the most accurate from three days onward (Section~\ref{sec:4.6}). The gap at the two ends is large. At 3 hours XGBoost's MAE is about half of CFL-EDLSTM's, whereas at 15 days CFL-EDLSTM's MAE of 0.436~m is 62\% lower than XGBoost's 1.149~m. The difference comes mainly from how fast error grows: XGBoost's MAE rises about 16-fold over the horizon range, against about 3-fold for CFL-EDLSTM. A plausible reading is that recent lagged values are very informative for short leads and lose value as the horizon extends, while a sequence model that carries information through an encoder and decoder holds up better. We did not test this, but it is consistent with the pattern in the results. It also means that the overall averages in Table~\ref{tab:4.2} mix two regimes, and a single ranking would hide this. The 15-day horizon is also where flood preparedness benefits most from a forecast, so the long-range result matters more than a short-range gap.
+No single model was best everywhere. XGBoost was the most accurate up to a
+one-day lead, and CFL-EDLSTM from three days onward (Section~\ref{sec:4.6}). At
+3~hours XGBoost's MAE is about half of CFL-EDLSTM's, but at 15~days
+CFL-EDLSTM's MAE of 0.436~m is 62\% lower than XGBoost's 1.149~m. The
+difference comes mainly from how fast error grows: about 16-fold for XGBoost
+against about 3-fold for CFL-EDLSTM. A plausible reading is that recent lagged
+values are very informative at short leads and lose value as the horizon
+extends, while a sequence model holds up better. We did not test this, but it
+fits the pattern, and it means the overall averages in
+Table~\ref{tab:4.2} mix two regimes. The long-range result also matters most in
+practice, since a 15-day forecast is where flood preparedness gains the most.
 
-\paragraph{Why the neural baselines trail CFL-EDLSTM.}
-CFL-EDLSTM was better than Vanilla LSTM, GRU, and TCN at every horizon, by roughly 28--44\% depending on the metric. The most direct comparison is with Vanilla LSTM, since both use LSTM cells. The difference therefore comes from the encoder--decoder structure and the clustered federated training together, and the experiments here cannot say how much each contributes. Separating them would need two extra runs: a non-encoder--decoder model trained under the same clustered scheme, and a single global encoder--decoder trained on all stations. Until then we describe the combined design as effective, without crediting any one component.
+\paragraph{Against the neural baselines.}
+CFL-EDLSTM was better than the Vanilla LSTM, GRU and TCN at every horizon, by
+roughly 28--44\% depending on the metric. Because the Vanilla LSTM uses the
+same cells, the gain comes from the encoder--decoder structure and the
+clustered federated training together, and these experiments cannot separate
+the two. Doing so would need a non-encoder--decoder model trained under the
+same clustered scheme, and a single global encoder--decoder trained on all
+stations. Until then we describe the combined design as effective without
+crediting either component alone.
 
-\paragraph{Where the models fail.}
-Averages also hide where the errors sit. XGBoost's overall RMSE is the weakest of the five models even though its MAE ranks fourth, and Section~\ref{sec:4.10} shows why: at six low-level stations its RMSE lies between 1.49 and 2.01~m, against below 0.9~m at the other 19. We have no verified explanation for this. CFL-EDLSTM, by contrast, shows no comparable failures. Its worst station (MAE 0.466~m) is still better than the worst station of any baseline. Its one clear weakness is SW291.5R, the highest-level station, where XGBoost, GRU, and Vanilla LSTM were all more accurate. A station sitting far above the others in level may be poorly served by a model whose cluster shares parameters across stations, but this remains a conjecture.
+\paragraph{Stations and clusters.}
+Averages also hide where errors sit. XGBoost has the weakest overall RMSE
+although its MAE ranks fourth, because at six low-level stations its RMSE lies
+between 1.49 and 2.01~m, against below 0.9~m at the other 19
+(Section~\ref{sec:4.10}). CFL-EDLSTM shows no comparable failures: its worst
+station (MAE 0.466~m) is still better than the worst station of any baseline.
+Its one clear weakness is SW291.5R, the highest-level station, where XGBoost,
+GRU and Vanilla LSTM were all more accurate, possibly because a cluster model
+shares parameters across stations at very different levels (a conjecture).
+By cluster, the Urban cluster had the smallest errors (MAE 0.252~m) and the
+Mid-river cluster the largest (0.394~m), the latter also being the cluster that
+stands out most in rainfall (Section~\ref{sec:4.3}). With four clusters this is
+an association, not a cause, and the ranking changes with the metric because
+NSE depends on how much each cluster's water level varies, so we rely on MAE
+and RMSE. These results show that performance differs across clusters, not
+that clustering improves accuracy, which would need a comparison with a global
+model.
 
-\paragraph{Differences between clusters.}
-Performance also varied by cluster (Section~\ref{sec:4.7}). The Urban cluster had the smallest errors (MAE 0.252~m) and the Mid-river cluster the largest (0.394~m, with an RMSE about twice the Urban value). The Mid-river cluster is also the one that stands out most in rainfall (Section~\ref{sec:4.3}), so heavier or more variable rainfall may make stations harder to forecast from past observations alone. With only four clusters this is an association and not a cause. The ranking also changes with the metric: Downstream and Urban lead on NSE, while Upstream, despite low absolute errors, scores lowest. Relative metrics depend on how much each cluster's water level varies, so we consider MAE and RMSE the safer basis for comparing clusters. An important limit is that the results show performance differing across clusters, not that clustering improves accuracy. That would require comparison with a single global model on the same stations.
-
-% \paragraph{Interpretability.}
-% [\textbf{After Section~\ref{sec:4.9} is written, add two or three sentences: which input variables mattered most overall, whether the ranking differs between clusters, and whether this agrees with the hydrological picture in Section~\ref{sec:4.3}.}]
+\paragraph{What the model relies on.}
+The SHAP analysis (Section~\ref{sec:shap_results}) points to seasonal timing
+(day of year) and temperature as the strongest inputs, with rainfall
+accumulations contributing less, and to the most recent days of the 30-day
+window as the most influential part of the input. The second finding agrees
+with the horizon pattern above: recent observations matter most, and the
+model's accuracy fades as the lead moves away from them. The first should be
+read cautiously. Temperature follows the monsoon cycle and may be acting partly
+as a seasonal indicator, and correlated rainfall features share credit in SHAP,
+so rainfall is not shown to be unimportant. SHAP describes what the model has
+learned, not what drives the river.
 
 \paragraph{Practical meaning of the errors.}
-% In practical terms, CFL-EDLSTM's average error is about 0.16~m at a one-day lead, 0.23~m at three days, 0.33~m at seven days, and 0.44~m at fifteen days (Section~\ref{sec:4.8}). Whether this is adequate depends on the decision being supported, and these are averages over all stations and events, so individual stations and flood peaks may do better or worse. [\textbf{After Section~\ref{sec:4.11}, add one sentence on how these errors compare with the FFWC forecasts, treating FFWC as an external reference, not as validated ground truth.}]
-In practical terms, CFL-EDLSTM's average error is about 0.16~m at a one-day lead, 0.23~m at three days, 0.33~m at seven days, and 0.44~m at fifteen days (Section~\ref{sec:4.8}). Whether this is adequate depends on the decision being supported, and these are averages over all stations and events, so individual stations and flood peaks may do better or worse. 
+CFL-EDLSTM's average error is about 0.16~m at a one-day lead, 0.23~m at three
+days, 0.33~m at seven days and 0.44~m at fifteen days
+(Section~\ref{sec:4.8}). Whether this is adequate depends on the decision
+being supported, and these are averages over all stations and events, so
+individual stations and flood peaks may do better or worse. The comparison with
+FFWC (Section~\ref{sec:ffwc_comparison}) gives an external reference: over a
+short period in October 2026, CFL-EDLSTM had the lower MAE for the first
+seven days against FFWC's 10-day forecast, and for the first three days against
+its 5-day forecast, with FFWC ahead at the longest leads. That result is
+encouraging but based on few points in a calm period, and FFWC is an
+operational reference, not validated ground truth. The Bonna interface
+(Section~\ref{sec:web_interface}) makes these forecasts and comparisons
+available to users station by station.
+
 \paragraph{Relation to earlier work.}
-Section~\ref{sec:4.13} compares the results with three earlier studies. In short, the accuracy and the gradual decline with lead time are in line with the regional benchmark of \cite{Ruma2023}, and the modest benefit of federation reported by \cite{Mahir2025} is consistent with the motivation for the federated design. These comparisons are indirect, because the datasets, periods, and protocols differ.
+Section~\ref{sec:4.13} compares the results with three earlier studies. The
+gain over a plain LSTM is of a similar size to that reported by
+\cite{Ruma2023}, and the modest benefit of federation reported by
+\cite{Mahir2025} is consistent with our federated design. Both comparisons are
+indirect, because the datasets, periods and protocols differ.
 
 \paragraph{Limitations.}
-Several limitations should be kept in mind when reading these results, and the first group concerns the data. The records contain unexpected gaps in certain periods, and a few stations report only during the monsoon, so they carry no readings for the rest of the year. Gaps were filled by interpolation and forward and backward filling, which means filled values are estimates, not observations. Discharge is missing entirely at ten of the 25 stations, and rainfall is zero on about three quarters of records, which leaves that variable little to work with on most days. Data from the upstream river network in India were also not accessible, so the models cannot see conditions beyond the border stations, even though much of the flow entering Bangladesh comes from catchments outside the country (Section~1.2). This plausibly contributes to the weaker fit seen in the Upstream cluster (Section~4.7), although that link has not been tested.
+The first group concerns the data. The records contain unexpected gaps, and
+a few stations report only during the monsoon. Gaps were filled, so filled
+values are estimates and not observations. Discharge is missing entirely at ten
+of the 25 stations, and rainfall is zero on about three quarters of records,
+which leaves that variable little to work with on most days. Data from the
+upstream river network in India were not accessible, so the models cannot see
+conditions beyond the border stations, which may
+contribute to the weaker fit in the Upstream cluster (Section~\ref{sec:4.7}),
+although this was not tested.
 
-The remaining limitations concern the model and the evaluation. CFL-EDLSTM performs poorly at some stations, with average errors of up to about 1~m, and the causes are still being investigated, so those stations should be read as open questions and not dismissed as noise. The framework's advantage is also not uniform across horizons. At short range, up to about one day ahead, the centralized XGBoost baseline is more accurate than CFL-EDLSTM, and CFL-EDLSTM leads only from three days onward (Section~4.6), so it is better described as a longer-horizon forecaster than as a replacement for centralized models at every lead time. 
-
+The second group concerns the model and the evaluation. The advantage of
+CFL-EDLSTM is not uniform: up to about one day ahead the centralized XGBoost
+baseline is more accurate, so CFL-EDLSTM is better described as a longer-horizon
+forecaster than as a replacement for centralized models at every lead. 
 
 \section{Comparison with Previous Studies}
 \label{sec:4.13}
