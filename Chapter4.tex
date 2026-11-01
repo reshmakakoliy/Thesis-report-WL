@@ -1,37 +1,74 @@
 \chapter{Experimental Results and Discussion}
 \label{Ch_Chapter4}
+\label{ch:results}
 
 \section{Introduction}
 \label{sec:4.1}
 
-This chapter reports what happened when the procedure described in Chapter~3 was actually run. It begins with the data the models were trained and tested on (Section~4.2), then moves through the clustering outcome (Section~4.3), the proposed CFL-EDLSTM's own performance (Section~4.4), and its comparison against the baseline models (Section~4.5), before breaking the results down by forecast horizon (Sections~4.6 and~4.8) and by station cluster (Section~4.7). The remaining sections turn to interpretability (Section 4.9), station-level forecasts (Section~4.10), the comparison against FFWC information (Section 4.11), and a closing discussion that places the findings alongside earlier work (Sections~4.12 and~4.13).
-
-Throughout, model performance is judged mainly on MAE and RMSE in metres, since these stay directly comparable across architectures and are expressed in the same unit the water-level readings themselves use.
+This chapter reports what happened when the procedure of
+Chapter~\ref{ch:methodology} was run. It begins with the data the models were
+trained and tested on (Section~\ref{sec:4.2}), then presents the clustering
+outcome (Section~\ref{sec:4.3}), the performance of CFL-EDLSTM on its own
+(Section~\ref{sec:4.4}) and its comparison with the baselines
+(Section~\ref{sec:4.5}). The results are then broken down by forecast horizon
+(Sections~\ref{sec:4.6} and~\ref{sec:4.8}), by cluster (Section~\ref{sec:4.7}) and
+by station (Section~\ref{sec:4.10}), with the SHAP analysis in
+Section~\ref{sec:4.9}. The remaining sections compare the model with FFWC
+(Section~\ref{sec:4.11}), discuss the findings (Section~\ref{sec:4.12}) and place
+them beside earlier studies (Section~\ref{sec:4.13}), and the chapter closes with
+a summary (Section~\ref{sec:4.14}). Performance is judged mainly on MAE and RMSE
+in meters, since both stay comparable across architectures and are expressed in
+the unit of the readings themselves.
 
 \section{Experimental Setup and Dataset Characteristics}
 \label{sec:4.2}
 
 \subsection{Experimental Setup}
+\label{sec:4.2.1}
 
-All results in this chapter use the station-wise records of water level, rainfall, MDD, evaporation, and temperature from the 25 monitoring stations described in Section~\ref{sec:3.5}. For every station, we hold out the last 15\% of the timeline as the test set, so the models are always judged on data that comes after what they were trained on. Each model looks back over 30 days of history (150 observations) and predicts the next 15 days (75 observations). We report accuracy at the seven horizon checkpoints defined in Section~\ref{sec:3.15}. Every figure is computed after converting the outputs back to metres, and we have not rounded anything beyond what the result files themselves contain.
-
-Training and evaluation ran on a single desktop machine with an AMD Ryzen 5 3600 six-core processor (3.60~GHz), 24~GB of RAM, and an NVIDIA GeForce RTX~3060 (12~GB VRAM). The PyTorch models used CUDA where it was available, and XGBoost was set up to run on the same GPU.
+All results use the station-wise records of water level, rainfall, MDD,
+evaporation and temperature from the 25 stations of Section~\ref{sec:3.5}. For
+every station, the first 70\% of the timeline is used for training, the next 15\%
+for validation and the last 15\% as the test set, so the models are always judged
+on data that comes after what they were trained on
+(Section~\ref{sec:3.9.5}). Each model looks back over 30 days (150 observations)
+and predicts the next 15 days (75 observations), and accuracy is reported at the
+seven horizon checkpoints of Section~\ref{sec:3.15}. All figures are computed
+after converting outputs back to meters and are not rounded beyond what the
+result files contain. Training and evaluation ran on a single desktop machine
+(Section~\ref{sec:3.19}).
 
 \subsection{Raw Dataset Visualization}
 \label{sec:4.2.2}
 
-Prior to model development, the characteristics of the raw data were first examined. The observations were plotted across all monitoring stations and over the full study period. Since water level is the target variable of the forecasting task, it was used as the primary reference for this initial visualization.
-
-Figure~\ref{fig:raw-wl-heatmap} presents a station-by-time heatmap of the raw water-level observations. Time is represented along the horizontal axis, while the monitoring stations are listed along the vertical axis. The color intensity represents the observed water-level value, and white cells indicate periods with no observation. Two main characteristics are visible. First, the stations differ substantially in their overall water-level range. For example, SW291.5R remains close to 50~mMSL throughout much of the study period, whereas stations such as SW179, SW180, SW302, and SW42 remain near the lower end of the scale. Second, the gaps are not distributed uniformly across the stations. Most stations are relatively complete, while a few, particularly SW68.5, contain longer and repeated periods without observations.
+Before modeling, the raw data were examined across all stations and the full
+study period, with water level, the target variable, as the main reference.
+Figure~\ref{fig:raw-wl-heatmap} is a station-by-time heatmap of the raw
+water-level observations: time runs along the horizontal axis, stations along the
+vertical axis, color shows the observed level, and white cells mark periods with
+no observation. Two things stand out. The stations differ greatly in level:
+SW291.5R stays near 50~mMSL for most of the period, whereas SW179, SW180, SW302
+and SW42 stay near the bottom of the scale. And the gaps are uneven: most
+stations are fairly complete, but a few, particularly SW68.5, have longer and
+repeated periods without observations.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=\textwidth]{figures2/fig4-3-raw-wl-heatmap.png}
-    \caption{Station-by-time heatmap of raw water-level observations (mMSL) for the 25 stations. }
+    \caption{Station-by-time heatmap of raw water-level observations (mMSL).}
     \label{fig:raw-wl-heatmap}
 \end{figure}
 
-Figure~\ref{fig:raw-wl-timeseries} presents the same water-level observations as time series. The stations operate at different overall levels, while most exhibit recurring rises and falls over the study period. These patterns are consistent with the seasonal nature of river flows. The magnitude of the variations and the shape of the peaks also differ between stations, which indicates the heterogeneity of the monitoring locations. This heterogeneity motivated the use of station clustering rather than treating all stations as a single homogeneous group. A few short and abrupt changes are also visible in the early years of one or two series and are retained as characteristics of the raw observations.
+Figure~\ref{fig:raw-wl-timeseries} shows the same observations as time series.
+The stations operate at different overall levels, and most show recurring rises
+and falls consistent with the seasonal nature of river flows. The size of the
+swings and the shape of the peaks also differ between stations, which reflects
+the heterogeneity of the monitoring locations and motivated clustering the
+stations and not treating them as one group. A few short, abrupt changes in the
+early years of one or two series are kept as characteristics of the raw records.
+The same visualization was applied to the four input variables to check their
+behavior and find gaps or unusual values. These plots were exploratory only and
+were not used to evaluate the models.
 
 \begin{figure}[htbp]
     \centering
@@ -40,44 +77,79 @@ Figure~\ref{fig:raw-wl-timeseries} presents the same water-level observations as
     \label{fig:raw-wl-timeseries}
 \end{figure}
 
-The same visualization approach was applied to the four input variables (discharge, rainfall, temperature, and evaporation) to examine their temporal behavior and to identify gaps or unusual values in the raw records. These visualizations were used for exploratory examination of the dataset only. They do not represent model results and were not used to evaluate model performance.
-% \paragraph{Interactive river visualization.}
-% Static plots only show one view of the data at a time, so we also built a small interactive dashboard (Figure~\ref{fig:raw-dashboard}). It loads the raw station file and gives a summary of the dataset (25 stations, 741{,}750 observations, and 5 numeric features). For each variable it shows the station-by-time heatmap, the time series, and a river profile. The river profile plots the value at every station for one chosen time stamp, and a slider lets us move that time stamp across the full record. The dashboard also lets us choose which stations to display and restrict the time range. This made it much easier to compare stations side by side, see how conditions change along the river over time, and find missing stretches or odd values before modelling. Like the figures above, the dashboard was used only for data inspection.
-
-% \begin{figure}[htbp]
-%     \centering
-%     \includegraphics[width=0.95\textwidth]{figures2/fig4-5-dashboard.png}
-%     \caption{The interactive Station Feature Visualizer used to explore the raw data, showing the dataset summary, the water-level heatmap and time series, and the river profile at a selected time (here, 2026-03-31 18:00).}
-%     \label{fig:raw-dashboard}
-% \end{figure}
-
 \subsection{Processed Dataset}
+\label{sec:4.2.3}
 
-The final dataset brings together hydrological and meteorological records from 25 gauge stations in the Brahmaputra basin. It starts on 1 January 2010 and ends on 31 March 2026, which is 5{,}934 days, or a little over sixteen years. Each station contributes 29{,}670 observations, giving 741{,}750 rows and 44 columns in total. Since every station covers the same period and uses the same set of columns, the panel is balanced. This is useful for the clustered federated setup, because each station can act as a client with the same time span and the same input structure.
+The final dataset combines hydrological and meteorological records from 25 gauge
+stations in the Brahmaputra basin. It runs from 1 January 2010 to 31 March 2026,
+5{,}934 days or a little over sixteen years. Each station contributes 29{,}670
+observations, giving 741{,}750 rows and 44 columns, and since every station
+covers the same period with the same columns, the panel is balanced. This suits
+the clustered federated setup, because each station can act as a client with the
+same time span and input structure.
 
 \paragraph{Temporal structure.}
-Observations are recorded five times a day, at 06:00, 09:00, 12:00, 15:00, and 18:00. About 80\% of consecutive records are 3 hours apart, and the rest are the 12-hour overnight gap between 18:00 and 06:00 the next morning. We chose to keep this uneven spacing instead of forcing the data onto a regular grid. To help the models cope with it, a \texttt{delta\_hours} column stores the normalised time gap (0.25 for a 3-hour step and 1.0 for the overnight jump).
+Observations are recorded five times a day, at 06:00, 09:00, 12:00, 15:00 and
+18:00. About 80\% of consecutive records are three hours apart, and the rest are
+the 12-hour overnight gap from 18:00 to 06:00. We kept this uneven spacing and
+did not force the data onto a regular grid, and a \texttt{delta\_hours} column
+stores the normalized gap (0.25 for a 3-hour step and 1.0 for the overnight
+jump).
 
 \paragraph{Variables.}
-Water level is what we are forecasting, and it is the only variable measured several times a day. The other variables describe the conditions around it. Some of them are recorded at a coarser resolution, so their value stays the same across all observations within a day.
+Water level is the forecast target and the only variable measured several times
+a day. The others are recorded at a coarser resolution, so their value is the
+same across all observations within a day. Rainfall, evaporation and temperature
+come from fewer measurement points than there are stations, so each station is
+matched to its closest relevant record and neighboring stations sometimes share a
+series: across the 25 stations there are 12 distinct rainfall series, 7
+evaporation series and 9 temperature series. Discharge is available at 15
+stations and recorded as zero at the other 10.
 
-Rainfall, evaporation, and temperature come from fewer measurement points than there are water-level stations, so each station is matched to its closest relevant record and neighbouring stations sometimes share the same series. Across the 25 stations there are 12 distinct rainfall series, 7 evaporation series, and 9 temperature series. Discharge is available at 15 of the 25 stations and is recorded as zero at the other 10.
-
-In the processed data, water level averages 12.51~mMSL (SD 11.28, range $-0.92$ to 52.90) and differs a lot from one station to another. Rainfall averages 4.79~mm with a maximum of 540~mm, and about 75\% of records are zero, which is what we would expect with a long dry season. Evaporation averages 1.67~mm, and temperature averages 25.58~\textdegree C, ranging from 8.65 to 36.83~\textdegree C.
+In the processed data, water level averages 12.51~mMSL (SD 11.28, range $-0.92$
+to 52.90) and differs greatly between stations. Rainfall averages 4.79~mm with a
+maximum of 540~mm, and about 75\% of records are zero, as expected with a long dry
+season. Evaporation averages 1.67~mm, and temperature averages
+25.58~\textdegree C, ranging from 8.65 to 36.83~\textdegree C.
 
 \paragraph{Engineered features.}
-To give the models some memory of recent conditions, we added look-back features. These include lagged values at 1, 2, 3, 5, 7, and 14 days for rainfall, discharge, temperature, and evaporation (24 columns), cumulative rainfall over 3, 7, 14, and 30 days (4 columns) to reflect how saturated the catchment is, and rolling mean discharge over the same four windows (4 columns). We did not create lags of water level, because it is the target. Hour of day and day of year are each encoded as a sine and cosine pair (4 columns), so that 18:00 sits close to 06:00 and 31 December sits close to 1 January. The forecast horizons (3~h, 6~h, 12~h, and 1, 3, 7, and 15 days) are created when the training windows are built, so they do not appear as separate columns in the file.
+To give the models some memory of recent conditions, look-back features were
+added: lagged values at 1, 2, 3, 5, 7 and 14 days for rainfall, discharge,
+temperature and evaporation (24 columns), cumulative rainfall over 3, 7, 14 and
+30 days (4 columns), and rolling mean discharge over the same four windows (4
+columns). No lags of water level were created, because it is the target, and the
+input window already carries its history. Hour of day and day of year are each
+encoded as a sine and cosine pair (4 columns), so that 18:00 sits close to 06:00
+and 31 December close to 1 January. The forecast horizons are created when the
+training windows are built, so they do not appear as columns. Table~\ref{tab:features}
+lists the groups.
 
 \paragraph{Missing data.}
-The raw records had gaps, mostly in rainfall, discharge, temperature, and evaporation, and the amount missing differed from station to station (see Table~\ref{tab:4.1}). Our first idea was to recover these values from outside sources, so we went through the available reports from the Flood Forecasting and Warning Centre (FFWC). Unfortunately, this helped very little. The reports covered only part of the gaps and often did not match the stations or time stamps we were missing, so we could fill only a small number of values this way. The remaining gaps were filled using forward filling followed by backward filling, and the final dataset has no missing values. It is worth remembering that filled values are estimates, not measurements. The long dry-season stretches with constant values, and the 10 stations with no discharge record at all, should be kept in mind when reading the results.
+The raw records had gaps, mostly in rainfall, discharge, temperature and
+evaporation, and the amount missing differed between stations
+(Table~\ref{tab:4.1}). We first tried to recover these values from the reports of
+the Flood Forecasting and Warning Centre (FFWC), but the reports covered only part
+of the gaps and often did not match the missing stations or times, so only a few
+values could be filled this way. The remaining gaps were filled by linear
+interpolation, followed by forward and backward filling, and any value that still
+could not be filled, such as discharge at the ten stations with no sensor, was set
+to zero (Section~\ref{sec:3.9.2}). The final dataset has no missing values.
+Filled values are estimates and not measurements, and the long dry-season
+stretches with constant values and the ten stations with no discharge record
+should be kept in mind when reading the results.
 
 \subsection{Descriptive Statistics}
+\label{sec:4.2.4}
 
-Table~\ref{tab:4.1} summarises the five input variables across all stations as they were before imputation, which is why it includes the percentage of missing values.
+Table~\ref{tab:4.1} summarizes the five variables across all stations as they were
+before filling, which is why it includes the percentage missing. Water level has
+the smallest gap (3.38\%), temperature a large one (24.08\%, since it covers only
+2012--2024), and discharge the largest (68.44\%), because ten stations have no
+record at all.
 
 \begin{table}[htbp]
   \centering
-  \caption{Dataset Statistics Across the 25 Stations (Before Imputation)}
+  \caption{Dataset Statistics Across the 25 Stations (Before Filling)}
   \label{tab:4.1}
   \small
   \renewcommand{\arraystretch}{1.15}
@@ -94,14 +166,24 @@ Table~\ref{tab:4.1} summarises the five input variables across all stations as t
   \end{tabular}
 \end{table}
 
-Each entry in Table~\ref{tab:4.1} was built from 25 rows of per-station descriptive statistics (one mean, SD, minimum, maximum, and missing percentage per station, per variable) rather than from the raw observations directly. For this reason, the SD column in particular should not be compared directly with the observation-level figures quoted in the previous subsection.
+Each entry was built from 25 rows of per-station statistics (one mean, SD, minimum,
+maximum and missing percentage per station and variable) and not from the raw
+observations directly, so the SD column in particular, such as 2.03 for water
+level, should not be compared with the observation-level SD of 11.28 quoted above.
+The negative evaporation minimum ($-145.8$~mm) is physically impossible and
+presumably a recording error in the source records.
 
-Figure~\ref{fig:4.1} shows representative historical series for one station, and Figure~\ref{fig:4.2} shows how the five variables correlate with each other. The correlation matrix only captures linear association, so it should not be read as evidence of causation.
+Figure~\ref{fig:4.1} shows representative historical series of the five variables
+for one station, and Figure~\ref{fig:4.2} shows how the variables correlate with
+each other. [\textbf{Add one sentence naming the station in Figure~\ref{fig:4.1}
+and the one or two strongest correlations in Figure~\ref{fig:4.2}.}] The
+correlation matrix captures only linear association and should not be read as
+evidence of causation.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.9\textwidth]{figures2/fig4-1-historical-timeseries.png}
-    \caption{Representative historical time series (of 5 variables) for one station.}
+    \caption{Representative historical time series of the five variables for one station.}
     \label{fig:4.1}
 \end{figure}
 
@@ -112,11 +194,14 @@ Figure~\ref{fig:4.1} shows representative historical series for one station, and
     \label{fig:4.2}
 \end{figure}
 
-
 \section{Clustering Results}
 \label{sec:4.3}
 
-The stations were grouped into four clusters using the procedure described in Section~\ref{sec:3.10}: Upstream, Mid-river, Downstream, and Urban. Each cluster later serves as one client in the federated training (Section~\ref{sec:3.12}). The station membership of each cluster is listed in Table~\ref{tab:3.5}. Here we look at what the clusters actually look like in the data. Table~\ref{tab:4.cluster-features} gives the average value of each input variable per cluster.
+The stations were grouped into the four clusters of Section~\ref{sec:3.10}
+(Upstream, Mid-river, Downstream and Urban), each of which later serves as one
+federated client. Their membership is listed in Table~\ref{tab:3.5}, and
+Table~\ref{tab:4.cluster-features} gives the average of each input variable per
+cluster.
 
 \begin{table}[htbp]
   \centering
@@ -127,7 +212,7 @@ The stations were grouped into four clusters using the procedure described in Se
   \begin{tabular}{@{}l r r r r r@{}}
     \toprule
     \textbf{Cluster} & \textbf{Water level} & \textbf{Discharge} & \textbf{Rainfall} & \textbf{Evaporation} & \textbf{Temperature} \\
-     & (mMSL) & & & (mm) & (\textdegree C) \\
+     & (mMSL) & (m\textsuperscript{3}/s) & (mm) & (mm) & (\textdegree C) \\
     \midrule
     Upstream   & 28.240 & 5.466 & 429.617  & 1.324 & 25.032 \\
     Mid-river  & 12.546 & 4.271 & 9086.924 & 1.815 & 25.409 \\
@@ -138,24 +223,44 @@ The stations were grouped into four clusters using the procedure described in Se
 \end{table}
 
 \paragraph{Water level separates the clusters most clearly.}
-The average water level falls steadily from the Upstream cluster (28.24~mMSL) through Mid-river (12.55~mMSL) and Downstream (5.75~mMSL) to the Urban cluster (2.11~mMSL). This ordering matches the names given to the clusters, so the grouping appears to reflect the position of the stations along the river and the elevation they sit at. The gap between the highest and lowest clusters is more than a factor of ten, which is a larger contrast than for any other variable in the table.
+The average water level falls steadily from the Upstream cluster (28.24~mMSL)
+through Mid-river (12.55~mMSL) and Downstream (5.75~mMSL) to the Urban cluster
+(2.11~mMSL). This ordering matches the cluster names, so the grouping appears to
+reflect the stations' position along the river and the elevation they sit at, and
+the gap between the highest and lowest clusters is more than tenfold, larger than
+for any other variable.
 
-\paragraph{Temperature and evaporation differ only slightly.}
-Average temperature stays within a narrow band, from 25.03~\textdegree C in the Upstream cluster to 25.49~\textdegree C in the Urban cluster, a spread of less than half a degree. Evaporation varies somewhat more in relative terms, from 1.32~mm (Upstream) to 1.90~mm (Urban), but the absolute differences are small. In other words, the clusters share a broadly similar climate, and they are separated mainly by their hydrological behaviour and not by temperature.
+\paragraph{Temperature and evaporation differ little.}
+Average temperature stays within a narrow band, from 25.03~\textdegree C
+(Upstream) to 25.49~\textdegree C (Urban), less than half a degree. Evaporation
+varies more in relative terms, from 1.32 to 1.90~mm, but the absolute differences
+are small. The clusters therefore share a broadly similar climate and are
+separated mainly by hydrological behavior and not by temperature.
 
-\paragraph{Rainfall and discharge.}
-Discharge averages are close across clusters (4.27 to 5.47), with the Upstream and Urban clusters slightly higher. This comparison should be read with care, since discharge is available at only 15 of the 25 stations and is recorded as zero at the other ten (Section~\ref{sec:4.2}). Cluster averages therefore partly depend on how many stations in each cluster have a discharge record. The rainfall measure stands out. The Mid-river cluster has a value of 9{,}087, which is roughly 21 to 35 times larger than the other three clusters (260 to 430). Whatever the exact reason for this, it marks Mid-river as the most distinct cluster in terms of rainfall.
+\paragraph{Rainfall and discharge need caution.}
+The discharge averages are close across clusters (4.27 to 5.47), but discharge is
+available at only 15 of the 25 stations and zero at the rest
+(Section~\ref{sec:4.2.3}), so these averages depend partly on how many stations
+of each cluster have a record. The Mid-river rainfall value (9{,}087) is about 21
+to 35 times larger than the other three (260 to 430) and far above the overall
+mean of 4.79~mm in Section~\ref{sec:4.2.3}, so it is not comparable with them and
+probably reflects how rainfall was aggregated in this table. We therefore do not
+use rainfall or discharge to separate the clusters.
 
-\paragraph{What this means for the modelling.}
-Taken together, the clusters are clearly different from one another, mostly in water level and rainfall. This supports giving each cluster its own model state instead of forcing all 25 stations to share a single set of parameters. Whether it actually improves forecasts is a separate question, and Section~\ref{sec:4.7} looks at how the model performs in each cluster.
-
+\paragraph{What this means for the modeling.}
+The clusters clearly differ, mainly in water level. This supports giving each
+cluster its own model state and not forcing all 25 stations to share one set of
+parameters. Whether it actually improves forecasts is a separate question, taken
+up in Section~\ref{sec:4.7}.
 
 \section{Overall Performance of CFL-EDLSTM}
 \label{sec:4.4}
 
-This section looks at how the proposed CFL-EDLSTM performs on its own before it is set against any other model. The comparison with the baselines follows in Section~\ref{sec:4.5}, and the breakdowns by horizon and by cluster come in Sections~\ref{sec:4.6} and~\ref{sec:4.7}. The evaluation follows the setup in Section~\ref{sec:4.2}: each station is scored on its own chronological test split, using the cluster-specific model assigned to it, with a 30-day input history and a 15-day forecast. In total, the model is evaluated on 111{,}275 test windows across the 25 stations, and all errors are reported in metres after inverse transformation.
-
-Table~\ref{tab:4.cfl-overall} gives the overall results.
+This section looks at the performance of CFL-EDLSTM on its own, before it is set
+against the baselines (Section~\ref{sec:4.5}). Each station is scored on its own
+chronological test split with the model of its cluster, using a 30-day input and
+a 15-day forecast, and the model is evaluated on 111{,}275 test windows across the
+25 stations. Table~\ref{tab:4.cfl-overall} gives the results.
 
 \begin{table}[htbp]
   \centering
@@ -167,7 +272,7 @@ Table~\ref{tab:4.cfl-overall} gives the overall results.
     \toprule
     \textbf{Metric} & \textbf{Value} & \textbf{What it measures} \\
     \midrule
-    MAE (m) & 0.320996 & Average absolute error, in metres \\
+    MAE (m) & 0.320996 & Average absolute error, in meters \\
     RMSE (m) & 0.520711 & Square root of the mean squared error; weights large errors more heavily \\
     MSE (m\textsuperscript{2}) & 0.271140 & Mean squared error \\
     NSE & 0.997910 & Skill relative to predicting the observed mean (1 is perfect) \\
@@ -176,38 +281,60 @@ Table~\ref{tab:4.cfl-overall} gives the overall results.
     IOA & 0.999476 & Index of agreement between predictions and observations (0 to 1) \\
     \bottomrule
   \end{tabular}
-  \caption*{\footnotesize Computed over all 111{,}275 test windows and 25 stations, after inverse transformation to the original water-level units.}
+  \caption*{\footnotesize Computed over all 111{,}275 test windows and 25 stations, after inverse transformation to the original units.}
 \end{table}
 
 \paragraph{Size of the errors.}
-On average, the model's forecasts are off by about 0.32~m (MAE), and the RMSE is 0.52~m. These errors are small next to the spread of water levels in the data, where the standard deviation is 11.28~mMSL and levels range from $-0.92$ to 52.90~mMSL (Section~\ref{sec:4.2}). The RMSE is roughly 1.6 times the MAE. Since RMSE gives more weight to large errors, this tells us that most forecasts are close to the observations while a smaller share carry larger errors. Where those larger errors occur is examined in the horizon and station results that follow.
+On average the forecasts are off by about 0.32~m (MAE), with an RMSE of 0.52~m.
+These errors are small next to the spread of water levels in the data (SD
+11.28~mMSL, range $-0.92$ to 52.90~mMSL). The RMSE is about 1.6 times the MAE,
+which tells us that most forecasts are close to the observations while a smaller
+share carry larger errors. Where those occur is examined in the horizon and
+station results.
 
 \paragraph{Goodness of fit.}
-The fit metrics are all very close to their maximum value of 1. NSE \cite{NashSutcliffe1970} and R\textsuperscript{2} are both 0.9979, EVS is 0.9979, and IOA is 0.9995. The NSE and R\textsuperscript{2} values are identical here, and they are reported separately only for completeness. EVS is almost the same as NSE, and because EVS ignores constant bias while NSE does not, this suggests the model shows little systematic over- or under-prediction. A high NSE is not surprising for water-level series with strong seasonal cycles, since even a simple model can capture much of that variation. For this reason, we read MAE and RMSE as the more informative measures, and they are the ones used for comparison in the rest of the chapter.
+The fit metrics are all close to 1: NSE and R\textsuperscript{2} are both 0.9979,
+EVS is 0.9979 and IOA 0.9995 \cite{NashSutcliffe1970}. The NSE and
+R\textsuperscript{2} values are identical and are listed separately only for
+completeness. EVS is almost the same as NSE, and since EVS ignores constant bias
+while NSE does not, the model shows little systematic over- or under-prediction. A
+high NSE is not surprising for series with strong seasonal cycles and with stations
+at very different levels, since a simple model can capture much of that variation.
+We therefore read MAE and RMSE as the more informative measures.
 
-Figure~\ref{fig:4.cfl-cluster-forecast} compares predicted and observed water levels over the 15-day forecasting period at four representative stations, one from each cluster. The model captures the general downward trend at Kaunia, Fulchari, and Taraghat, although it does not fully follow the sharper declines in the observed levels. At Mirpur, the predictions remain relatively close to the observed levels but miss some short-term fluctuations. Overall, the plots show that the model captures broad water-level trends, but has difficulty reproducing sudden changes, with differences across the four stations.
+Figure~\ref{fig:4.cfl-cluster-forecast} compares predicted and observed water
+levels over the 15-day forecast at four representative stations, one per cluster.
+The model captures the general downward trend at Kaunia, Fulchari and Taraghat,
+although it does not fully follow the sharper declines in the observed levels. At
+Mirpur the predictions stay relatively close to the observed levels but miss some
+short-term fluctuations. The model captures broad trends but has difficulty
+reproducing sudden changes, with differences across the four stations.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.7\textwidth]{figures2/fig4-cfl-pred-vs-obs.png}
-    \caption{Comparison of predicted and observed water levels over the 15-day forecasting horizon at representative stations from the four clusters.}
+    \caption{Predicted and observed water levels at four representative stations.}
     \label{fig:4.cfl-cluster-forecast}
 \end{figure}
 
 \paragraph{What the overall figures hide.}
-These numbers average over all 25 stations and over every step of the 15-day forecast, so they should be read as a summary and not as the error at any single point. The results behind them vary considerably. As Table~\ref{tab:4.3} shows, the MAE is about 0.15~m at the 3-hour checkpoint and grows to about 0.44~m at 15 days, and Table~\ref{tab:4.2a} shows station-level MAE ranging from 0.177 to 0.466~m. Sections~\ref{sec:4.6} and~\ref{sec:4.7} look at these differences in detail. Before that, Section~\ref{sec:4.5} places the overall figures in Table~\ref{tab:4.cfl-overall} next to those of the baseline models to show how they compare.
-
-% Needed in preamble: \usepackage[table]{xcolor}  and  \usepackage{array}
+These numbers average over all stations and every forecast step, so they are a
+summary and not the error at any one point. MAE is about 0.15~m at 3~hours and
+about 0.44~m at 15~days (Table~\ref{tab:4.3}), and station-level MAE ranges from
+0.177 to 0.466~m (Table~\ref{tab:4.2a}). Section~\ref{sec:4.5} first places the
+overall figures beside those of the baselines.
 
 \section{Comparison with Baseline Models}
 \label{sec:4.5}
 
-Table~\ref{tab:4.2} reports overall test-set performance for the four baseline models specified in Chapter~3 and for the proposed CFL-EDLSTM, which is highlighted in the table.
+Table~\ref{tab:4.2} reports overall test-set performance for the four baselines
+of Section~\ref{sec:3.13} and for CFL-EDLSTM, shaded in the table.
 
 \begin{table}[htbp]
   \centering
   \caption{Overall Test-Set Performance by Model}
   \label{tab:4.2}
+  \label{tab:testwindows}
   \footnotesize
   \setlength{\tabcolsep}{4pt}
   \begin{tabular}{@{}l r r r r r r r@{}}
@@ -223,25 +350,53 @@ Table~\ref{tab:4.2} reports overall test-set performance for the four baseline m
     \textbf{CFL-EDLSTM} & \textbf{111{,}275} & \textbf{0.320996} & \textbf{0.520711} & \textbf{0.271140} & \textbf{0.997910} & \textbf{0.997922} & \textbf{0.999476} \\
     \bottomrule
   \end{tabular}
-  \caption*{\footnotesize MAE and RMSE in metres; MSE in square metres. The shaded row is the proposed model.}
+  \caption*{\footnotesize MAE and RMSE in meters; MSE in square meters. The shaded row is the proposed model.}
 \end{table}
 
-CFL-EDLSTM gives the best value on every metric in the table. Its MAE of 0.321~m is about 35\% lower than that of the next best model, Vanilla LSTM (0.496~m), and its RMSE of 0.521~m is about 28\% lower than Vanilla LSTM's 0.722~m. Against XGBoost the reduction is larger, roughly 40\% in MAE and 49\% in RMSE, and the MSE falls by about three quarters. Relative to GRU and TCN, MAE is lower by about 36\% and 44\%, and RMSE by about 30\% and 39\%. NSE/R\textsuperscript{2} follows the same ordering, from 0.9979 for CFL-EDLSTM down to 0.9919 for XGBoost.
+CFL-EDLSTM gives the best value on every metric. Its MAE of 0.321~m is about 35\%
+lower than that of the next best model, Vanilla LSTM (0.496~m), and its RMSE of
+0.521~m about 28\% lower than Vanilla LSTM's 0.722~m. Against XGBoost the
+reductions are about 40\% in MAE and 49\% in RMSE, and the MSE falls by about
+three quarters. Relative to GRU and TCN, MAE is lower by about 36\% and 44\% and
+RMSE by about 30\% and 39\%. NSE/R\textsuperscript{2} follows the same order, from
+0.9979 for CFL-EDLSTM to 0.9919 for XGBoost, and because it is at or above 0.991
+for every model, it does little to separate them. The differences show up in MAE
+and RMSE, where they can be read directly in meters.
 
-XGBoost's position depends on which metric we look at. On MAE it ranks fourth, ahead of TCN, but on RMSE it is the weakest of the five models (1.025~m). Its RMSE is also 1.9 times its MAE, compared with about 1.5 to 1.6 for the other models. Since RMSE penalises large errors more heavily, this suggests that a smaller number of large errors weighs heavily on XGBoost's score. Sections~\ref{sec:4.6} and~\ref{sec:4.10} show where they come from: the longer forecast horizons and a handful of stations.
+XGBoost's position depends on the metric. On MAE it ranks fourth, ahead of TCN,
+but on RMSE it is the weakest of the five (1.025~m), and its RMSE is 1.9 times its
+MAE, against about 1.5 to 1.6 for the others. Since RMSE penalizes large errors
+more heavily, a small number of large errors weighs on XGBoost's score;
+Sections~\ref{sec:4.6} and~\ref{sec:4.10} show that they come from the longer
+horizons and a handful of stations. Some studies report XGBoost matching or
+beating LSTM in hydrology \cite{Hameed2025}. That holds here only at short lead
+times, which fits the observation that no single architecture wins everywhere
+\cite{Aghenda2025}.
 
-Some earlier studies report XGBoost matching or outperforming LSTM in hydrological settings \cite{Hameed2025}. That holds in our results only at short lead times (Section~\ref{sec:4.6}), which fits the broader observation that no single architecture wins everywhere \cite{Aghenda2025}. The most direct comparison for the proposed design is the one with Vanilla LSTM, since both use LSTM cells. The improvement over it comes from the encoder--decoder structure and the clustered federated training together, and this table cannot separate the two. The role of clustering is examined in Section~\ref{sec:4.7}.
+The most direct comparison for the proposed design is with Vanilla LSTM, since
+both use LSTM cells. The improvement comes from the encoder--decoder structure and
+the clustered federated training together, and this table cannot separate them,
+and the inputs also differ (Vanilla LSTM sees 10 features per step, CFL-EDLSTM 42;
+Section~\ref{sec:3.13}). The LSTM--GRU comparison needs one caution: the GRU was
+trained jointly across stations and the LSTM station by station, so the gap
+between them reflects that difference as well as the cell design.
 
-Because NSE/R\textsuperscript{2} \cite{NashSutcliffe1970} is at or above 0.991 for every model, it does little to separate them. The differences show up in MAE and RMSE, where they can be read directly in metres. The LSTM--GRU comparison deserves one caution: GRU was trained jointly across all stations while LSTM was trained station by station (Section~\ref{sec:3.13}), so the gap between them reflects that difference in data representation as well as the cell design, and should not be attributed to gating alone.
-
-One further detail concerns the window counts. XGBoost is evaluated on 109{,}425 test windows and the three neural baselines on 105{,}675, a difference of 3{,}750, or exactly 150 per station, the length of one input window. This most likely reflects how XGBoost's windows may draw lag inputs from just before the test boundary, while the neural baselines' windows must lie entirely inside the test split (Section~\ref{sec:3.9.5}). CFL-EDLSTM is evaluated on 111{,}275 windows, which is 224 more per station than the neural baselines and most likely comes from the common timestamp axis the federated pipeline builds across stations (Section~\ref{sec:3.12}). Since every metric is averaged over the windows a model sees, the five models are scored on slightly different window sets. The differences are small relative to the totals, but the comparison is not strictly like for like.
-
-The overall figures in Table~\ref{tab:4.2} average across every forecast step and every station, which hides how performance changes with lead time and from one station to the next. Section~\ref{sec:4.6} looks at the first of these, and Section~\ref{sec:4.10} at the second.
+The window counts also differ. XGBoost is scored on 109{,}425 test windows and the
+three neural baselines on 105{,}675, a difference of exactly 150 per station, the
+length of one input window, which most likely reflects XGBoost's lag inputs coming
+from just before the test boundary. CFL-EDLSTM is scored on 111{,}275, which is
+224 more per station than the neural baselines and most likely comes from how its
+windows are generated on the shared timeline (Section~\ref{sec:3.12.2}). Every
+metric is averaged over the windows a model sees, so the models are scored on
+slightly different window sets. The differences are small relative to the totals,
+but the comparison is not strictly like for like.
 
 \section{Multi-Horizon Forecasting Results}
 \label{sec:4.6}
 
-Tables~\ref{tab:4.3} and~\ref{tab:4.4} report MAE and RMSE at each of the seven horizon checkpoints for all five models, computed over all test windows and stations at that forecast step.
+Tables~\ref{tab:4.3} and~\ref{tab:4.4} report MAE and RMSE at each of the seven
+horizons for all five models, computed over all test windows and stations at that
+forecast step.
 
 \begin{table}[htbp]
   \centering
@@ -283,35 +438,65 @@ Tables~\ref{tab:4.3} and~\ref{tab:4.4} report MAE and RMSE at each of the seven 
   \end{tabular}
 \end{table}
 
-Which model comes first depends on the horizon. XGBoost has the lowest MAE and RMSE at the four shortest checkpoints (3 hours to 1 day), while CFL-EDLSTM has the lowest at 3, 7, and 15 days, so the two cross somewhere between 1 and 3 days. At 3 hours XGBoost's MAE is about 0.071~m, roughly half of CFL-EDLSTM's 0.146~m and about 3.7 times lower than Vanilla LSTM's. By 1 day its lead over CFL-EDLSTM has narrowed to 0.127 against 0.160~m. From 3 days onward the order reverses and the gap widens quickly. CFL-EDLSTM's MAE is about 25\% lower than XGBoost's at 3 days, 56\% lower at 7 days, and 62\% lower at 15 days (0.436 against 1.149~m). The RMSE gap at 15 days is larger still, 0.690 against 2.372~m, a reduction of about 71\%.
+Which model comes first depends on the horizon. XGBoost has the lowest MAE and
+RMSE at the four shortest checkpoints (3~hours to 1~day), and CFL-EDLSTM at 3, 7
+and 15~days, so the two cross between 1 and 3~days. At 3~hours XGBoost's MAE of
+0.071~m is roughly half of CFL-EDLSTM's 0.146~m and about 3.7 times lower than
+Vanilla LSTM's. By 1~day the lead has narrowed to 0.127 against 0.160~m, and from
+3~days the order reverses and the gap widens quickly: CFL-EDLSTM's MAE is about
+25\% lower than XGBoost's at 3~days, 56\% lower at 7~days and 62\% lower at
+15~days (0.436 against 1.149~m). At 15~days the RMSE gap is larger still, 0.690
+against 2.372~m, a reduction of about 71\%.
 
-The crossover comes from how differently the models' errors grow. XGBoost's MAE rises about 16-fold from 3 hours to 15 days, against roughly 3.0-fold for CFL-EDLSTM, 2.6-fold for Vanilla LSTM, and 1.9-fold for both GRU and TCN. At 7 and 15 days XGBoost is the weakest of all five models on both metrics. A plausible reason is that it relies heavily on recent lagged values, which are very informative for short lead times but lose value as the horizon extends, although we did not test this directly. The neural models start from a higher floor but degrade much more gently. CFL-EDLSTM's 3-hour MAE is already about half of Vanilla LSTM's, and its MAE is almost flat over the first day (0.146 to 0.160~m).
+The crossover comes from how differently the errors grow. From 3~hours to 15~days
+XGBoost's MAE rises about 16-fold, against about 3.0-fold for CFL-EDLSTM, 2.6-fold
+for Vanilla LSTM and 1.9-fold for both GRU and TCN, and at 7 and 15~days XGBoost
+is the weakest of the five on both metrics. A plausible reason is that it relies
+heavily on recent lagged values, which are very informative at short leads and
+lose value as the horizon extends, although we did not test this. The neural
+models start from a higher floor but degrade more gently, and CFL-EDLSTM's MAE is
+almost flat over the first day (0.146 to 0.160~m).
 
-CFL-EDLSTM has a lower MAE and RMSE than every neural baseline at every horizon. At 3 hours its MAE is about 44\% below Vanilla LSTM's, the best neural baseline at that horizon. At 15 days, where GRU is the strongest neural baseline, CFL-EDLSTM still has an MAE about 25\% lower (0.436 against 0.583~m) and an RMSE about 18\% lower (0.690 against 0.838~m).
+CFL-EDLSTM has a lower MAE and RMSE than every neural baseline at every horizon.
+At 3~hours its MAE is about 44\% below that of Vanilla LSTM, and at 15~days, where
+GRU is the strongest neural baseline, it is still about 25\% lower (0.436 against
+0.583~m), with an RMSE about 18\% lower (0.690 against 0.838~m). The ordering
+among the baselines is not fixed. Vanilla LSTM beats GRU at every horizon from
+3~hours to 7~days, and GRU takes over at 15~days (MAE 0.583 against 0.675~m). The
+TCN's MAE is almost flat over the first day (0.416 to 0.419~m), which suggests
+that something other than forecast difficulty sets its floor at short horizons. It
+edges past GRU at 7~days but is the weakest neural model at 15~days, and it trails
+Vanilla LSTM at every horizon, a less favorable showing than the competitive TCN
+results of \cite{Lin2021}, though on a different dataset.
 
-Among the neural baselines the ordering is not fixed. Vanilla LSTM beats GRU at every horizon from 3 hours through 7 days on both metrics, but at 15 days GRU takes over (MAE 0.583 against 0.675~m; RMSE 0.838 against 0.990~m). TCN behaves differently again. Its MAE is almost flat from 3 hours to 1 day (0.416 to 0.419~m), which suggests something other than forecast difficulty sets its floor at short horizons. It edges past GRU at 7 days on both metrics, but it is the weakest neural model at 15 days. It also trails Vanilla LSTM at every horizon, a less favourable showing than the competitive TCN performance reported by \cite{Lin2021}, though on a different dataset.
-
-The general rise in error with lead time is the pattern earlier multi-step flood-forecasting studies describe \cite{Kao2020,Cui2022,Yuan2023}. Figures~\ref{fig:4.4} and~\ref{fig:4.5} show how the five models compare across horizons.Figure~\ref{fig:4.5} shows that the error of every model grows with the forecast horizon. The curves of the neural models rise gently, whereas XGBoost starts lowest but climbs steeply and ends as the weakest model at 7 and 15~days.
+The rise in error with lead time matches earlier multi-step flood-forecasting
+studies \cite{Kao2020,Cui2022,Yuan2023}. Figure~\ref{fig:4.4} shows the same
+values as a model-by-horizon heatmap, so the horizon at which each model's error
+rises can be read at a glance, and Figure~\ref{fig:4.5} plots RMSE and MAE against
+horizon. The error of every model grows with the horizon; the neural curves rise
+gently, whereas XGBoost starts lowest, climbs steeply and ends as the weakest
+model at 7 and 15~days.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.95\textwidth]{figures2/fig4-4-model-horizon-heatmap.png}
-    \caption{Model $\times$ horizon performance heatmap.}
+    \caption{Model-by-horizon performance heatmap.}
     \label{fig:4.4}
 \end{figure}
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.9\textwidth]{figures2/fig4-5-horizon-degradation.png}
-    \caption{Horizon degradation: RMSE and MAE against forecast horizon.}
+    \caption{RMSE and MAE against forecast horizon for the five models.}
     \label{fig:4.5}
 \end{figure}
-
 
 \section{Cluster-Wise Performance Analysis}
 \label{sec:4.7}
 
-This section breaks the performance of CFL-EDLSTM down by cluster. Each station is scored with the model of its own cluster, and the results are pooled over all stations in that cluster. Table~\ref{tab:4.cluster-perf} gives the full set of metrics, with the best value in each column in bold.
+This section breaks the performance of CFL-EDLSTM down by cluster. Each station is
+scored with the model of its own cluster, and results are pooled over the
+stations of that cluster (Table~\ref{tab:4.cluster-perf}).
 
 \begin{table}[htbp]
   \centering
@@ -330,27 +515,52 @@ This section breaks the performance of CFL-EDLSTM down by cluster. Each station 
     Urban      & \textbf{0.251631} & \textbf{0.331633} & \textbf{0.110401} & 0.918282 & 0.918282 & 0.919226 & 0.978325 \\
     \bottomrule
   \end{tabular}
-  \caption*{\footnotesize MAE and RMSE in metres; MSE in square metres. Best value per column in bold.}
+  \caption*{\footnotesize MAE and RMSE in meters; MSE in square meters. Best value per column in bold.}
 \end{table}
 
 \paragraph{Size of the errors.}
-The Urban cluster has the smallest errors, with an MAE of 0.252~m and an RMSE of 0.332~m. It is followed by the Upstream cluster (0.294~m and 0.453~m) and the Downstream cluster (0.321~m and 0.521~m). The Mid-river cluster is the hardest, with an MAE of 0.394~m, about 57\% above the Urban cluster, and an RMSE of 0.667~m, about twice the Urban value. This agrees with the pattern noted in Section~\ref{sec:4.5}, where the stations with the highest errors were concentrated in the Mid-river and Downstream clusters. The ordering of errors does not simply follow the water level in Table~\ref{tab:4.cluster-features}: the Upstream cluster has by far the highest average level yet the second-lowest error, so the size of the errors is not just a matter of how high the water sits.
+The Urban cluster has the smallest errors (MAE 0.252~m, RMSE 0.332~m), followed by
+Upstream (0.294 and 0.453~m) and Downstream (0.321 and 0.521~m). Mid-river is the
+hardest, with an MAE of 0.394~m, about 57\% above Urban, and an RMSE of 0.667~m,
+about twice the Urban value. This agrees with the station results of
+Section~\ref{sec:4.10}, where the largest CFL-EDLSTM errors fall mostly in the
+Mid-river and Downstream clusters. The ordering does not simply follow water level
+(Table~\ref{tab:4.cluster-features}): the Upstream cluster has by far the highest
+average level but the second-lowest error.
 
 \paragraph{Shape of the errors.}
-The ratio of RMSE to MAE gives a rough sense of how the errors are spread. It is lowest for the Urban cluster (about 1.32) and highest for the Mid-river cluster (about 1.69), with Downstream (1.62) and Upstream (1.54) in between. Since RMSE penalises large errors more heavily, a higher ratio suggests that some forecasts in the Mid-river and Downstream clusters are missed by a larger margin than the typical case, whereas errors in the Urban cluster are more uniform. This is an indirect reading, as the full error distributions were not examined.
+The ratio of RMSE to MAE is lowest for Urban (about 1.32) and highest for
+Mid-river (about 1.69), with Downstream (1.62) and Upstream (1.54) between them.
+A higher ratio suggests that some forecasts in the Mid-river and Downstream
+clusters are missed by a larger margin than the typical case, whereas Urban errors
+are more uniform. This is an indirect reading, since the full error distributions
+were not examined.
 
 \paragraph{Relative fit.}
-The ranking changes when we turn to the relative metrics. The Downstream (NSE 0.927, IOA 0.981) and Urban (0.918, 0.978) clusters show the strongest fit. The Upstream (0.795) and Mid-river (0.801) clusters are noticeably lower, even though the Upstream cluster has the second-smallest absolute error. NSE, R\textsuperscript{2}, and EVS compare the errors with the variation in the observed series, so a cluster whose water levels vary little over time can score lower on them even when its errors in metres are small. This may apply to the highest-level stations, which show comparatively narrow seasonal swings in Figure~\ref{fig:raw-wl-timeseries}, although we did not test this directly. These cluster-level values are computed over different groupings of the data from the overall NSE of 0.9979 in Section~\ref{sec:4.4}, and the two should not be compared directly. For these reasons, we treat MAE and RMSE as the main basis for comparing clusters and the relative metrics as supporting evidence. Figure~\ref{fig:4.cluster-metrics} summarises the comparison.
+The ranking changes with the relative metrics. Downstream (NSE 0.927, IOA 0.981)
+and Urban (0.918 and 0.978) fit best, while Upstream (0.795) and Mid-river (0.801)
+are clearly lower, even though Upstream has the second-smallest absolute error.
+NSE, R\textsuperscript{2} and EVS compare errors with the variation in the
+observed series, so a cluster whose levels vary little can score lower even with
+small errors in meters. This may apply to the highest-level stations, which show
+comparatively narrow seasonal swings in Figure~\ref{fig:raw-wl-timeseries}, though
+we did not test it. These cluster-level values are computed over different
+groupings from the overall NSE of 0.9979 in Section~\ref{sec:4.4} and should not be
+compared with it. We therefore treat MAE and RMSE as the main basis for comparing
+clusters (Figure~\ref{fig:4.cluster-metrics}).
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.95\textwidth]{figures2/fig4-cluster-metrics.jpeg}
-    \caption{Cluster-wise performance of CFL-EDLSTM: MAE, RMSE, and R\textsuperscript{2} for each cluster.}
+    \caption{Cluster-wise MAE, RMSE and R\textsuperscript{2} of CFL-EDLSTM.}
     \label{fig:4.cluster-metrics}
 \end{figure}
 
-\paragraph{Behaviour across forecast horizons.}
-Figure~\ref{fig:4.cluster-horizon} shows MAE and RMSE for each cluster at the seven forecast horizons. As in the overall results (Section~\ref{sec:4.8}), error increases with lead time in every cluster. 
+\paragraph{Behavior across horizons.}
+Figure~\ref{fig:4.cluster-horizon} shows MAE and RMSE for each cluster at the seven
+horizons. As in the overall results (Section~\ref{sec:4.8}), error increases with
+lead time in every cluster.
+
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.95\textwidth]{figures2/fig4-cluster-horizon.png}
@@ -358,20 +568,28 @@ Figure~\ref{fig:4.cluster-horizon} shows MAE and RMSE for each cluster at the se
     \label{fig:4.cluster-horizon}
 \end{figure}
 
-\paragraph{Linking performance to cluster characteristics.}
-Seen next to Section~\ref{sec:4.3}, the cluster that is most distinct in rainfall (Mid-river) is also the one with the highest errors. This is an association across only four clusters, so it should not be read as a cause. It is nonetheless a reasonable direction for further study, since stations affected by heavier or more variable rainfall are plausibly harder to forecast from past observations alone.
-
 \paragraph{What this analysis does and does not show.}
-The results show that performance differs between clusters, with errors in the hardest cluster about twice those in the easiest on RMSE. They do not show by themselves that clustering improves forecasts. Testing that claim directly would need a comparison with a single global model trained on the same stations, and this section does not provide one.
+The results show that performance differs between clusters, with errors in the
+hardest cluster about twice those in the easiest on RMSE. With only four clusters
+we cannot say why: the Mid-river cluster has the largest errors and the most
+unusual rainfall entry in Table~\ref{tab:4.cluster-features}, but that entry could
+not be reconciled with the rest of the data (Section~\ref{sec:4.3}), so we draw no
+conclusion from it. The results also do not show by themselves that clustering
+improves forecasts. That would need a comparison with a single global model on the
+same stations, which this section does not provide.
 
 \section{Effect of Forecasting Horizon}
 \label{sec:4.8}
 
-Section~\ref{sec:4.6} reported the error of all five models at each forecast horizon. This section looks only at CFL-EDLSTM and asks how its error changes as the lead time grows, and how far ahead its forecasts can reasonably be relied on. Table~\ref{tab:4.8} repeats its MAE and RMSE from Section~\ref{sec:4.6} and adds three derived quantities: the MAE relative to the 3-hour value, the ratio of RMSE to MAE, and the ratio of its MAE to that of XGBoost.
+Section~\ref{sec:4.6} compared all five models at each horizon. This section looks
+only at CFL-EDLSTM and asks how its error changes with lead time and how far ahead
+its forecasts can reasonably be relied on. Table~\ref{tab:4.8} repeats its MAE and
+RMSE and adds three derived quantities: MAE relative to the 3-hour value, the ratio
+of RMSE to MAE, and the ratio of its MAE to XGBoost's.
 
 \begin{table}[htbp]
   \centering
-  \caption{CFL-EDLSTM Error Behaviour Across Forecast Horizons}
+  \caption{CFL-EDLSTM Error Behavior Across Forecast Horizons}
   \label{tab:4.8}
   \small
   \renewcommand{\arraystretch}{1.15}
@@ -392,37 +610,63 @@ Section~\ref{sec:4.6} reported the error of all five models at each forecast hor
 \end{table}
 
 \paragraph{Three phases of error growth.}
-The error does not rise at a steady pace. Over the first day it is almost flat: MAE moves from 0.146~m at 3 hours to 0.160~m at 1 day, an increase of only about 9\%, and the 3-hour and 6-hour values are practically identical. This suggests that at short range the error is set mostly by a floor, such as noise in the observations and the model's own approximation error, and not by how hard the forecast is. We did not test this directly.
-
-Between 1 and 7 days the error rises fastest. MAE grows from 0.160~m to 0.226~m at 3 days and 0.332~m at 7 days, roughly doubling in total, which corresponds to an increase of about 0.033~m per day between 1 and 3 days and about 0.026~m per day between 3 and 7 days. Beyond 7 days the growth slows again. MAE rises by a further 0.104~m over the next eight days, about 0.013~m per day, and reaches 0.436~m at 15 days. So error keeps increasing with lead time but does so at a decreasing rate, and the 15-day forecast does not break down.
-
-A likely reason for the steady rise is that the model's inputs contain only past observations. Rainfall that has not yet fallen cannot inform a forecast, and the further ahead the model looks, the more of the outcome depends on conditions it has never seen. This is consistent with the general pattern reported for multi-step flood forecasting \cite{Kao2020,Cui2022,Yuan2023}.
+The error does not rise at a steady pace. Over the first day it is almost flat:
+MAE moves from 0.146 to 0.160~m, about 9\%, and the 3- and 6-hour values are
+practically identical. This suggests that at short range the error is set mostly by
+a floor, such as observation noise and the model's own approximation error, and not
+by how hard the forecast is (not tested directly). Between 1 and 7 days the error
+rises fastest: MAE grows to 0.226~m at 3~days and 0.332~m at 7~days, roughly
+doubling, at about 0.033~m per day between 1 and 3~days and 0.026~m per day between
+3 and 7~days. Beyond 7~days growth slows, with a further 0.104~m over eight days
+(about 0.013~m per day) to 0.436~m at 15~days, so error keeps increasing but at a
+decreasing rate, and the 15-day forecast does not break down. A likely reason for
+the steady rise is that the inputs contain only past observations, so rainfall that
+has not yet fallen cannot inform a forecast, consistent with earlier multi-step
+flood-forecasting studies \cite{Kao2020,Cui2022,Yuan2023}.
 
 \paragraph{Shape of the error.}
-The ratio of RMSE to MAE stays between 1.54 and 1.58 at every horizon. Since RMSE penalises large errors more than MAE does, a stable ratio suggests that the overall shape of the error distribution does not change much with lead time. Longer horizons appear to shift errors upward more or less uniformly, instead of adding a heavier tail of occasional large misses. This is an indirect reading based on two summary metrics, and the actual error distributions were not examined.
+The ratio of RMSE to MAE stays between 1.54 and 1.58 at every horizon. A stable
+ratio suggests that the shape of the error distribution changes little with lead
+time: longer horizons shift errors upward more or less uniformly and do not add a
+heavier tail of occasional large misses. This is an indirect reading based on two
+summary metrics.
 
 \paragraph{Gap to XGBoost.}
-The last column of Table~\ref{tab:4.8} shows how the comparison with XGBoost changes with horizon, and Figure~\ref{fig:ratio} plots the same ratio of CFL-EDLSTM's MAE to XGBoost's. At 3~hours CFL-EDLSTM's MAE is about twice XGBoost's (2.06 times). The ratio falls to 1.26 at 1~day, drops below 1 between 1 and 3~days, and reaches 0.75 at 3~days, 0.44 at 7~days, and 0.38 at 15~days. XGBoost's advantage is therefore confined to roughly the first day, and from 3~days onward CFL-EDLSTM is clearly more accurate. This crossover owes as much to how quickly XGBoost deteriorates (about 16-fold in MAE over the same range) as to CFL-EDLSTM's gentle growth. Differences of this size are unlikely to be due to run-to-run variation alone, although we did not repeat the runs.
+The last column of Table~\ref{tab:4.8} shows how the comparison with XGBoost changes
+with horizon, and Figure~\ref{fig:ratio} plots the same ratio. At 3~hours
+CFL-EDLSTM's MAE is about twice XGBoost's (2.06 times). The ratio falls to 1.26 at
+1~day, drops below 1 between 1 and 3~days, and reaches 0.75 at 3~days, 0.44 at
+7~days and 0.38 at 15~days. XGBoost's advantage is therefore confined to roughly
+the first day, and from 3~days onward CFL-EDLSTM is clearly more accurate. The
+crossover owes as much to how quickly XGBoost deteriorates (about 16-fold in MAE)
+as to CFL-EDLSTM's gentle growth. We did not repeat the runs, so run-to-run
+variation is unknown.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.75\textwidth]{figures2/fig4-8-ratio-to-xgboost.png}
-    \caption{Ratio of CFL-EDLSTM MAE to XGBoost MAE at each forecast horizon. } 
+    \caption{Ratio of CFL-EDLSTM MAE to XGBoost MAE at each forecast horizon.}
     \label{fig:ratio}
 \end{figure}
 
 \paragraph{Practical reading.}
-Put in practical terms, CFL-EDLSTM's average error is about 0.16~m at a one-day lead, 0.23~m at three days, 0.33~m at seven days, and 0.44~m at fifteen days. All of these are averages over all stations and test windows, so individual stations and individual events can do better or worse (Section~\ref{sec:4.7}). Whether errors of this size are acceptable depends on how the forecast is used, and Section 4.11 puts them next to the forecasts issued by FFWC.
+CFL-EDLSTM's average error is about 0.16~m at a one-day lead, 0.23~m at three days,
+0.33~m at seven days and 0.44~m at fifteen days. These are averages over all
+stations and test windows, so individual stations and events can do better or
+worse (Section~\ref{sec:4.7}). Whether errors of this size are acceptable depends
+on how the forecast is used, and Section~\ref{sec:4.11} puts them beside FFWC's
+forecasts.
 
 \section{SHAP-Based Interpretability Results}
 \label{sec:4.9}
+\label{sec:shap_results}
 
-This section reports what SHAP shows about the proposed CFL-EDLSTM described in Section~\ref{sec:3.17}, which uses the same clusters,
-features, and federated training as CFL-EDLSTM. The results pool all four
-cluster models and the four explained horizons (day~1, 3, 7 and 15), giving 768
-explained test windows with equal weight. Figure~\ref{fig:shap_feature_overall}
-ranks the input features, and Figure~\ref{fig:shap_temporal_overall} shows how
-attribution is spread over the 30-day input window.
+This section reports what SHAP shows about the proposed CFL-EDLSTM
+(Section~\ref{sec:3.17}). The results pool all four cluster models and the four
+explained horizons (day~1, 3, 7 and 15), giving 768 explained test windows with
+equal weight. Figure~\ref{fig:shap_feature_overall} ranks the input features, and
+Figure~\ref{fig:shap_temporal_overall} shows how attribution is spread over the
+30-day input window.
 
 \subsection{Which Inputs the Model Relies On}
 
@@ -433,38 +677,33 @@ attribution is spread over the 30-day input window.
     \label{fig:shap_feature_overall}
 \end{figure}
 
-As Figure~\ref{fig:shap_feature_overall} shows, the two seasonal terms rank
-highest: the cosine of day of year has a mean absolute SHAP value of about
-$3.6\times10^{-4}$, and its sine counterpart about $2.5\times10^{-4}$. The
-temperature features follow, with current temperature at about
-$1.7\times10^{-4}$ and its 1-, 2-, 7-, 14-, 3- and 5-day lags between roughly
-$0.7$ and $1.5\times10^{-4}$. The hour-of-day terms come next, at around
-$0.8$--$1.0\times10^{-4}$.
+As Figure~\ref{fig:shap_feature_overall} shows, the two seasonal terms rank highest:
+the cosine of day of year has a mean absolute SHAP value of about
+$3.6\times10^{-4}$ and its sine counterpart about $2.5\times10^{-4}$. The
+temperature features follow, with current temperature at about $1.7\times10^{-4}$
+and its 1-, 2-, 7-, 14-, 3- and 5-day lags between roughly $0.7$ and
+$1.5\times10^{-4}$, then the hour-of-day terms at around $0.8$--$1.0\times10^{-4}$.
 
-Rainfall-based features are weaker. The 14-day rainfall accumulation is the
-strongest of them (about $0.8\times10^{-4}$), followed by the 30-, 7- and 3-day
-accumulations, and raw rainfall is near the bottom of the chart together with
-the evaporation features, at roughly $0.4$--$0.5\times10^{-4}$. No
-discharge-related feature appears among the top 20. Adding up the bars within
-each group makes the pattern clearer: temperature features contribute roughly
-$8.6\times10^{-4}$ in total, the day-of-year terms about $6.1\times10^{-4}$,
-rainfall features about $2.8\times10^{-4}$, the hour-of-day terms about
-$1.8\times10^{-4}$, and evaporation about $1.3\times10^{-4}$. These totals are
-read from the chart and cover the top 20 features only, so they indicate
-relative size and not exact shares.
+Rainfall-based features are weaker. The 14-day accumulation is the strongest
+(about $0.8\times10^{-4}$), followed by the 30-, 7- and 3-day accumulations, and raw
+rainfall sits near the bottom with the evaporation features, at roughly
+$0.4$--$0.5\times10^{-4}$. No discharge-related feature appears among the top 20.
+Adding the bars within each group makes the pattern clearer: temperature features
+contribute about $8.6\times10^{-4}$ in total, the day-of-year terms $6.1\times10^{-4}$,
+rainfall features $2.8\times10^{-4}$, the hour-of-day terms $1.8\times10^{-4}$ and
+evaporation $1.3\times10^{-4}$. These totals are read from the chart and cover only
+the top 20 features, so they indicate relative size and not exact shares.
 
-Two cautions apply when reading these values. The absolute magnitudes are
-small because SHAP values are in standardised units and because the
-attribution of past water level, the dominant input, was removed before
-plotting (Section~\ref{sec:3.17}), so the ranking is the meaningful
-part. In addition, temperature varies smoothly with the monsoon cycle, so it
-may be acting partly as a seasonal indicator, which would fit the high ranking
-of the day-of-year terms. The model seems to depend on where in the year a
-forecast starts, and on recent temperature, more than on any single rainfall
-variable. This does not mean rainfall is physically unimportant. Rainfall, its
-lags and its accumulations are strongly correlated, and SHAP divides credit
-among correlated inputs, so each of them can look weaker than the signal they
-carry together.
+Two cautions apply. The absolute magnitudes are small because SHAP values are in
+standardized units and because the attribution of past water level, the dominant
+input, was removed before plotting (Section~\ref{sec:3.17.5}), so the ranking is
+the meaningful part. And temperature varies smoothly with the monsoon cycle, so it
+may be acting partly as a seasonal indicator, which would fit the high rank of the
+day-of-year terms. The model seems to depend on where in the year a forecast starts,
+and on recent temperature, more than on any single rainfall variable. This does not
+mean rainfall is physically unimportant: rainfall, its lags and its accumulations
+are strongly correlated, and SHAP divides credit among correlated inputs, so each
+can look weaker than the signal they carry together.
 
 \subsection{How Far Back the Model Looks}
 
@@ -475,36 +714,28 @@ carry together.
     \label{fig:shap_temporal_overall}
 \end{figure}
 
-Figure~\ref{fig:shap_temporal_overall} shows that attribution is concentrated
-at the end of the window. Over the oldest 100 timesteps, roughly the first
-20 days, the mean absolute SHAP value stays at or below about
-$1\times10^{-4}$. It then rises slowly and climbs steeply over the last 20
-timesteps, about the final four days, to a peak of about $1.1\times10^{-3}$ at
-the most recent observation. The model therefore relies mainly on the latest
-observations, which agrees with the steady growth of error with forecast
-horizon reported in Section~\ref{sec:4.8}.
+Figure~\ref{fig:shap_temporal_overall} shows that attribution is concentrated at
+the end of the window. Over the oldest 100 timesteps, roughly the first 20 days, the
+mean absolute SHAP value stays at or below about $1\times10^{-4}$. It then rises
+slowly and climbs steeply over the last 20 timesteps, about the final four days, to
+a peak of about $1.1\times10^{-3}$ at the most recent observation. The model
+therefore relies mainly on the latest observations, which agrees with the steady
+growth of error with lead time (Section~\ref{sec:4.8}). This does not mean the
+distant past is ignored: the recent timesteps already contain the 14-day lags and
+the 30-day rainfall accumulation, so they carry information about earlier
+conditions.
 
-This does not mean the distant past is ignored. The most recent timesteps
-already contain the 14-day lags and the 30-day rainfall accumulation, so they
-carry information about earlier conditions. The model can use a long history
-even though its attribution is concentrated at the end of the window.
-
-% \subsection{Limits of These Findings}
-
-% SHAP explains what a model has learned, not what drives water levels in the
-% river, so these values should not be read as causal effects. Each
-% cluster--horizon result rests on 48 test windows and 32 background windows,
-% which adds sampling noise, and small differences between neighbouring features
-% should not be over-interpreted. The attributions describe the four
-% personalised cluster models of CFL-EDLSTM together, not one shared global
-% model.
-
-
+SHAP describes what the models have learned and not what drives the river, so these
+values are not causal effects. Each cluster--horizon result rests on 48 test windows
+against 32 background windows, which adds sampling noise, and small differences
+between neighboring features should not be over-interpreted.
 
 \section{Station-Level Forecast Visualization}
 \label{sec:4.10}
 
-Tables~\ref{tab:4.2a} and~\ref{tab:4.2b} break MAE and RMSE down per station for all five models.
+Tables~\ref{tab:4.2a} and~\ref{tab:4.2b} break MAE and RMSE down per station for all
+five models. Forecasts for any single station can also be inspected interactively in
+the web interface (Figure~\ref{fig:bonna_forecast}).
 
 \begin{table}[htbp]
   \centering
@@ -583,40 +814,65 @@ Tables~\ref{tab:4.2a} and~\ref{tab:4.2b} break MAE and RMSE down per station for
 \end{table}
 
 \paragraph{Spread across stations.}
-The spread across stations is considerably wider than the overall averages in Table~\ref{tab:4.2} suggest on their own, and it differs a great deal between models. CFL-EDLSTM is the most even. Its MAE runs from 0.177~m at SW294 to 0.466~m at SW225, and even its worst station is better than the worst station of every baseline (0.789~m for Vanilla LSTM at SW45.5, 1.039~m for GRU at SW63, 1.124~m for XGBoost at SW137A, and 2.648~m for TCN at SW15J). XGBoost and TCN show the widest spreads. XGBoost's MAE ranges from 0.203~m at SW291.5R to 1.124~m at SW137A, a factor of more than five, and TCN's from 0.399~m at SW62 to 2.648~m at SW15J.
+The spread across stations is wider than the overall averages in
+Table~\ref{tab:4.2} suggest, and it differs a great deal between models.
+CFL-EDLSTM is the most even: its MAE runs from 0.177~m at SW294 to 0.466~m at SW225,
+and even its worst station is better than the worst station of every baseline
+(0.789~m for Vanilla LSTM at SW45.5, 1.039~m for GRU at SW63, 1.124~m for XGBoost at
+SW137A and 2.648~m for TCN at SW15J). XGBoost and TCN have the widest spreads:
+XGBoost's MAE ranges from 0.203~m at SW291.5R to 1.124~m at SW137A, a factor of more
+than five, and TCN's from 0.399~m at SW62 to 2.648~m at SW15J.
 
 \paragraph{Where XGBoost's errors come from.}
-XGBoost's overall RMSE (Table~\ref{tab:4.2}) turns out to be driven by a few stations. At six of them (SW137A, SW179, SW180, SW302, SW42, and SW7.5) its RMSE lies between 1.49 and 2.01~m, whereas at the other 19 stations it stays below 0.9~m. Several of these stations, such as SW179, SW180, SW302, and SW42, sit at the low end of the water-level scale in Figure~\ref{fig:raw-wl-heatmap}. At the same time, XGBoost has its lowest error of all at SW291.5R, the highest-level station. We did not investigate why XGBoost behaves differently at low-level stations, but it accounts for much of the gap in overall RMSE.
+XGBoost's overall RMSE (Table~\ref{tab:4.2}) is driven by a few stations. At six of
+them (SW137A, SW179, SW180, SW302, SW42 and SW7.5) its RMSE lies between 1.49 and
+2.01~m, whereas at the other 19 it stays below 0.9~m. Several of these stations, such
+as SW179, SW180, SW302 and SW42, sit at the low end of the water-level scale in
+Figure~\ref{fig:raw-wl-heatmap}. XGBoost also has its lowest error of all at
+SW291.5R, the highest-level station. We did not investigate why it behaves
+differently at low-level stations, but it accounts for much of the gap in overall
+RMSE.
 
 \paragraph{CFL-EDLSTM against the baselines.}
-CFL-EDLSTM has the lowest MAE of all five models at 24 of the 25 stations, and the lowest RMSE at 21. The exceptions are few and mostly small. In RMSE, XGBoost is slightly lower at SW45 (0.528 against 0.549~m) and essentially tied at SW77 (0.5177 against 0.5183~m), and GRU is slightly lower at SW228.5 (0.623 against 0.632~m). The clear exception is SW291.5R, the station sitting near 50~mMSL, far above all the others (Figure~\ref{fig:raw-wl-timeseries}). There CFL-EDLSTM has an MAE of 0.378~m, compared with 0.203~m for XGBoost, 0.284~m for GRU, and 0.370~m for Vanilla LSTM. This is the one station where the proposed model is not among the best, and the unusual level of this station is a plausible reason, though we did not test it.
+CFL-EDLSTM has the lowest MAE of the five models at 24 of the 25 stations and the
+lowest RMSE at 21. The exceptions are mostly small: in RMSE, XGBoost is slightly
+lower at SW45 (0.528 against 0.549~m) and essentially tied at SW77 (0.5177 against
+0.5183~m), and GRU is slightly lower at SW228.5 (0.623 against 0.632~m). The clear
+exception is SW291.5R, the station near 50~mMSL, far above all the others
+(Figure~\ref{fig:raw-wl-timeseries}), where CFL-EDLSTM has an MAE of 0.378~m,
+against 0.203~m for XGBoost, 0.284~m for GRU and 0.370~m for Vanilla LSTM. This is
+the one station where the proposed model is not among the best, and its unusual
+level is a plausible reason, though we did not test it.
 
 \paragraph{Link to the cluster analysis.}
-Taken together, the station results show that CFL-EDLSTM's advantage is not the product of a few easy stations. It holds at most stations across a very wide range of water levels, and no station produces the large errors seen with XGBoost or TCN. Section~\ref{sec:4.7} looks at these differences at the level of the four clusters.
+The station results show that CFL-EDLSTM's advantage does not come from a few easy
+stations: it holds at most stations across a very wide range of water levels, and
+no station produces the large errors seen with XGBoost or TCN. Section~\ref{sec:4.7}
+looks at these differences by cluster.
 
 \section{Comparison with FFWC}
 \label{sec:4.11}
+\label{sec:ffwc_comparison}
 
-
-The web interface also allowed a direct check against the operational
-forecasts of FFWC, which is a more demanding reference than the baselines of
-Section~\ref{sec:baseline_rationale}. For each FFWC forecast issue, we compared
-the MAE of CFL-EDLSTM and of FFWC against the same observed readings,
-separately for each lead day, using the page described in
-Section~\ref{sec:web_interface}. Our forecasts were issued from data up to
-18:00 on the issue day, and only times at which both forecasts exist and FFWC
-has posted the reading were scored. Errors are in metres. The forecasts issued
-before 30~October 2026 are hindcasts: the model was run afterwards, using only
-data available on the issue day.
+The web interface also made it possible to check the model against the operational
+forecasts of FFWC, a more demanding reference than the baselines of
+Section~\ref{sec:3.13}. For each FFWC forecast issue we compared the MAE of
+CFL-EDLSTM and of FFWC against the same observed readings, separately for each lead
+day, using the comparison page of Section~\ref{sec:3.18.4}
+(Figure~\ref{fig:bonna_ffwc}). Our forecasts were issued from data up to 18:00 on
+the issue day, and only times at which both forecasts exist and FFWC has posted the
+reading were scored. Errors are in meters. Forecasts issued before 30~October 2026
+are hindcasts: the model was run afterwards, using only data available on the issue
+day.
 
 Table~\ref{tab:ffwc} gives the results over all stations with matching data.
-Against the FFWC 10-day forecast, CFL-EDLSTM has the lower MAE for lead days 1
-to 7. The gap is largest at the start, where the MAE is 0.062~m against
-0.285~m on day~1, and narrows to a few millimetres by days 6 and 7. FFWC is
-slightly better at days 8 and 9 (0.806~m against 0.822~m, and 0.923~m against
-0.931~m). Against the FFWC 5-day forecast, CFL-EDLSTM is ahead on days 1 to 3,
-although the two are practically equal on day~2 (0.122~m against 0.123~m),
-and FFWC is ahead on days 4 and 5 (by 0.018~m and 0.028~m).
+Against the FFWC 10-day forecast, CFL-EDLSTM has the lower MAE for lead days 1 to 7.
+The gap is largest at the start, 0.062~m against 0.285~m on day~1, and narrows to
+about one to two centimeters by days 6 and 7. FFWC is slightly better at days 8 and
+9 (0.806 against 0.822~m, and 0.923 against 0.931~m). Against the FFWC 5-day
+forecast, CFL-EDLSTM is ahead on days 1 to 3, although the two are practically
+equal on day~2 (0.122 against 0.123~m), and FFWC is ahead on days 4 and 5, by 0.018
+and 0.028~m.
 
 \begin{table}[H]
     \centering
@@ -640,131 +896,168 @@ and FFWC is ahead on days 4 and 5 (by 0.018~m and 0.028~m).
     \end{tabular}
 \end{table}
 
-The pattern is consistent with the horizon results of Chapter~4: the learned
-model is strongest in the first days and loses its advantage as the lead time
-grows. The results should be read with care. The comparison covers a short
-period in October 2026, after the monsoon peak, when water levels change slowly
-and errors are small, so it says little about flood conditions. The number of
-points is small, and the 5-day comparison changes from 44 points on days 1 to 3
-to 32 on days 4 and 5. Hindcasts are not a substitute for real-time
-operation, and the values cannot be compared directly with Section~\ref{sec:4.6},
-which uses a different period, different stations and many more points. The
-per-station page shows the same limits: at Chak-Rahimpur (SW63) the 7- and
-15-day errors were larger than a persistence forecast over the same two
-weeks, and a per-station NSE over so short and flat a window is not meaningful.
-We therefore treat this comparison as an encouraging first check at short and
-medium leads, not as evidence that CFL-EDLSTM outperforms FFWC. Because the
-period lies after the end of the training and test data (31~March 2026), it
-does provide an out-of-sample check, and a longer real-time record will be needed
-to confirm it.
+\paragraph{A single forecast as an example.}
+To show what these averages look like for one forecast, Table~\ref{tab:ffwc_example}
+gives a single issue for Mathurpara-Milanpur (SW15J), issued on 3~October 2026,
+over the five lead days of the FFWC 5-day forecast.
 
+\begin{table}[H]
+    \centering
+    \caption{Forecasts for Mathurpara-Milanpur (SW15J), issued on 3 October 2026.}
+    \label{tab:ffwc_example}
+    \begin{tabular}{c|ccc|cc}
+        \hline
+        & \multicolumn{3}{c|}{Water level (mMSL)} & \multicolumn{2}{c}{Absolute error (m)} \\
+        Lead day & Ours & FFWC & Observed & Ours & FFWC \\
+        \hline
+        1 & 13.54 & 13.52 & 13.56 & \textbf{0.02} & 0.04 \\
+        2 & 13.44 & 13.34 & 13.41 & \textbf{0.03} & 0.07 \\
+        3 & 13.35 & 13.20 & 13.30 & \textbf{0.05} & 0.10 \\
+        4 & 13.26 & 13.14 & 13.29 & \textbf{0.03} & 0.15 \\
+        5 & 13.18 & 13.12 & 13.32 & \textbf{0.14} & 0.20 \\
+        \hline
+        Mean & & & & \textbf{0.054} & 0.112 \\
+        \hline
+    \end{tabular}
+\end{table}
 
+CFL-EDLSTM is closer to the observed level than FFWC at all five lead days, and its
+mean absolute error (0.054~m) is about half that of FFWC (0.112~m). The two err in
+different ways: FFWC stays below the observed level at every lead, its shortfall
+growing from 0.04~m on day~1 to 0.20~m on day~5, while the errors of CFL-EDLSTM are
+small and of mixed sign up to day~4. On day~5 it also falls below the observed
+level, by 0.14~m, because both forecasts keep falling while the observed level
+flattens and rises slightly. This is a single station and a single issue, and a
+favorable case: in the averages of Table~\ref{tab:ffwc} FFWC is ahead on days 4 and
+5 of the 5-day forecast. The example illustrates the comparison and is not typical.
+
+\paragraph{Reading the comparison.}
+The pattern in the averages is consistent with the horizon results of
+Section~\ref{sec:4.6}: the learned model is strongest in the first days and loses
+its advantage as the lead time grows. The comparison should still be read with
+care. It covers a short period in October 2026, after the monsoon peak, when water
+levels change slowly and errors are small, so it says little about flood
+conditions. The number of points is small, and the 5-day comparison changes from 44
+points on days 1 to 3 to 32 on days 4 and 5. Hindcasts are not a substitute for
+real-time operation, and the values cannot be compared directly with
+Section~\ref{sec:4.6}, which uses a different period, stations and many more
+points. The performance page shows the same limits
+(Figure~\ref{fig:bonna_performance}): at Chak-Rahimpur (SW63) the 7- and 15-day
+errors were larger than those of a persistence forecast over the same two weeks, and
+a per-station NSE over so short and flat a window is not meaningful. We therefore
+treat this as an encouraging first check at short and medium leads, not as evidence
+that CFL-EDLSTM outperforms FFWC. Because the period lies after the end of the
+training and test data (31~March 2026), it does provide an out-of-sample check, and
+a longer real-time record will be needed to confirm it.
 
 \section{Discussion of Findings}
 \label{sec:4.12}
 
-This chapter asked whether a clustered federated encoder--decoder LSTM can
-forecast water level across heterogeneous stations at horizons from 3 hours to
-15 days. The short answer is yes, with qualifications. CFL-EDLSTM gave the
-lowest overall error of the five models and held its accuracy as the lead time
-grew. The points below explain what the results suggest and where they should
-not be over-read.
+This chapter asked whether a clustered federated encoder--decoder LSTM can forecast
+water level across heterogeneous stations at horizons from 3 hours to 15 days. The
+short answer is yes, with qualifications. CFL-EDLSTM gave the lowest overall error
+of the five models and held its accuracy as the lead time grew. The points below
+explain what the results suggest and where they should not be over-read.
 
 \paragraph{Accuracy depends on the horizon.}
-No single model was best everywhere. XGBoost was the most accurate up to a
-one-day lead, and CFL-EDLSTM from three days onward (Section~\ref{sec:4.6}). At
-3~hours XGBoost's MAE is about half of CFL-EDLSTM's, but at 15~days
-CFL-EDLSTM's MAE of 0.436~m is 62\% lower than XGBoost's 1.149~m. The
-difference comes mainly from how fast error grows: about 16-fold for XGBoost
-against about 3-fold for CFL-EDLSTM. A plausible reading is that recent lagged
-values are very informative at short leads and lose value as the horizon
-extends, while a sequence model holds up better. We did not test this, but it
-fits the pattern, and it means the overall averages in
+No single model was best everywhere. XGBoost was the most accurate up to a one-day
+lead, and CFL-EDLSTM from three days onward (Section~\ref{sec:4.6}). At 3~hours
+XGBoost's MAE is about half of CFL-EDLSTM's, but at 15~days CFL-EDLSTM's MAE of
+0.436~m is 62\% lower than XGBoost's 1.149~m. The difference comes mainly from how
+fast error grows, about 16-fold for XGBoost against about 3-fold for CFL-EDLSTM. A
+plausible reading is that recent lagged values are very informative at short leads
+and lose value as the horizon extends, while a sequence model holds up better. We
+did not test this, but it fits the pattern, and it means the overall averages in
 Table~\ref{tab:4.2} mix two regimes. The long-range result also matters most in
 practice, since a 15-day forecast is where flood preparedness gains the most.
 
 \paragraph{Against the neural baselines.}
 CFL-EDLSTM was better than the Vanilla LSTM, GRU and TCN at every horizon, by
-roughly 28--44\% depending on the metric. Because the Vanilla LSTM uses the
-same cells, the gain comes from the encoder--decoder structure and the
-clustered federated training together, and these experiments cannot separate
-the two. Doing so would need a non-encoder--decoder model trained under the
-same clustered scheme, and a single global encoder--decoder trained on all
-stations. Until then we describe the combined design as effective without
-crediting either component alone.
+roughly 28--44\% depending on the metric. Because the Vanilla LSTM uses the same
+cells, the gain comes from the encoder--decoder structure, the clustered federated
+training and the richer input features together, and these experiments cannot
+separate them. Doing so would need a non-encoder--decoder model trained under the
+same clustered scheme, a single global encoder--decoder trained on all stations, and
+baselines given the same 42 features. Until then we describe the combined design as
+effective without crediting any one component.
 
 \paragraph{Stations and clusters.}
-Averages also hide where errors sit. XGBoost has the weakest overall RMSE
-although its MAE ranks fourth, because at six low-level stations its RMSE lies
-between 1.49 and 2.01~m, against below 0.9~m at the other 19
-(Section~\ref{sec:4.10}). CFL-EDLSTM shows no comparable failures: its worst
-station (MAE 0.466~m) is still better than the worst station of any baseline.
-Its one clear weakness is SW291.5R, the highest-level station, where XGBoost,
-GRU and Vanilla LSTM were all more accurate, possibly because a cluster model
-shares parameters across stations at very different levels (a conjecture).
-By cluster, the Urban cluster had the smallest errors (MAE 0.252~m) and the
-Mid-river cluster the largest (0.394~m), the latter also being the cluster that
-stands out most in rainfall (Section~\ref{sec:4.3}). With four clusters this is
-an association, not a cause, and the ranking changes with the metric because
-NSE depends on how much each cluster's water level varies, so we rely on MAE
-and RMSE. These results show that performance differs across clusters, not
-that clustering improves accuracy, which would need a comparison with a global
-model.
+Averages also hide where errors sit. XGBoost has the weakest overall RMSE although
+its MAE ranks fourth, because at six low-level stations its RMSE lies between 1.49
+and 2.01~m, against below 0.9~m at the other 19 (Section~\ref{sec:4.10}).
+CFL-EDLSTM shows no comparable failures: its worst station (MAE 0.466~m) is still
+better than the worst station of any baseline. Its one clear weakness is SW291.5R,
+the highest-level station, where XGBoost, GRU and Vanilla LSTM were all more
+accurate, possibly because a cluster model shares parameters across stations at very
+different levels (a conjecture). By cluster, the Urban cluster had the smallest
+errors (MAE 0.252~m) and the Mid-river cluster the largest (0.394~m)
+(Section~\ref{sec:4.7}). With four clusters this is an association and not a cause,
+and the ranking changes with the metric because NSE depends on how much each
+cluster's water level varies, so we rely on MAE and RMSE. These results show that
+performance differs across clusters, not that clustering improves accuracy, which
+would need a comparison with a global model.
 
 \paragraph{What the model relies on.}
-The SHAP analysis (Section~\ref{sec:shap_results}) points to seasonal timing
-(day of year) and temperature as the strongest inputs, with rainfall
-accumulations contributing less, and to the most recent days of the 30-day
-window as the most influential part of the input. The second finding agrees
-with the horizon pattern above: recent observations matter most, and the
-model's accuracy fades as the lead moves away from them. The first should be
-read cautiously. Temperature follows the monsoon cycle and may be acting partly
-as a seasonal indicator, and correlated rainfall features share credit in SHAP,
-so rainfall is not shown to be unimportant. SHAP describes what the model has
-learned, not what drives the river.
+The SHAP analysis (Section~\ref{sec:4.9}) points to seasonal timing (day of year) and
+temperature as the strongest inputs, with rainfall accumulations contributing less,
+and to the most recent days of the 30-day window as the most influential part of the
+input. The second finding agrees with the horizon pattern above: recent observations
+matter most, and accuracy fades as the lead moves away from them. The first should be
+read cautiously. Temperature follows the monsoon cycle and may be acting partly as a
+seasonal indicator, and correlated rainfall features share credit in SHAP, so
+rainfall is not shown to be unimportant.
 
 \paragraph{Practical meaning of the errors.}
-CFL-EDLSTM's average error is about 0.16~m at a one-day lead, 0.23~m at three
-days, 0.33~m at seven days and 0.44~m at fifteen days
-(Section~\ref{sec:4.8}). Whether this is adequate depends on the decision
-being supported, and these are averages over all stations and events, so
-individual stations and flood peaks may do better or worse. The comparison with
-FFWC (Section~\ref{sec:ffwc_comparison}) gives an external reference: over a
-short period in October 2026, CFL-EDLSTM had the lower MAE for the first
-seven days against FFWC's 10-day forecast, and for the first three days against
-its 5-day forecast, with FFWC ahead at the longest leads. That result is
-encouraging but based on few points in a calm period, and FFWC is an
-operational reference, not validated ground truth. The Bonna interface
-(Section~\ref{sec:web_interface}) makes these forecasts and comparisons
-available to users station by station.
+CFL-EDLSTM's average error is about 0.16~m at a one-day lead, 0.23~m at three days,
+0.33~m at seven days and 0.44~m at fifteen days (Section~\ref{sec:4.8}). Whether this
+is adequate depends on the decision being supported, and these are averages over all
+stations and events. The comparison with FFWC (Section~\ref{sec:4.11}) gives an
+external reference: over a short period in October 2026, CFL-EDLSTM had the lower MAE
+for the first seven days against FFWC's 10-day forecast and for the first three days
+against its 5-day forecast, with FFWC ahead at the longest leads. That is encouraging
+but based on few points in a calm period, and FFWC is an operational reference and not
+validated ground truth. The web interface (Section~\ref{sec:3.18}) makes these
+forecasts and comparisons available station by station.
 
 \paragraph{Relation to earlier work.}
-Section~\ref{sec:4.13} compares the results with three earlier studies. The
-gain over a plain LSTM is of a similar size to that reported by
-\cite{Ruma2023}, and the modest benefit of federation reported by
-\cite{Mahir2025} is consistent with our federated design. Both comparisons are
-indirect, because the datasets, periods and protocols differ.
+Section~\ref{sec:4.13} compares the results with three earlier studies. The gain over
+a plain LSTM is of a similar size to that reported by \cite{Ruma2023}, and the modest
+benefit of federation reported by \cite{Mahir2025} is consistent with our federated
+design. Both comparisons are indirect, because the datasets, periods and protocols
+differ.
 
 \paragraph{Limitations.}
-The first group concerns the data. The records contain unexpected gaps, and
-a few stations report only during the monsoon. Gaps were filled, so filled
-values are estimates and not observations. Discharge is missing entirely at ten
-of the 25 stations, and rainfall is zero on about three quarters of records,
-which leaves that variable little to work with on most days. Data from the
-upstream river network in India were not accessible, so the models cannot see
-conditions beyond the border stations, which may
-contribute to the weaker fit in the Upstream cluster (Section~\ref{sec:4.7}),
-although this was not tested.
+Some limitations concern the data. The records contain unexpected gaps, and a few
+stations report only during the monsoon. Gaps were filled, so filled values are
+estimates and not observations. Discharge is missing entirely at ten of the 25
+stations, and rainfall is zero on about three quarters of records, which leaves that
+variable little to work with on most days. Data from the upstream river network in
+India were not accessible, so the models cannot see conditions beyond the border
+stations, which may contribute to the weaker fit in the Upstream cluster
+(Section~\ref{sec:4.7}), although this was not tested.
 
-The second group concerns the model and the evaluation. The advantage of
-CFL-EDLSTM is not uniform: up to about one day ahead the centralized XGBoost
-baseline is more accurate, so CFL-EDLSTM is better described as a longer-horizon
-forecaster than as a replacement for centralized models at every lead. 
+The others concern the model and the evaluation. CFL-EDLSTM is not uniformly better:
+up to about one day ahead the centralized XGBoost is more accurate, so it is better
+described as a longer-horizon forecaster than as a replacement for centralized models
+at every lead. Each model was trained once, with no fixed random seed and no
+systematic hyperparameter search, and the federation was simulated on one machine.
+No ablation separates clustering, federation and the encoder--decoder, and the
+baselines use fewer input features than CFL-EDLSTM. The FFWC comparison covers a
+short post-monsoon period of hindcasts, and the SHAP results rest on a small sample
+of test windows.
 
 \section{Comparison with Previous Studies}
 \label{sec:4.13}
 
-This section places the results of this thesis next to earlier work. No previous study uses the same stations, period, forecast horizons, or evaluation split, so only an indirect comparison is possible. We therefore compare along the three ideas that define CFL-EDLSTM: multi-station water-level forecasting in Bangladesh, federated learning with explainable analysis, and the LSTM encoder--decoder for multi-step forecasting. For each one we chose the closest study in the reviewed literature: Ruma et al.~\cite{Ruma2023}, Mahir et al.~\cite{Mahir2025}, and Kao et al.~\cite{Kao2020}. Table~\ref{tab:4.cmp} summarises them. Figures quoted from these papers are taken as published and are treated as indicative.
+This section places the results beside earlier work. No previous study uses the same
+stations, period, horizons or evaluation split, so only an indirect comparison is
+possible. We therefore compare along the three ideas that define CFL-EDLSTM:
+multi-station water-level forecasting in Bangladesh, federated learning with
+explainable analysis, and the LSTM encoder--decoder for multi-step forecasting. For
+each we chose the closest study in the reviewed literature: Ruma et
+al.~\cite{Ruma2023}, Mahir et al.~\cite{Mahir2025} and Kao et al.~\cite{Kao2020}
+(Table~\ref{tab:4.cmp}). Figures quoted from these papers are taken as published and
+treated as indicative.
 
 \begin{table}[htbp]
   \centering
@@ -778,12 +1071,12 @@ This section places the results of this thesis next to earlier work. No previous
     \midrule
     \cite{Ruma2023} &
     Bangladesh river network; 24 gauge stations in connected sub-networks; daily water level from BWDB, 1979--2009, extended to 2014 &
-    PSO-tuned LSTM compared with ANN, PSO-ANN, and LSTM; water-level inputs only; 80/20 split &
-    1, 5, 7, 11, and 15 days &
+    PSO-tuned LSTM compared with ANN, PSO-ANN and LSTM; water-level inputs only; 80/20 split &
+    1, 5, 7, 11 and 15 days &
     NSE of 0.989 at 1 day (Net~1); average NSE of 0.76 to 0.95 across sub-networks at 15 days \\
     \cite{Mahir2025} &
-    Sylhet, Bangladesh, with upstream rainfall from Meghalaya and Assam; 78 years of monthly rainfall, river level, and weather records &
-    Federated FNN, LSTM-RNN, and TFT-CNN over five simulated non-IID clients; SHAP analysis &
+    Sylhet, Bangladesh, with upstream rainfall from Meghalaya and Assam; 78 years of monthly rainfall, river level and weather records &
+    Federated FNN, LSTM-RNN and TFT-CNN over five simulated non-IID clients; SHAP analysis &
     Not a multi-horizon forecast (monthly data) &
     Best model (FNN) reaches R\textsuperscript{2} of 0.963 in the federated setting, against 0.951 without federation \\
     \cite{Kao2020} &
@@ -794,8 +1087,8 @@ This section places the results of this thesis next to earlier work. No previous
     \midrule
     \rowcolor{gray!15}
     \textbf{This study} &
-    Bangladesh; 25 gauge stations; 3-hourly water level, rainfall, discharge, evaporation, and temperature, 2010--2026 &
-    CFL-EDLSTM with four cluster-level clients; compared with XGBoost, LSTM, GRU, and TCN &
+    Bangladesh; 25 gauge stations; 3-hourly water level, rainfall, discharge, evaporation and temperature, 2010--2026 &
+    CFL-EDLSTM with four cluster-level clients; compared with XGBoost, LSTM, GRU and TCN &
     3 hours to 15 days (seven checkpoints) &
     MAE 0.321~m and RMSE 0.521~m overall; at 15 days, MAE 0.436~m and RMSE 0.690~m \\
     \bottomrule
@@ -805,9 +1098,21 @@ This section places the results of this thesis next to earlier work. No previous
 \subsection{Regional Benchmark: Ruma et al.}
 \label{sec:4.13.1}
 
-Ruma et al.~\cite{Ruma2023} is the closest regional counterpart to this work. It forecasts water level at gauge stations across Bangladesh's river network, uses data from the same agency, and reaches lead times of up to 15 days. Seven of our stations (SW42, SW45, SW45.5, SW49, SW77, SW225, and SW294) also appear in their study. Their model is an LSTM whose hyperparameters are tuned by particle swarm optimisation (PSO), and it outperformed ANN, PSO-ANN, and a plain LSTM in every sub-network they tested.
+Ruma et al.~\cite{Ruma2023} is the closest regional counterpart. It forecasts water
+level at gauge stations across Bangladesh's river network, uses data from the same
+agency and reaches lead times of up to 15 days. Seven of our stations (SW42, SW45,
+SW45.5, SW49, SW77, SW225 and SW294) also appear in their study. Their model is an
+LSTM whose hyperparameters are tuned by particle swarm optimization (PSO), and it
+outperformed ANN, PSO-ANN and a plain LSTM in every sub-network they tested.
 
-The two studies differ in several further ways (Table~\ref{tab:4.ruma-setup}). Their stations are arranged as cascaded sub-networks in which upstream gauges feed downstream ones, whereas ours are modelled station by station within their clusters. Because of these differences, and because the RMSE and MAE reported in their paper could not be reconciled with the other statistics in the same paper, we do not compare absolute errors. We compare instead how much each proposed method improves on a plain LSTM.
+The two studies differ in several further ways (Table~\ref{tab:4.ruma-setup}). Their
+stations are cascaded sub-networks in which upstream gauges feed downstream ones,
+whereas ours are modeled within their clusters. We also do not compare absolute
+errors, because the RMSE and MAE reported in their paper could not be reconciled
+with their other statistics: for their Net~1 stations, whose standard deviation is
+about 1.5~m, an NSE of 0.9475 implies an RMSE near 0.34~m, yet 1.11~m is reported,
+and the units are not stated. We compare instead how much each method improves on a
+plain LSTM.
 
 \begin{table}[htbp]
   \centering
@@ -821,14 +1126,24 @@ The two studies differ in several further ways (Table~\ref{tab:4.ruma-setup}). T
     \midrule
     Resolution & Daily & Five observations per day (3-hourly) \\
     Inputs & Water level of upstream gauges only & Five variables per station (42 features) \\
-    Imputation & k-nearest neighbours & Forward and backward filling \\
+    Gap filling & k-nearest neighbors & Interpolation, forward/backward filling, then zero \\
     Split & 80/20 (predictions plotted for 2010--2014) & 70/15/15, chronological, per station \\
     Baselines & ANN, PSO-ANN, LSTM & XGBoost, Vanilla LSTM, GRU, TCN \\
     \bottomrule
   \end{tabularx}
 \end{table}
 
-At a 15-day lead time, for the three sub-networks that contain our shared stations, their PSO-LSTM lowers RMSE relative to the plain LSTM by 0.8\% to 30.0\% and MAE by 1.3\% to 32.6\% (Table~\ref{tab:4.ruma-gain}). Over all 25 stations at the same lead time, CFL-EDLSTM lowers RMSE by about 30\% and MAE by about 35\% relative to Vanilla LSTM. This is comparable to the best of their three groups (Net~1) and well above the other two. The comparison needs care, because the improvements come from different changes: hyperparameter tuning against an untuned LSTM in their case, and the encoder--decoder with clustered federated training in ours. It shows that the gains are of a similar size, not that one method is better than the other. Both studies also show a gradual decline in accuracy with lead time and no breakdown at 15 days. In our case, MAE rises about 2.7-fold, from 0.160~m at 1 day to 0.436~m at 15 days.
+At a 15-day lead time, for the three sub-networks that contain our shared stations,
+their PSO-LSTM lowers RMSE relative to the plain LSTM by 0.8\% to 30.0\% and MAE by
+1.3\% to 32.6\% (Table~\ref{tab:4.ruma-gain}). Over all 25 stations at the same lead
+time, CFL-EDLSTM lowers RMSE by about 30\% and MAE by about 35\% relative to Vanilla
+LSTM, which is comparable to their best group (Net~1) and well above the other two.
+The comparison needs care, because the improvements come from different changes:
+hyperparameter tuning against an untuned LSTM in their case, and the encoder--decoder
+with clustered federated training in ours. It shows that the gains are of a similar
+size, not that one method is better. Both studies also show a gradual decline in
+accuracy with lead time and no breakdown at 15~days; in our case MAE rises about
+2.7-fold, from 0.160~m at 1~day to 0.436~m at 15~days.
 
 \begin{table}[htbp]
   \centering
@@ -849,25 +1164,57 @@ At a 15-day lead time, for the three sub-networks that contain our shared statio
   \end{tabular}
 \end{table}
 
-This thesis differs in working at sub-daily resolution, using rainfall, discharge, evaporation, and temperature alongside water level (which Ruma et al. named as a direction for future work), and comparing against a wider set of baselines, with results per horizon, station, and cluster. Their study has a much longer record and a systematic hyperparameter search, which would be a natural extension for CFL-EDLSTM.
+This thesis differs in working at sub-daily resolution, using rainfall, discharge,
+evaporation and temperature alongside water level (which Ruma et al.\ named as a
+direction for future work), and comparing against a wider set of baselines, with
+results per horizon, station and cluster. Their study has a much longer record and a
+systematic hyperparameter search, which would be a natural extension for
+CFL-EDLSTM.
 
 \subsection{Federated Learning Counterpart: Mahir et al.}
 \label{sec:4.13.2}
 
-Mahir et al.~\cite{Mahir2025} is the nearest federated study in Bangladesh and, like this thesis, pairs federated training with SHAP. They train FNN, LSTM-RNN, and TFT-CNN models for Sylhet on a 78-year dataset that includes upstream rainfall from Meghalaya and Assam, split across five simulated clients. Federation raised R\textsuperscript{2} for all three models, by 0.012 to 0.016, and SHAP pointed to upstream rainfall as the main driver. A modest but consistent gain from federation supports the motivation for the federated design used here.
+Mahir et al.~\cite{Mahir2025} is the nearest federated study in Bangladesh and, like
+this thesis, pairs federated training with SHAP. They train FNN, LSTM-RNN and TFT-CNN
+models for Sylhet on a 78-year dataset that includes upstream rainfall from Meghalaya
+and Assam, split across five simulated clients. Federation raised R\textsuperscript{2}
+for all three models, by 0.012 to 0.016, and SHAP pointed to upstream rainfall as the
+main driver. A modest but consistent gain from federation supports the motivation for
+our federated design.
 
-The two studies still differ in what they predict. Their data are monthly and the target is a flood-severity measure, not a continuous water level, and lead time is not considered; the authors themselves list longer lead times as a limitation. Their R\textsuperscript{2} therefore cannot be set against our errors in metres. Their clients are random non-IID splits, whereas ours are the four hydrological clusters of Section~\ref{sec:4.3}, which gives each client a physical meaning. 
+The two studies still differ in what they predict. Their data are monthly and the
+target is a flood-severity measure and not a continuous water level, and lead time is
+not considered, which the authors themselves list as a limitation. Their
+R\textsuperscript{2} therefore cannot be set against our errors in meters. Their
+clients are random non-IID splits, whereas ours are the four hydrological clusters of
+Section~\ref{sec:4.3}, which gives each client a physical meaning. They also compare
+federated with non-federated training directly, which this thesis does not.
+
 \subsection{Architectural Counterpart: Kao et al.}
 \label{sec:4.13.3}
 
-Kao et al.~\cite{Kao2020} introduced the LSTM encoder--decoder for multi-step flood forecasting. On the Shihmen Reservoir catchment, they showed that it gave more reliable and accurate forecasts, up to six hours ahead, than a feed-forward encoder--decoder. This is the design idea we use: an encoder summarises the recent past, and a decoder produces the whole forecast sequence, here 75 steps covering 15 days. Their result supports the choice of an encoder--decoder for this kind of task.
+Kao et al.~\cite{Kao2020} introduced the LSTM encoder--decoder for multi-step flood
+forecasting. On the Shihmen Reservoir catchment it gave more reliable and accurate
+forecasts, up to six hours ahead, than a feed-forward encoder--decoder. This is the
+design idea we use: an encoder summarizes the recent past, and a decoder produces the
+whole forecast sequence, here 75 steps covering 15 days. Their result supports the
+choice of an encoder--decoder for this kind of task.
 
-The setting is very different, however. They forecast reservoir inflow in hours, during typhoon events at a single catchment, while we forecast water level at 25 stations over a continuous 16-year record with horizons of up to 15 days. We also cannot say how much of CFL-EDLSTM's advantage comes from the encoder--decoder structure and how much from the clustered federated training, because no ablation separates the two yet (Section~\ref{sec:4.5}).
+The setting is very different, however. They forecast reservoir inflow in hours,
+during typhoon events at a single catchment, while we forecast water level at 25
+stations over a continuous 16-year record with horizons of up to 15 days. We also
+cannot say how much of CFL-EDLSTM's advantage comes from the encoder--decoder and how
+much from the clustered federated training, because no ablation separates them
+(Section~\ref{sec:4.5}).
 
 \subsection{Position of This Study}
 \label{sec:4.13.4}
 
-Table~\ref{tab:4.matrix} summarises what each study covers. Each earlier study covers part of this set, and none of the studies reviewed covers all of it. This thesis combines multi-station water-level forecasting, federated learning with hydrological clusters, and an encoder--decoder on a sub-daily, multivariate dataset with horizons from 3 hours to 15 days . 
+Table~\ref{tab:4.matrix} summarizes what each study covers. Each earlier study covers
+part of this set, and none of the studies reviewed covers all of it. This thesis
+combines multi-station water-level forecasting, federated learning with hydrological
+clusters and an encoder--decoder on a sub-daily, multivariate dataset with horizons
+from 3 hours to 15 days.
 
 \begin{table}[htbp]
   \centering
@@ -891,13 +1238,14 @@ Table~\ref{tab:4.matrix} summarises what each study covers. Each earlier study c
     Web-based interactive interface & -- & -- & -- & Yes \\
     \bottomrule
   \end{tabular}
-  \end{table}
-
+\end{table}
 
 \section{Summary}
 \label{sec:4.14}
 
-This chapter evaluated CFL-EDLSTM on 25 monitoring stations against four baselines across seven forecast horizons from 3 hours to 15 days. Table~\ref{tab:4.summary} lists the main findings.
+This chapter evaluated CFL-EDLSTM on 25 monitoring stations against four baselines at
+seven horizons from 3 hours to 15 days. Table~\ref{tab:4.summary} lists the main
+findings.
 
 \begin{table}[htbp]
   \centering
@@ -909,20 +1257,24 @@ This chapter evaluated CFL-EDLSTM on 25 monitoring stations against four baselin
     \toprule
     \textbf{Topic} & \textbf{Finding} & \textbf{Section} \\
     \midrule
-    Clusters & The four clusters differ most in water level (2.1 to 28.2~mMSL on average) and in rainfall, and little in temperature & \ref{sec:4.3} \\
-    Overall accuracy & CFL-EDLSTM gave the lowest MAE (0.321~m), RMSE (0.521~m), and the highest NSE (0.998) of the five models & \ref{sec:4.4}, \ref{sec:4.5} \\
-    Comparison with baselines & MAE was about 35\% lower than Vanilla LSTM and about 40\% lower than XGBoost; XGBoost had the weakest RMSE of all models & \ref{sec:4.5} \\
-    Forecast horizon & XGBoost was best up to 1 day; CFL-EDLSTM was best from 3 days, with a 15-day MAE of 0.436~m against 1.149~m for XGBoost & \ref{sec:4.6}, \ref{sec:4.8} \\
-    Clusters and stations & Errors differed by cluster (MAE 0.252 to 0.394~m); CFL-EDLSTM had the lowest MAE at 24 of 25 stations & \ref{sec:4.7}, \ref{sec:4.10} \\
-    Limitations & Contributions of clustering, federation, and the encoder--decoder were not separated; single training run; imputed data & \ref{sec:4.12} \\
+    Clusters & The four clusters differ most in water level (2.1 to 28.2~mMSL on average) and little in temperature & \ref{sec:4.3} \\
+    Overall accuracy & CFL-EDLSTM gave the lowest MAE (0.321~m) and RMSE (0.521~m) and the highest NSE (0.998) of the five models & \ref{sec:4.4}, \ref{sec:4.5} \\
+    Comparison with baselines & MAE was about 35\% lower than Vanilla LSTM and about 40\% lower than XGBoost; XGBoost had the weakest RMSE & \ref{sec:4.5} \\
+    Forecast horizon & XGBoost was best up to 1 day; CFL-EDLSTM was best from 3 days, with a 15-day MAE of 0.436~m against 1.149~m & \ref{sec:4.6}, \ref{sec:4.8} \\
+    Clusters and stations & MAE ranged from 0.252 to 0.394~m across clusters; CFL-EDLSTM had the lowest MAE at 24 of 25 stations & \ref{sec:4.7}, \ref{sec:4.10} \\
+    Interpretability & SHAP showed reliance on seasonal timing, temperature and the most recent days of input, with rainfall accumulations weaker & \ref{sec:4.9} \\
+    Comparison with FFWC & Lower MAE than FFWC at short and medium leads over a short, calm period; FFWC ahead at the longest leads & \ref{sec:4.11} \\
+    Limitations & Contributions of clustering, federation and the encoder--decoder not separated; single training run; filled data & \ref{sec:4.12} \\
     \bottomrule
   \end{tabularx}
 \end{table}
 
-Three points stand out. First, CFL-EDLSTM was the most accurate model overall and from three days onward, and its error grew far more slowly with lead time than XGBoost's, which made it clearly preferable at the longer horizons that matter most for early warning. Second, its performance was more even across stations than any baseline's, although it varied between clusters and showed one clear weakness at the highest-level station. Third, the comparison with earlier studies (Section~\ref{sec:4.13}) suggests the results are competitive with the regional benchmark, within the limits of an indirect comparison.
-
-% The chapter also showed what it could not establish. It does not show that clustering or federation, taken alone, improves accuracy. [\textbf{After Sections~\ref{sec:4.9} and~\ref{sec:4.11} are written, add one sentence summarising the SHAP and FFWC findings.}] Chapter~5 draws the conclusions of the thesis, states its contributions and limitations, and suggests directions for future work.
-
-
-
-
+Three points stand out. First, CFL-EDLSTM was the most accurate model overall and from
+three days onward, and its error grew far more slowly with lead time than XGBoost's,
+which made it preferable at the longer horizons that matter most for early warning.
+Second, its performance was more even across stations than any baseline's, although it
+varied between clusters and showed one clear weakness at the highest-level station.
+Third, the gain over a plain LSTM is of a similar size to that of the regional
+benchmark (Section~\ref{sec:4.13}) and an initial check against FFWC was encouraging,
+within the limits of indirect and short comparisons. The next chapter draws the
+conclusions of the thesis, states its limitations and suggests future work.
