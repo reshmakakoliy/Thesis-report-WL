@@ -1426,7 +1426,7 @@ lists the main findings and the sections in which they are reported.
     Clusters & The four clusters differ most in water level (2.1 to 28.2~mMSL on average) and little in temperature & \ref{sec:4.3} \\
     Overall accuracy & CFL-EDLSTM gave the lowest MAE (0.321~m) and RMSE (0.521~m) and the highest NSE (0.998) of the models compared & \ref{sec:4.4}, \ref{sec:4.5} \\
     Comparison with baselines & MAE was about 35\% lower than Vanilla LSTM and about 40\% lower than XGBoost; XGBoost had the weakest RMSE & \ref{sec:4.5} \\
-    Federated baselines & Under the same clustered federated scheme, CFL-EDLSTM had the lowest MAE at every horizon, ahead of federated GRU, TCN and XGBoost & \ref{sec:4.5.1} \\
+    Federated baselines & In clustered federated form, CFL-EDLSTM had the lowest MAE at every horizon, ahead of federated GRU, TCN and XGBoost & \ref{sec:4.5.1} \\
     Forecast horizon & XGBoost was best up to 1 day; CFL-EDLSTM was best from 3 days, with a 15-day MAE of 0.436~m against 1.149~m & \ref{sec:4.6}, \ref{sec:4.8} \\
     Clusters and stations & MAE ranged from 0.252 to 0.394~m across clusters; CFL-EDLSTM had the lowest MAE at 24 of 25 stations & \ref{sec:4.7}, \ref{sec:4.10} \\
     Interpretability & SHAP showed reliance on seasonal timing, temperature and the most recent days of input, with rainfall accumulations weaker & \ref{sec:4.9} \\
@@ -1439,9 +1439,9 @@ lists the main findings and the sections in which they are reported.
 Four points stand out. First, CFL-EDLSTM was the most accurate model overall and
 from three days onward, and its error grew far more slowly with lead time than
 that of XGBoost, making it preferable at the longer horizons that matter most
-for early warning. Second, when GRU, TCN and XGBoost were trained under the same
-clustered federated scheme, the encoder--decoder still gave the lowest MAE at
-every horizon, which supports choosing it as the model to federate. Third, its
+for early warning. Second, when GRU and TCN were trained under the same clustered
+federated scheme, and XGBoost under its prediction-level counterpart, the
+encoder--decoder still gave the lowest MAE at every horizon, which supports choosing it as the model to federate. Third, its
 performance was more consistent across stations than that of any baseline,
 although it varied between clusters and showed one clear weakness at the
 highest-level station. Fourth, its gain over a plain LSTM is of a similar size
