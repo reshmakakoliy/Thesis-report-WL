@@ -118,7 +118,7 @@ review LSTM, GRU, the encoder--decoder LSTM and TCN in turn.
 
 Ruma et al.\ provide a direct example from Bangladesh: a
 particle-swarm-optimized LSTM forecasting water level across Ganges,
-Brahmaputra and Meghna stations reached an NSE of about 0.95 at a 15-day
+Brahmaputra and Meghna stations reached an NSE of up to about 0.95 at a 15-day
 horizon \cite{Ruma2023}. A review of many LSTM variants concludes that LSTM
 generally outperforms plain RNNs and GRUs in hydrology, although sensitivity to
 hyperparameters and weak generalization across settings remain problems
@@ -211,7 +211,7 @@ Cui et al.\ degraded least up to 12 hours \cite{Cui2022}, and Yuan et al.\
 developed the Time Residual LSTM specifically to address degradation at longer
 horizons \cite{Yuan2023}. Evidence at longer horizons is thinner. Ruma et al.\
 showed that 15-day water-level forecasting is achievable in Bangladesh, with an
-NSE of about 0.95 \cite{Ruma2023}. Islam et al.\ evaluated discharge at six
+NSE of up to about 0.95 \cite{Ruma2023}. Islam et al.\ evaluated discharge at six
 horizons up to 30 days and found the LSTM strongest at 15 and 30 days
 \cite{Islam2026a}, and Li et al.\ reached $R^2 = 0.9922$ at 15 days
 \cite{Li2025}. None of these studies, however, evaluates a single architecture
@@ -257,19 +257,28 @@ problem discussed in Section~\ref{sec:2.10.3}.
 \subsection{Federated Learning for Time Series}
 \label{sec:2.10.2}
 
-Federated learning for hydrological time series is still rare, but there is a
-direct precedent. Amanzholova et al.\ built a federated LSTM for next-day
+Federated learning for hydrological forecasting is still rare, but there are
+two direct precedents. Amanzholova et al.\ built a federated LSTM for next-day
 discharge at two stations in the Chu--Talas basin. At the more homogeneous
 station, it came within about 1\% of the centralized model (NSE 0.948 against
 0.956), and at the more divergent station it clearly outperformed both
 alternatives (NSE 0.903 against 0.528 for the centralized model and $-4.230$
-for the local-only model) \cite{Amanzholova2026}. On non-hydrological
-time-series benchmarks, Chen et al.\ show that standard federated learning
-struggles once client data become heterogeneous \cite{Chen2025}. The
-hydrological precedent is encouraging but limited to two stations, one
-variable, a one-day horizon and no clustering. This thesis tests whether the
-approach holds with 25 stations, five variables, seven horizons and an explicit
-clustering step.
+for the local-only model) \cite{Amanzholova2026}. In Bangladesh, Mahir et al.\
+trained federated FNN, LSTM-RNN and TFT-CNN models for flood prediction in
+Sylhet, using 78 years of monthly rainfall, river-level and weather records,
+including upstream rainfall from Meghalaya and Assam, distributed across five
+simulated non-IID clients. Federation raised R\textsuperscript{2} for all three
+models, by 0.012 to 0.016, and a SHAP analysis identified upstream rainfall as
+the main driver \cite{Mahir2025}. On non-hydrological time-series benchmarks,
+Chen et al.\ show that standard federated learning struggles once client data
+become heterogeneous \cite{Chen2025}.
+
+Both hydrological precedents are encouraging but limited. The first covers two
+stations, one variable and a one-day horizon; the second uses monthly data, a
+flood-severity target with no lead time, and randomly split clients rather
+than hydrologically defined ones. Neither uses clustering. This thesis tests
+whether the approach holds with 25 stations, five variables, seven horizons
+from 3~hours to 15~days, and clients defined by hydrological clusters.
 
 \subsection{Non-IID Data}
 \label{sec:2.10.3}
@@ -327,9 +336,11 @@ at 25 hours) and found that recent downstream runoff dominated the predictions
 for Bangladesh and identified rainfall as a strong predictor
 \cite{HemelSakib2024}, and Parasar et al.\ showed that SHAP can reveal how the
 influence of rainfall and antecedent discharge shifts under monsoon conditions
-\cite{Parasar2025}. None of these applications, however, involves a clustered
-or federated model. The analysis in Section~\ref{sec:3.17} applies SHAP to the
-cluster-specific models of CFL-EDLSTM.
+\cite{Parasar2025}. Among the reviewed studies, only Mahir et al.\ combine SHAP
+with federated training (Section~\ref{sec:2.10.2}), and none applies it within a
+clustered federated model \cite{Mahir2025}. The analysis in
+Section~\ref{sec:3.17} applies SHAP to the cluster-specific models of
+CFL-EDLSTM.
 
 \section{Visualization and Decision-Support Systems}
 \label{sec:2.13}
@@ -363,12 +374,13 @@ with centralized training
 \cite{Kao2020,Cui2022,Lim2025,Yuan2023,Ni2024,Kumar2023,Hameed2025,Waqas2024,Aghenda2025,Li2024,Lin2021,Li2025}.
 The third strand, federated and clustered federated learning, shows that FedAvg
 and cluster-specific training handle client heterogeneity reasonably well, but
-only on generic benchmarks or in a two-station hydrological case
-\cite{McMahan2017,Zhu2021,Chen2025,Ghosh2021,Harshvardhan2022,BenAli2026,Amanzholova2026}.
+mostly on generic benchmarks, with only a few hydrological applications that
+use two stations or monthly data and no clustering
+\cite{McMahan2017,Zhu2021,Chen2025,Ghosh2021,Harshvardhan2022,BenAli2026,Amanzholova2026,Mahir2025}.
 The fourth strand, explainable AI, has made SHAP the standard interpretability
-method for hydrological deep learning, but has not yet applied it within a
-clustered or federated model
-\cite{Lundberg2017,Huang2024,Khorrami2025,Parasar2025}.
+method for hydrological deep learning, but has rarely combined it with
+federated training and has not applied it within a clustered federated model
+\cite{Lundberg2017,Huang2024,Khorrami2025,Parasar2025,Mahir2025}.
 
 As the last column of Table~\ref{tab:lit-comparison} shows, the limitation of
 each strand is precisely what another strand provides. This observation forms
@@ -417,7 +429,7 @@ Limited evaluation in distributed or federated multi-station forecasting
 \\[0.8em]
 
 \textbf{Federated / clustered federated learning}
-\cite{McMahan2017,Zhu2021,Chen2025,Ghosh2021,Harshvardhan2022,BenAli2026,Amanzholova2026}
+\cite{McMahan2017,Zhu2021,Chen2025,Ghosh2021,Harshvardhan2022,BenAli2026,Amanzholova2026,Mahir2025}
 &
 Benchmark datasets and limited hydrological applications
 &
@@ -427,13 +439,13 @@ Little application to multi-station, multi-horizon hydrological forecasting with
 \\[0.8em]
 
 \textbf{Explainable AI}
-\cite{Lundberg2017,Huang2024,Khorrami2025,Parasar2025}
+\cite{Lundberg2017,Huang2024,Khorrami2025,Parasar2025,Mahir2025}
 &
 Hydrological and hydro-climatic forecasting or classification data
 &
 Mainly centralized models using SHAP, LIME and related attribution methods
 &
-Generally not integrated with federated or clustered federated learning across heterogeneous stations
+Rarely integrated with federated learning, and not with clustered federated learning across heterogeneous stations
 \\
 
 \bottomrule
@@ -461,8 +473,10 @@ specifically:
     from a single global federated model or centralized cross-station
     transfer, to a hydrological forecasting network
     (Sections~\ref{sec:2.9}--\ref{sec:2.11}).
-    \item No reviewed study applies SHAP within a clustered or federated
-    hydrological model (Section~\ref{sec:2.12}).
+    \item No reviewed study applies SHAP within a clustered federated
+    hydrological model; the only federated study that uses SHAP relies on
+    random client splits and monthly data (Sections~\ref{sec:2.10.2}
+    and~\ref{sec:2.12}).
     \item Dedicated visualization or decision-support tools for water-level
     forecasting in Bangladesh, compared against an external reference such as
     FFWC, are largely absent (Section~\ref{sec:2.13}).
@@ -471,4 +485,9 @@ specifically:
 \section{Summary}
 \label{sec:2.16}
 
-This chapter reviewed flood and water-level forecasting, its data and methods, multi-horizon forecasting, station heterogeneity, and federated, clustered federated and explainable approaches. These strands have largely developed separately, so no existing framework is at once multivariate, multi-cluster, multi-horizon, federated and interpretable. Chapter 3 presents CFL-EDLSTM, developed to fill this gap.
+This chapter reviewed flood and water-level forecasting, its data and methods,
+multi-horizon forecasting, station heterogeneity, and federated, clustered
+federated and explainable approaches. These strands have largely developed
+separately, so no existing framework is at once multivariate, multi-cluster,
+multi-horizon, federated and interpretable. Chapter~3 presents CFL-EDLSTM,
+developed to fill this gap.
