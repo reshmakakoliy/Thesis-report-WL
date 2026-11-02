@@ -714,7 +714,7 @@ to 15 days. Table~\ref{tab:3.8} collects the configuration.
 \label{sec:3.12.1}
 
 Forecasting 75 future values from 150 past observations is a sequence-to-sequence
-problem, and the encoder--decoder pattern \cite{Sutskever2014,Cho2014} is built
+problem, and the encoder--decoder pattern \cite{Cho2014} is built
 for it: one network reads the input and compresses it into a state, and a second
 unrolls that state into the output. The Vanilla LSTM baseline
 (Section~\ref{sec:3.13.1}) does the same job with a dense layer that emits all 75
@@ -777,7 +777,7 @@ the hidden state to a single value:
 \label{eq:3.5}
 \end{equation}
 During training $u_q$ can be the observed value, a practice known as teacher
-forcing \cite{WilliamsZipser1989}. At inference no future observations exist, so
+forcing. At inference no future observations exist, so
 the decoder is fed its own previous prediction, and the first step is seeded with
 the last observed water level in the input window.
 
@@ -868,9 +868,8 @@ interact.
     \label{fig:3.9}
 \end{figure}
 
-Only weighted Federated Averaging is used. Variants such as FedProx
-\cite{Li2020FedProx} and SCAFFOLD \cite{Karimireddy2020} add a proximal term or
-control-variate correction against client drift, but neither is applied. This is
+Only weighted Federated Averaging is used. Extensions that correct for client
+drift, such as adding a proximal term to the local objective, are not applied. This is
 a deliberate simplification: whatever heterogeneity handling the framework has
 comes from the cluster structure and the locally adapted models of
 Section~\ref{sec:3.12.5}, which keeps the contribution of clustering easy to
