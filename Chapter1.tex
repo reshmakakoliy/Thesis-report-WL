@@ -2,14 +2,18 @@
 \label{Ch_Chapter1}
 
 \section{Introduction}
+\label{sec:1.1}
 
-Bangladesh lies on the lower deltaic plain of the Ganges--Brahmaputra--Meghna
+Bangladesh occupies the lower deltaic plain of the Ganges--Brahmaputra--Meghna
 river system, one of the largest and most active river networks in the world.
-Heavy monsoon rainfall, discharge arriving from upstream catchments, and
-generally low-lying land leave the country persistently exposed to flooding and
-water-logging (Figure~\ref{fig:hydro-context}). Because rainfall, discharge and
-drainage vary from place to place, water-level behavior varies with them, and a
-model built for one location will not necessarily carry over to another.
+Intense monsoon rainfall, large volumes of discharge from upstream catchments
+and very low-lying terrain together leave the country persistently exposed to
+flooding and water-logging. Figure~\ref{fig:hydro-context} shows how little
+relief the country has: almost all of Bangladesh lies close to sea level, and
+higher ground appears only along its northern and eastern margins. Because
+rainfall, discharge and drainage conditions change from one place to another,
+water-level behavior changes with them, and a model developed for one location
+cannot be assumed to work equally well at another.
 
 \begin{figure}[h]
 \centering
@@ -18,173 +22,182 @@ model built for one location will not necessarily carry over to another.
 \label{fig:hydro-context}
 \end{figure}
 
-This chapter introduces the thesis. It describes the flood setting and why
-forecasting at several lead times matters (Sections~\ref{sec:1.2}
-and~\ref{sec:1.3}), then states the problem, motivation and research gap behind
-this work (Sections~\ref{sec:1.4}--\ref{sec:1.6}). The aim, objectives,
-research questions, scope and contributions follow
-(Sections~\ref{sec:1.7}--\ref{sec:1.11}), and the chapter ends with the
-organization of the thesis (Section~\ref{sec:1.12}) and a short summary
-(Section~\ref{sec:1.13}). No results are presented here; they appear in
-Chapter~4.
+This chapter introduces the thesis. Sections~\ref{sec:1.2} and~\ref{sec:1.3}
+describe the flood setting and explain why forecasting at several lead times
+matters. Sections~\ref{sec:1.4}--\ref{sec:1.6} state the problem, the
+motivation and the research gap. Sections~\ref{sec:1.7}--\ref{sec:1.11} set out
+the aim, objectives, research questions, scope and contributions, and
+Sections~\ref{sec:1.12} and~\ref{sec:1.13} give the organization of the thesis
+and a summary of the chapter. No results are reported here; they are presented
+in Chapter~4.
 
 \section{Flooding and Water-Logging in Bangladesh}
 \label{sec:1.2}
 
-Much of Bangladesh's flood problem does not originate inside the country.
-Bangladesh sits at the bottom of the Ganges--Brahmaputra--Meghna basin, and
-only a fraction of the water in its rivers falls as rain within its own
-borders. The rest comes from catchments in India, Nepal, Bhutan and China, so
-a large share of next week's river flow has already been set in motion
-elsewhere, days earlier (Figure~\ref{fig:river-context}).
+A large part of Bangladesh's flood problem originates outside the country.
+Bangladesh lies at the downstream end of the Ganges--Brahmaputra--Meghna basin,
+and only a fraction of the water in its rivers falls as rain within its own
+borders. As Figure~\ref{fig:river-context} shows, the three basins extend across
+India, Nepal, Bhutan and China, and the water draining from them converges on
+Bangladesh before reaching the Bay of Bengal. Much of the river flow expected
+in the coming week has therefore already been generated elsewhere, days
+earlier.
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.85\textwidth]{figures2/river_context.png}
-\caption{Major river systems of Bangladesh (adapted from \cite{BDP2100Atlas}).}
+\caption{The Ganges, Brahmaputra and Meghna basins and the major river systems
+of Bangladesh (adapted from \cite{BDP2100Atlas}).}
 \label{fig:river-context}
 \end{figure}
 
-The flood record shows how often this matters. In 1988, about 82,000~km$^2$,
-close to 60\% of the country, went under water, in what is still regarded as a
-once-in-50-to-100-year event \cite{Banglapedia2023Flood}. In 1998 more than
-two-thirds of the country was flooded and the death toll passed 2,300
-\cite{Banglapedia2023Flood,AbdullahAlam2024}. Serious floods followed in 2004,
-2007, most years from 2009 to 2014, and 2020, and in 2017 families in the
-worst-hit areas lost more than a fifth of their annual income
-\cite{AbdullahAlam2024}. Flooding here is a recurring part of life in the
-floodplain, which is why even a small gain in forecast lead time or accuracy
-reaches many people.
+The flood record shows how often this setting turns into disaster. In 1988,
+about 82,000~km$^2$, close to 60\% of the country, was inundated in what is
+still regarded as a once-in-50-to-100-year event \cite{Banglapedia2023Flood}.
+In 1998, more than two-thirds of the country was flooded and more than 2,300
+people died \cite{Banglapedia2023Flood,AbdullahAlam2024}. Severe floods
+followed in 2004, 2007, most years from 2009 to 2014, and 2020, and in 2017
+households in the worst-affected areas lost more than a fifth of their annual
+income \cite{AbdullahAlam2024}. Flooding is thus a recurring part of life on the
+floodplain, and even a modest gain in forecast accuracy or lead time benefits
+a very large number of people.
 
-The effect of high water also depends on where it occurs. In rural floodplains,
-water-logging follows the river fairly directly, whereas in fast-growing cities
-poor drainage can make the same rise in water level considerably worse. Studies
-in Bangladesh show that even neighboring stations on one river can behave
-differently \cite{Islam2026a,Islam2026b}. Upstream stations mainly respond to
-discharge and rainfall from higher up the catchment, while downstream and
-urban stations are shaped by a mix of river flow, local rainfall, drainage and
-sometimes tides. There is no basis for assuming that every station behaves
+The impact of high water also depends on where it occurs. In rural
+floodplains, water-logging follows the river fairly directly, whereas in
+rapidly growing cities poor drainage can make the same rise in water level
+considerably more damaging. Studies in Bangladesh have shown that even
+neighboring stations on the same river can behave differently
+\cite{Islam2026a,Islam2026b}. Upstream stations respond mainly to discharge and
+rainfall from higher in the catchment, while downstream and urban stations are
+shaped by a combination of river flow, local rainfall, drainage and, in some
+cases, tides. There is therefore no basis for assuming that all stations behave
 alike.
 
-Researchers have taken up the forecasting problem from several sides. Ruma et
-al.\ forecast water levels across a wide network of Bangladeshi stations with
-an optimized LSTM \cite{Ruma2023}. Others paired climatic variables with
-machine learning to predict flooding \cite{Rakin2023,Rajab2023}, and recent
-work has focused on discharge and hydrological modeling in the Old Brahmaputra
-basin \cite{Islam2026a,Islam2026b}. Together they show that data-driven
-forecasting works here, and they repeatedly note that individual stations have
-their own character, which averaging tends to wash out.
+The forecasting problem has been approached from several directions. Ruma et
+al.\ forecast water levels across a wide network of Bangladeshi stations using
+an optimized LSTM \cite{Ruma2023}. Other studies combined climatic variables
+with machine learning to predict flooding \cite{Rakin2023,Rajab2023}, and
+recent work has addressed discharge and hydrological modeling in the Old
+Brahmaputra basin \cite{Islam2026a,Islam2026b}. Taken together, these studies
+show that data-driven forecasting is feasible in Bangladesh. They also note,
+repeatedly, that individual stations have their own hydrological character,
+which a single averaged model tends to obscure.
 
 \section{Importance of Water-Level Forecasting}
 \label{sec:1.3}
 
-Forecasts that are reliable, timely and sensitive to a station's place in the
-river network support flood preparedness, early warning and disaster risk
+Reliable and timely forecasts that reflect a station's position in the river
+network support flood preparedness, early warning and disaster risk
 reduction. Different lead times serve different decisions: a forecast a few
-hours ahead supports an immediate response, while one several days ahead is
-better suited to planning.
+hours ahead supports immediate response, whereas a forecast several days ahead
+supports planning.
 
-Longer forecasts are harder to get right. Even so, machine-learning and
-deep-learning models have shown real potential for multi-step forecasting
-several days ahead \cite{Islam2026a,Ruma2023}. Encoder--decoder architectures
-have been used for multi-step flood forecasting and produce a whole sequence of
-future values at once, not one prediction at a time \cite{Kao2020,Cui2022},
-although both of those studies were evaluated at horizons of hours, not days,
-a point Chapter~2 returns to. A framework that forecasts from the near term to
-the longer term gives a fuller picture than one built around a single lead
-time.
+Accuracy becomes harder to maintain as the lead time increases. Even so,
+machine-learning and deep-learning models have shown clear potential for
+multi-step forecasting several days ahead \cite{Islam2026a,Ruma2023}.
+Encoder--decoder architectures have been applied to multi-step flood
+forecasting because they generate a whole sequence of future values at once
+rather than one value at a time \cite{Kao2020,Cui2022}. Both of those studies,
+however, were evaluated at horizons of hours rather than days, a limitation
+revisited in Chapter~2. A framework that covers lead times from the near term
+to several days ahead gives decision-makers a more complete picture than one
+built around a single horizon.
 
 \section{Problem Statement}
 \label{sec:1.4}
 
-Most water-level and flood-forecasting work in Bangladesh relies on a single
+Most water-level and flood-forecasting studies in Bangladesh rely on a single
 type of data or a narrow set of variables. Ruma et al.\ used water-level
-records alone \cite{Ruma2023}, recent discharge work has done the same with
+records alone \cite{Ruma2023}, recent work on discharge did the same with
 discharge \cite{Islam2026a}, and another line of research predicts flooding
 almost entirely from climatic information
-\cite{Rakin2023,Rajab2023,HemelSakib2024}. Each is useful, but none addresses
-what happens when discharge, water level and weather variables are combined
-across a large and hydrologically varied network of stations.
+\cite{Rakin2023,Rajab2023,HemelSakib2024}. Each approach is useful, but none
+examines what can be gained by combining discharge, water level and weather
+variables across a large and hydrologically varied network of stations.
 
-A second issue is where the data are trained. Stations in different parts of a
-river network differ statistically, and one model trained on all of them
-pooled together may represent none of them well. Bangladeshi studies have
-applied machine learning across multiple sites, but almost always assuming the
-data can first be brought together in one place
+A second issue concerns where the data are used for training. Stations in
+different parts of a river network differ statistically, and a single model
+trained on all of them together may represent none of them well. Studies in
+Bangladesh have applied machine learning across multiple sites, but almost
+always on the assumption that the data can first be collected in one place
 \cite{Islam2026a,Islam2026b,Ruma2023}.
 
-Federated learning offers an alternative: clients train a shared model
-collaboratively while their raw data stay where they are. McMahan et al.'s
-Federated Averaging (FedAvg) showed how updates from many clients can be
-combined without collecting the data centrally \cite{McMahan2017}. It works
-best when client data are fairly similar, and standard federated learning can
-struggle when they are not independent and identically distributed (non-IID)
-\cite{Zhu2021,Chen2025}, which is what one would expect across stations in
-different parts of a river system.
+Federated learning offers an alternative, in which clients train a shared
+model collaboratively while their raw data remain where they are. The
+Federated Averaging (FedAvg) algorithm of McMahan et al.\ showed how updates
+from many clients can be combined without gathering the data centrally
+\cite{McMahan2017}. FedAvg works best when client data are similar, however,
+and standard federated learning can struggle when data are not independent
+and identically distributed (non-IID) \cite{Zhu2021,Chen2025}, which is the
+situation expected among stations in different parts of a river system.
 
-Clustered Federated Learning (CFL) responds to this by grouping similar clients
-and training each group together, and such grouping has produced better-suited
-models than either a single global model or fully isolated local ones
-\cite{Ghosh2021,Harshvardhan2022,BenAli2026}. What is missing is an application
-of the idea to a real multi-station, multi-horizon water-level problem in
+Clustered Federated Learning (CFL) addresses this by grouping similar clients
+and training each group together. Such grouping has produced better-suited
+models than either a single global model or fully isolated local models
+\cite{Ghosh2021,Harshvardhan2022,BenAli2026}. The idea has not yet been applied
+to a real multi-station, multi-horizon water-level forecasting problem in
 Bangladesh.
 
-Finally, a forecast is only as useful as the trust placed in it, and trust is
-harder to build when a model cannot explain itself. SHAP is a widely used and
-well-grounded way of attributing a prediction to its inputs
-\cite{Lundberg2017}, and it has been applied to flood and water-level
-prediction \cite{Huang2024,Khorrami2025}.
+Finally, the value of a forecast depends on the trust placed in it, and trust
+is harder to establish when a model cannot explain its predictions. SHAP is a
+widely used and theoretically grounded method for attributing a prediction to
+its inputs \cite{Lundberg2017}, and it has been applied to flood and
+water-level prediction \cite{Huang2024,Khorrami2025}.
 
 The central problem of this thesis is therefore how to forecast water levels
-accurately, across several horizons, for hydrologically different Bangladeshi
+accurately across several horizons for hydrologically different Bangladeshi
 stations, without centralizing their raw data and while explaining what drives
 the predictions.
 
 \section{Research Motivation}
 \label{sec:1.5}
 
-Three strands of existing work motivate this study.
+This study is motivated by three strands of existing work.
 
-The first is architecture. Deep sequence models, and LSTM in particular, have
-proven effective for hydrological time series, including multi-step prediction
-\cite{Ruma2023,Kao2020,Cui2022}. Encoder--decoder LSTMs suit this task because
-they produce a sequence of future values directly, and recent Seq2Seq and
-residual-LSTM variants confirm the approach remains relevant
-\cite{Kao2020,Cui2022,Lim2025,Yuan2023}. This is the reason for choosing an
-encoder--decoder LSTM as the core forecasting model.
+The first concerns model architecture. Deep sequence models, and LSTM networks
+in particular, have proven effective for hydrological time series, including
+multi-step prediction \cite{Ruma2023,Kao2020,Cui2022}. Encoder--decoder LSTMs
+suit this task because they produce a sequence of future values directly, and
+recent Seq2Seq and residual-LSTM variants confirm that the approach remains
+relevant \cite{Kao2020,Cui2022,Lim2025,Yuan2023}. For this reason, an
+encoder--decoder LSTM is adopted as the core forecasting model.
 
-The second concerns how training is done. Federated learning allows
+The second concerns how training is organized. Federated learning enables
 collaborative training without moving raw observations \cite{McMahan2017}, but
-non-IID data are a genuine obstacle \cite{Zhu2021,Chen2025}. Clustering clients
-before training is one practical remedy
+non-IID data remain a genuine obstacle \cite{Zhu2021,Chen2025}. Clustering
+clients before training is one practical remedy
 \cite{Ghosh2021,Harshvardhan2022,BenAli2026}, and an early application to
-hydrological forecasting suggests the idea is workable \cite{Amanzholova2026}.
+hydrological forecasting suggests that the idea is workable
+\cite{Amanzholova2026}.
 
-The third is trust. When models inform decisions such as flood warnings, being
-able to say why a model predicted what it did matters as much as the
-prediction. SHAP provides a principled way to do this \cite{Lundberg2017}, and
-its use in flood modeling has revealed useful relationships between
-hydrometeorological inputs and outputs \cite{Huang2024,Khorrami2025,Parasar2025}.
+The third concerns trust. When a model informs decisions such as flood
+warnings, the ability to explain why it produced a given prediction matters as
+much as the prediction itself. SHAP offers a principled way to provide such
+explanations \cite{Lundberg2017}, and its use in flood modeling has revealed
+meaningful relationships between hydrometeorological inputs and model outputs
+\cite{Huang2024,Khorrami2025,Parasar2025}.
 
-None of the three is new on its own. What has not been done is to combine
-multivariate hydrometeorological inputs, an encoder--decoder model, cluster-aware
-federated training, multi-horizon forecasting and interpretability in one
-framework for Bangladesh.
+None of these elements is new on its own. What has not yet been done is to
+combine multivariate hydrometeorological inputs, an encoder--decoder model,
+cluster-aware federated training, multi-horizon forecasting and
+interpretability within a single framework for Bangladesh.
 
 \section{Research Gap}
 \label{sec:1.6}
 
-Each front has a reasonably developed literature: Bangladesh-specific
-forecasting \cite{Islam2026a,Islam2026b,Ruma2023,Rakin2023,Rajab2023,HemelSakib2024},
+Each of the relevant areas has a reasonably developed literature:
+Bangladesh-specific forecasting
+\cite{Islam2026a,Islam2026b,Ruma2023,Rakin2023,Rajab2023,HemelSakib2024},
 multi-step encoder--decoder models \cite{Kao2020,Cui2022,Lim2025,Yuan2023},
 federated learning and its non-IID problem
 \cite{McMahan2017,Zhu2021,Chen2025}, clustered federated learning
 \cite{Ghosh2021,Harshvardhan2022,BenAli2026}, and SHAP-based explanation in
-hydrology \cite{Lundberg2017,Huang2024,Khorrami2025}. What they lack is overlap.
+hydrology \cite{Lundberg2017,Huang2024,Khorrami2025}. What is missing is the
+overlap between them.
 
 No study identified in this review combines multi-horizon water-level
 forecasting, a large multivariate network of Bangladeshi stations, a
-cluster-aware federated architecture, SHAP-based interpretation, and a check
+cluster-aware federated architecture, SHAP-based interpretation and a check
 against an external reference such as the Flood Forecasting and Warning Centre
 (FFWC). This thesis addresses that gap with CFL-EDLSTM, a Clustered Federated
 Learning framework built around an encoder--decoder LSTM.
@@ -192,82 +205,93 @@ Learning framework built around an encoder--decoder LSTM.
 \section{Aim of the Study}
 \label{sec:1.7}
 
-The aim is to design, build and evaluate CFL-EDLSTM for multi-horizon,
-interpretable water-level forecasting at 25 hydrologically diverse monitoring
-stations within the Brahmaputra River system in Bangladesh, without pooling raw
-station data across regions. The study also presents the results through a
-web-based platform that shows station-level forecasts and compares them with
-FFWC water levels, which serve as an external reference and not as ground truth.
+The aim of this study is to design, build and evaluate CFL-EDLSTM for
+multi-horizon, interpretable water-level forecasting at 25 hydrologically
+diverse monitoring stations within the Brahmaputra River system in Bangladesh,
+without pooling raw station data across regions. The study also presents the
+results through a web-based platform that displays station-level forecasts and
+compares them with FFWC's operational forecasts, used as an external reference.
 
 \section{Research Objectives}
 \label{sec:1.8}
 
-The objectives of this study are:
+The objectives of this study are as follows:
 
 \begin{enumerate}
     \item To group the 25 hydrologically diverse monitoring stations within the
-    Brahmaputra River system into four meaningful clusters (Upstream,
-    Mid-river, Downstream and Urban).
+    Brahmaputra River system into four meaningful clusters: Upstream,
+    Mid-river, Downstream and Urban.
 
     \item To develop an encoder--decoder LSTM for multivariate, multi-horizon
-    forecasting at seven lead times from 3~hours to 15~days.
+    water-level forecasting at seven lead times from 3~hours to 15~days.
 
-    \item To integrate it within a clustered federated framework in which each
-    cluster is a federated client, weighted FedAvg combines the updates, and
-    each cluster keeps a locally adapted model, so raw data are not pooled
-    across clusters.
+    \item To integrate this model into a clustered federated framework in which
+    each cluster acts as a federated client, weighted FedAvg combines the
+    client updates, and each cluster retains a locally adapted model, so that
+    raw data are not pooled across clusters.
 
     \item To benchmark CFL-EDLSTM against Vanilla LSTM, GRU, XGBoost and TCN
-    across clusters and horizons.
+    across clusters and forecast horizons.
 
-    \item To apply SHAP to rank the hydrometeorological variables that
-    contribute to the predictions.
+    \item To apply SHAP to the proposed CFL-EDLSTM in order to rank the
+    hydrometeorological inputs that contribute most to its predictions,
+    excluding past water level.
 
-    \item To build a web-based platform that presents the forecasts and
-    compares them with FFWC water levels.
+    \item To develop a web-based platform that presents the forecasts and
+    compares them with FFWC's operational forecasts.
 \end{enumerate}
 
 \section{Research Questions}
 \label{sec:1.9}
+
+This study seeks to answer the following research questions:
 
 \begin{enumerate}
     \item How can 25 hydrologically diverse monitoring stations within the
     Brahmaputra River system in Bangladesh be grouped into clusters that are
     meaningful for federated training?
 
-    \item How effectively can an encoder--decoder LSTM forecast water level from
+    \item How accurately can an encoder--decoder LSTM forecast water level from
     3~hours to 15~days ahead?
 
-    \item How well does clustered federated learning handle heterogeneity among
-    the four clusters without pooling raw data across them?
+    \item How well does clustered federated learning handle the heterogeneity
+    among the four clusters without pooling raw data across them?
 
-    \item How does CFL-EDLSTM perform relative to the four baselines across
-    clusters and lead times?
+    \item How does CFL-EDLSTM perform relative to the four baseline models
+    across clusters and lead times?
 
-    \item Which inputs (water level, discharge, rainfall, temperature or
-    evaporation) contribute most according to SHAP, and do they make
-    hydrological sense?
+    \item Excluding past water level, which inputs (discharge, rainfall,
+    temperature, evaporation and the features derived from them) contribute
+    most to the forecasts of CFL-EDLSTM according to SHAP, and are their
+    contributions hydrologically plausible?
 
-    \item How do the forecasts compare with FFWC water levels, used as an
-    external reference and not as ground truth?
+    \item How do the forecasts compare with FFWC's operational forecasts,
+    used as an external reference?
 \end{enumerate}
+
+Questions~1 to~6 correspond to Objectives~1 to~6 in Section~\ref{sec:1.8}.
 
 \section{Scope of the Study}
 \label{sec:1.10}
 
-The study uses 25 monitoring stations within the Brahmaputra River system in
+The study covers 25 monitoring stations within the Brahmaputra River system in
 Bangladesh, grouped into four clusters (Upstream, Mid-river, Downstream and
-Urban) by hydrological character and position in the river network. It uses
-five variables, with water level as the target and discharge, rainfall,
-temperature and evaporation as inputs, and forecasts seven lead times from
-3~hours to 15~days. CFL-EDLSTM is compared with four baselines, reflecting the
-approaches common in recent flood-prediction literature \cite{Aghenda2025}, and
-interpreted with SHAP \cite{Lundberg2017,Huang2024}.
+Urban) according to their hydrological character and position in the river
+network, cross-checked against FFWC's operational station groups. The term
+\emph{Brahmaputra River system} is used here in a broad sense: it covers the
+Brahmaputra--Jamuna and the tributaries and distributaries connected to it,
+including the rivers around Dhaka. Five variables are used: water level as the target, and discharge,
+rainfall, temperature and evaporation as inputs. Forecasts are produced at
+seven lead times from 3~hours to 15~days. CFL-EDLSTM is compared with four
+baseline models that reflect approaches common in recent flood-prediction
+literature \cite{Aghenda2025}, and its predictions are interpreted with SHAP
+\cite{Lundberg2017,Huang2024}, with past water level excluded from the
+reported attributions.
 
-The study does not attempt real-time operational deployment, a mobile
-application or forecasting of any variable other than water level. The web
-interface demonstrates and checks the framework and is not an operational
-early-warning system.
+The study does not cover real-time operational deployment, a mobile
+application or the forecasting of any variable other than water level. The web
+interface serves to demonstrate and check the framework; it is not an
+operational early-warning system.
 
 \section{Contributions of the Study}
 \label{sec:1.11}
@@ -275,47 +299,51 @@ early-warning system.
 This thesis makes the following contributions:
 
 \begin{enumerate}
-    \item A clustering of 25 monitoring stations within the Brahmaputra River
-    system into four federated client groups (Upstream, Mid-river, Downstream
-    and Urban).
+    \item A grouping of 25 monitoring stations within the Brahmaputra River
+    system into four federated client groups: Upstream, Mid-river, Downstream
+    and Urban.
 
     \item CFL-EDLSTM, a clustered federated encoder--decoder LSTM for
     multivariate, multi-horizon water-level forecasting across heterogeneous
     stations, in which raw data are not pooled across clusters.
 
-    \item A comparison with four baselines across clusters and seven horizons.
+    \item A comparison of CFL-EDLSTM with four baseline models across clusters
+    and seven forecast horizons.
 
-    \item A SHAP analysis of which hydrometeorological inputs matter most.
+    \item A SHAP-based analysis of CFL-EDLSTM that identifies the
+    hydrometeorological inputs, other than past water level, that contribute
+    most to its forecasts.
 
-    \item A web-based platform that presents the forecasts alongside FFWC water
-    levels.
+    \item A web-based platform that presents the forecasts alongside FFWC's
+    operational forecasts.
 \end{enumerate}
 
 \section{Organization of the Thesis}
 \label{sec:1.12}
 
-The rest of the thesis is organized as follows.
+The remainder of this thesis is organized as follows.
 \textbf{Chapter~2} reviews the literature on flood and water-level forecasting
 in Bangladesh, multi-horizon deep learning, federated and clustered federated
-learning, and explainable AI, and ends with the research gap.
-\textbf{Chapter~3} describes the methodology: the study area and data,
-preprocessing, station clustering, the CFL-EDLSTM framework, the baselines, the
-evaluation design, the SHAP analysis and the web interface.
-\textbf{Chapter~4} presents and discusses the results, including the
-comparisons with the baselines, with FFWC and with earlier studies.
-\textbf{Chapter~5} concludes the thesis with the main findings, limitations and
+learning, and explainable AI, and concludes with the research gap.
+\textbf{Chapter~3} describes the methodology, covering the study area and data,
+preprocessing, station clustering, the CFL-EDLSTM framework, the baseline
+models, the evaluation design, the SHAP analysis and the web interface.
+\textbf{Chapter~4} presents and discusses the results, including comparisons
+with the baselines, with FFWC and with earlier studies. \textbf{Chapter~5}
+concludes the thesis with the main findings, limitations and directions for
 future work.
 
 \section{Summary}
 \label{sec:1.13}
 
-This chapter set out the context and purpose of the thesis. Bangladesh faces
-recurring floods that are driven partly by water arriving from outside its
-borders, and its stations behave very differently from one another. Earlier
-forecasting studies tend to rely on a narrow set of variables, assume that data
-can be pooled, and say little about why a model predicts what it does. The
-thesis therefore proposes CFL-EDLSTM, a clustered federated encoder--decoder
-LSTM for multi-horizon water-level forecasting at 25 stations in the
-Brahmaputra River system, supported by SHAP-based interpretation and a web
-interface for comparison with FFWC. Chapter~2 now reviews the literature behind
-these choices and sets out the research gap in detail.
+This chapter established the context and purpose of the thesis. Bangladesh
+experiences recurring floods driven partly by water arriving from beyond its
+borders, and its monitoring stations behave very differently from one another.
+Earlier forecasting studies tend to rely on a narrow set of variables, assume
+that data can be pooled, and offer little insight into why a model makes the
+predictions it does. To address these limitations, the thesis proposes
+CFL-EDLSTM, a clustered federated encoder--decoder LSTM for multi-horizon
+water-level forecasting at 25 stations in the Brahmaputra River system,
+supported by SHAP-based interpretation and a web interface for comparison with
+FFWC's operational forecasts. Chapter~2 reviews the literature underlying these choices and examines
+the research gap in detail.
