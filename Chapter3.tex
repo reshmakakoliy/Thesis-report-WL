@@ -1022,10 +1022,15 @@ alone, a limitation that Chapter~\ref{ch:results} keeps in view.
 \paragraph{Federated variants.}
 Because the proposed model is federated, comparing it with centrally trained
 baselines cannot show why the encoder--decoder LSTM was chosen as the model to
-federate. XGBoost, GRU and TCN were therefore also trained under the same
-clustered federated scheme as CFL-EDLSTM (the same four clusters, 30 rounds,
-three local epochs and weighted averaging; Section~\ref{sec:3.12}), giving
-CFL-XGBoost, CFL-GRU and CFL-TCN.Their results are reported in Section~\ref{sec:4.5.1}.
+federate. GRU and TCN were therefore also trained under the same clustered
+federated scheme as CFL-EDLSTM (the same four clusters, 30 rounds, three local
+epochs and weighted averaging; Section~\ref{sec:3.12}), giving CFL-GRU and
+CFL-TCN. XGBoost has no weights to average, so CFL-XGBoost uses prediction-level
+aggregation instead: each cluster keeps its own XGBoost estimator, trained on its
+own stations, no tree parameters are averaged or exchanged, and the server
+combines the clusters' predictions at inference time. It is
+therefore a clustered federated counterpart and not a FedAvg model. Their results
+are reported in Section~\ref{sec:4.5.1}.
 
 \subsection{Vanilla LSTM}
 \label{sec:3.13.1}

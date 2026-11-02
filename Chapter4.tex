@@ -177,9 +177,7 @@ presumably a recording error in the source records.
 
 Figure~\ref{fig:4.1} shows representative historical series of the five variables
 for one station, and Figure~\ref{fig:4.2} shows how the variables correlate with
-each other. [\textbf{Add one sentence naming the station in Figure~\ref{fig:4.1}
-and the one or two strongest correlations in Figure~\ref{fig:4.2}.}] The
-correlation matrix captures only linear association and should not be read as
+each other. The correlation matrix captures only linear association and should not be read as
 evidence of causation.
 
 \begin{figure}[htbp]
@@ -399,8 +397,9 @@ but the comparison is not strictly like for like.
 
 The baselines of Table~\ref{tab:4.2} are trained centrally, whereas CFL-EDLSTM is
 federated, so those results cannot show why the encoder--decoder LSTM was chosen
-as the model to federate. To test this, XGBoost, GRU and TCN were also trained
-under the same clustered federated scheme (Section~\ref{sec:3.13}).
+as the model to federate. To test this, GRU and TCN were also trained under the same clustered federated
+scheme, and XGBoost under a prediction-level counterpart of it
+(Section~\ref{sec:3.13}), giving CFL-GRU, CFL-TCN and CFL-XGBoost.
 Tables~\ref{tab:4.cfl-mae} and~\ref{tab:4.cfl-rmse} compare them with
 CFL-EDLSTM at the seven horizons.
 
@@ -464,19 +463,17 @@ leads and narrows with the horizon, because CFL-EDLSTM's error grows faster
 CFL-XGBoost is far behind. Its MAE stays between 4.8 and 5.7~m at every horizon,
 so CFL-EDLSTM's MAE is 92 to 97\% lower, and it barely changes with lead time
 (1.2-fold), unlike the centrally trained XGBoost, whose MAE is 0.07~m at 3~hours.
-Three features of tree ensembles probably explain this. Neural networks share one
-parameter vector, so averaging them across clients is meaningful, whereas boosted
-trees have none: each cluster builds trees with different structures, split points
-and leaf values, which cannot be averaged the way FedAvg combines weights. Any
-other way of combining them, here [\textbf{state the method used}], can lose what
-individual clusters learned or mix conflicting predictions. And each cluster's
-trees see only its own stations, which differ by tens of meters in water level, so
-they may miss relationships that are visible in the pooled data. A roughly constant
-error of about 5~m is consistent with a combined model that captures the general
-shape of the series but not the level of individual stations. We did not test
-these explanations, so CFL-XGBoost should be read as showing that this baseline
-does not carry over to the federated scheme, not as a general statement about
-tree models in federated learning.
+Boosted trees have no shared parameter vector, so FedAvg cannot be applied to them
+as it is to the recurrent and convolutional networks. CFL-XGBoost therefore keeps
+one estimator per cluster and combines their predictions at inference time, with
+no exchange of model updates. Each estimator sees only its own cluster's stations,
+whose water levels differ by tens of meters from those of the other clusters
+(Table~\ref{tab:4.cluster-features}), and trees cannot predict beyond the range of
+values seen in training. Predictions blended across clusters are then pulled toward
+the wrong level, which fits an error that is large, roughly constant and
+independent of lead time. We did not test this, so CFL-XGBoost should be read as
+showing that prediction-level aggregation does not work for this baseline, not as
+a general statement about tree models in federated learning.
 
 
 The federated GRU and TCN are also more accurate than their centrally trained
