@@ -11,7 +11,8 @@ objectives (Section~\ref{sec:5.4}), states the contributions of the work
 (Section~\ref{sec:5.5}), and is open about its limitations
 (Section~\ref{sec:5.6}). It ends with directions for future research
 (Section~\ref{sec:5.7}) and a final conclusion (Section~\ref{sec:5.8}). The
-detailed results are in Chapter~4, and this chapter only draws on them.
+detailed results are in Chapter~\ref{ch:results}, and this chapter only draws on
+them.
 
 \section{Summary of the Study}
 \label{sec:5.2}
@@ -31,19 +32,23 @@ Mid-river, Downstream and Urban. Each cluster acted as a federated client,
 trained locally, and contributed to a weighted federated-averaging step, while
 keeping a model adapted to its own stations. Forecasts were produced at seven
 horizons from 3~hours to 15~days and compared with four baselines (Vanilla
-LSTM, GRU, XGBoost and TCN). The trained models were then examined with SHAP,
+LSTM, GRU, XGBoost and TCN), three of which were also trained under the same
+clustered federated scheme. The trained models were then examined with SHAP,
 and the forecasts were made available through a web interface that also
 compares them with FFWC forecasts.
 
 \section{Major Findings}
 \label{sec:5.3}
 
-The results of Chapter~4 lead to five main findings.
+The results of Chapter~\ref{ch:results} lead to five main findings.
 
 First, CFL-EDLSTM was the most accurate model overall, with an MAE of
 0.321~m, an RMSE of 0.521~m and an NSE of 0.998. Its MAE was about 35\% lower
 than that of the best neural baseline (Vanilla LSTM) and about 40\% lower than
-that of XGBoost (Section~\ref{sec:4.5}).
+that of XGBoost (Section~\ref{sec:4.5}). When GRU, TCN and XGBoost are also
+trained under the same clustered federated scheme, CFL-EDLSTM still has the
+lowest MAE at every horizon, which supports choosing the encoder--decoder as the
+model to federate (Section~\ref{sec:4.5.1}).
 
 Second, the best model depends on the horizon. XGBoost was more accurate up to
 a one-day lead, but its error grew roughly sixteen-fold by 15~days, against
@@ -62,14 +67,14 @@ Fourth, SHAP showed that the models relied most on seasonal timing (day of
 year) and temperature, with rainfall accumulations contributing less and
 discharge features not appearing among the top 20, and that attribution was
 concentrated in the last few days of the 30-day input window
-(Section~\ref{sec:shap_results}). This describes what the models learned, not
-what drives the rivers.
+(Section~\ref{sec:4.9}). This describes what the models learned, not what
+drives the rivers.
 
 Fifth, in a short check against FFWC forecasts issued in October 2026,
 CFL-EDLSTM had the lower MAE for lead days 1 to 7 against FFWC's 10-day
 forecast and for days 1 to 3 against its 5-day forecast, while FFWC was ahead at
 the longest leads. The period was short and calm, so this is an encouraging
-first check and not a verdict (Section~\ref{sec:ffwc_comparison}).
+first check and not a verdict (Section~\ref{sec:4.11}).
 
 Compared with earlier work, the gain over a plain LSTM is of a similar size to
 that reported for the regional benchmark of Ruma et al.\ \cite{Ruma2023},
@@ -78,8 +83,8 @@ within the limits of an indirect comparison (Section~\ref{sec:4.13}).
 \section{Achievement of Research Objectives}
 \label{sec:5.4}
 
-Table~\ref{tab:5.1} sets each objective from Chapter~1 against what was
-delivered.
+Table~\ref{tab:5.1} sets each objective from Chapter~\ref{Ch_Chapter1} against
+what was delivered.
 
 \begin{table}[H]
 \centering
@@ -91,18 +96,19 @@ delivered.
 \textbf{Objective} & \textbf{Outcome} & \textbf{Section} \\
 \hline
 1. Cluster the stations & Four clusters defined from river position and FFWC
-grouping, with clear differences in level and rainfall & 3.10, 4.3 \\
+grouping, with clear differences in water level & \ref{sec:3.10}, \ref{sec:4.3} \\
 2. Develop the encoder--decoder LSTM & Multi-horizon forecasts at seven lead
-times from 3~hours to 15~days & 3.12, 4.6 \\
+times from 3~hours to 15~days & \ref{sec:3.12}, \ref{sec:4.6} \\
 3. Integrate it in clustered federated learning & Each cluster trained as a
 client with weighted averaging, keeping an adapted model; federation simulated
-on one machine & 3.12 \\
+on one machine & \ref{sec:3.12} \\
 4. Benchmark against four baselines & Lowest overall error and best from three
-days onward; lowest MAE at 24 of 25 stations & 4.5--4.8 \\
+days onward; lowest MAE at 24 of 25 stations; ahead of federated GRU, TCN and
+XGBoost at every horizon on MAE & \ref{sec:4.5}--\ref{sec:4.8} \\
 5. Apply SHAP & Inputs ranked overall; temperature and seasonal timing led &
-4.9 \\
+\ref{sec:4.9} \\
 6. Build a web platform & Interface with map, station forecasts, performance
-and FFWC comparison & 3.18, 4.11 \\
+and FFWC comparison & \ref{sec:3.18}, \ref{sec:4.11} \\
 \hline
 \end{tabular}
 \end{table}
@@ -113,16 +119,18 @@ Section~\ref{sec:5.6}.
 \section{Research Contributions}
 \label{sec:5.5}
 
-The thesis makes four contributions. It shows that stations in the Brahmaputra
+The thesis makes five contributions. It shows that stations in the Brahmaputra
 River system can be grouped by hydrological behavior into four clusters that
 work as federated clients without pooling raw data across them. It offers
-CFL-EDLSTM, a clustered federated encoder--decoder LSTM that, in these
-experiments, forecasts water level more accurately than four established
-baselines from three days to 15~days ahead. It provides a SHAP-based picture of
-which hydrometeorological inputs the models rely on. And it delivers a working
-web interface that places the forecasts beside FFWC's, so that the framework can
-be inspected by someone other than its authors. To our knowledge, no earlier
-study had brought these elements together for Bangladesh.
+CFL-EDLSTM, a clustered federated encoder--decoder LSTM for multivariate,
+multi-horizon water-level forecasting. It compares that model with four
+established baselines, centrally trained and, for three of them, federated,
+across clusters and seven horizons, and in these experiments it forecasts more
+accurately than all of them from three days to 15~days ahead. It provides a
+SHAP-based picture of which hydrometeorological inputs the models rely on. And
+it delivers a working web interface that places the forecasts beside FFWC's, so
+that the framework can be inspected by someone other than its authors. To our
+knowledge, no earlier study had brought these elements together for Bangladesh.
 
 \section{Limitations of the Study}
 \label{sec:5.6}
@@ -140,11 +148,13 @@ stations.
 \paragraph{Model and evaluation.}
 The federation was simulated on a single machine, each model was trained once
 without a fixed seed, and no systematic hyperparameter search was carried out.
-No ablation separates the contributions of clustering, federation and the
-encoder--decoder, so we describe the combined design as effective without
-crediting any one part. The clusters were fixed in advance from domain
-knowledge and not learned. Performance was uneven at SW291.5R, and XGBoost
-remained better up to about one day.
+Training the baselines under the same federated scheme shows that the
+encoder--decoder was the most accurate architecture, but no non-federated or
+single global encoder--decoder was trained, so the effect of clustering and
+federation on their own is not isolated. The centrally trained baselines also
+use fewer input features than CFL-EDLSTM. The clusters were fixed in advance
+from domain knowledge and not learned. Performance was uneven at SW291.5R, and
+XGBoost remained better up to about one day.
 
 \paragraph{Interpretation and comparison.}
 SHAP values describe the models and not causal effects, and correlated inputs
@@ -158,10 +168,9 @@ web interface is a research prototype and not an operational warning system.
 
 Several directions follow directly from these limits.
 
-The most immediate is to strengthen the evidence. Ablation runs would separate
-the effects of clustering, federation and the encoder--decoder, with a global
-encoder--decoder, a clustered model without the encoder--decoder and local-only
-models as references, and repeated runs with different seeds would show how
+The most immediate is to strengthen the evidence. A global encoder--decoder
+trained on all stations and local-only models would isolate the effect of
+clustering and federation, and repeated runs with different seeds would show how
 stable the results are. A systematic hyperparameter search and an evaluation
 over a full flood season, with a longer FFWC record, would also make the
 conclusions firmer.
@@ -185,7 +194,7 @@ larger sample would move the work toward practical use.
 This thesis asked whether a clustered federated encoder--decoder LSTM could
 forecast water level across hydrologically different stations in Bangladesh
 without pooling their raw data. Within the limits described above, the answer
-is yes. CFL-EDLSTM gave the lowest overall error of the five models, held its
+is yes. CFL-EDLSTM gave the lowest overall error of the models compared, held its
 accuracy far better than XGBoost as the lead time grew, and was the most
 accurate model from three days to 15~days, the horizons that matter most for
 early warning. SHAP and a web interface that sits beside FFWC's forecasts make

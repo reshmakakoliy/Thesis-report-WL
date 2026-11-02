@@ -391,6 +391,84 @@ metric is averaged over the windows a model sees, so the models are scored on
 slightly different window sets. The differences are small relative to the totals,
 but the comparison is not strictly like for like.
 
+
+\subsection{Clustered Federated Versions of the Baselines}
+\label{sec:4.5.1}
+
+The baselines of Table~\ref{tab:4.2} are trained centrally, whereas CFL-EDLSTM is
+federated, so those results cannot show why the encoder--decoder LSTM was chosen
+as the model to federate. To test this, XGBoost, GRU and TCN were also trained
+under the same clustered federated scheme (Section~\ref{sec:3.13}).
+Tables~\ref{tab:4.cfl-mae} and~\ref{tab:4.cfl-rmse} compare them with
+CFL-EDLSTM at the seven horizons.
+
+\begin{table}[htbp]
+  \centering
+  \caption{MAE (m) by Forecast Horizon of the Clustered Federated Models}
+  \label{tab:4.cfl-mae}
+  \small
+  \begin{tabular}{@{}l r r r >{\columncolor{gray!15}\bfseries}r@{}}
+    \toprule
+    \textbf{Horizon} & \textbf{CFL-XGBoost} & \textbf{CFL-GRU} & \textbf{CFL-TCN} & \textbf{CFL-EDLSTM} \\
+    \midrule
+    3 hours  & 4.818416 & 0.182353 & 0.300857 & 0.146071 \\
+    6 hours  & 4.875350 & 0.184782 & 0.299500 & 0.146148 \\
+    12 hours & 4.886524 & 0.186447 & 0.299229 & 0.153372 \\
+    1 day    & 4.834125 & 0.190435 & 0.281360 & 0.159568 \\
+    3 days   & 4.900385 & 0.255640 & 0.309611 & 0.226135 \\
+    7 days   & 5.392779 & 0.354579 & 0.409768 & 0.331961 \\
+    15 days  & 5.689445 & 0.455160 & 0.487644 & 0.436420 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+  \centering
+  \caption{RMSE (m) by Forecast Horizon of the Clustered Federated Models}
+  \label{tab:4.cfl-rmse}
+  \small
+  \begin{tabular}{@{}l r r r >{\columncolor{gray!15}\bfseries}r@{}}
+    \toprule
+    \textbf{Horizon} & \textbf{CFL-XGBoost} & \textbf{CFL-GRU} & \textbf{CFL-TCN} & \textbf{CFL-EDLSTM} \\
+    \midrule
+    3 hours  & 7.101499 & 0.305644 & 0.383526 & 0.225115 \\
+    6 hours  & 7.142208 & 0.311922 & 0.382672 & 0.228514 \\
+    12 hours & 7.159659 & 0.309447 & 0.382474 & 0.241373 \\
+    1 day    & 7.121286 & 0.311415 & 0.369218 & 0.249913 \\
+    3 days   & 7.204307 & 0.400334 & 0.428327 & 0.353110 \\
+    7 days   & 7.660213 & 0.544090 & 0.586865 & 0.524839 \\
+    15 days  & 8.103292 & 0.675751 & 0.714347 & 0.690191 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+CFL-EDLSTM has the lowest MAE at all seven horizons and the lowest RMSE at six of
+them. Against CFL-GRU, its MAE is 20\% lower at 3~hours and 4\% lower at 15~days
+(about 12\% lower on average over the seven checkpoints), and against CFL-TCN it
+is 51\% lower at 3~hours and 11\% lower at 15~days (about 33\% on average). The
+one exception is the RMSE at 15~days, where CFL-GRU is slightly ahead (0.676
+against 0.690~m). The margin over the federated GRU and TCN is largest at short
+leads and narrows with the horizon, because CFL-EDLSTM's error grows faster
+(about 3.0-fold from 3~hours to 15~days, against 2.5-fold for CFL-GRU and
+1.6-fold for CFL-TCN).
+
+CFL-XGBoost is far behind: its MAE stays between 4.8 and 5.7~m at every horizon,
+so CFL-EDLSTM's MAE is 92 to 97\% lower, and it barely changes with lead time
+(1.2-fold), which suggests it did not learn station-level behavior in the
+federated setting. Tree ensembles have no shared parameter vector to average, so
+they do not suit federated averaging the way recurrent and convolutional networks
+do.
+
+The federated GRU and TCN are also more accurate than their centrally trained
+versions (15-day MAE of 0.455 against 0.583~m for GRU, and 0.488 against 0.777~m
+for TCN, Table~\ref{tab:4.3}), which is consistent with the clustered federated
+scheme helping. We do not attribute this to federation alone, because the central
+and federated runs differ in inputs and window construction
+(Section~\ref{sec:3.13}). Taken together, the results support choosing the
+encoder--decoder LSTM as the model to federate: under identical training it was
+the most accurate of the four architectures at every horizon on MAE, with GRU the
+closest competitor.
+
 \section{Multi-Horizon Forecasting Results}
 \label{sec:4.6}
 
@@ -972,14 +1050,16 @@ Table~\ref{tab:4.2} mix two regimes. The long-range result also matters most in
 practice, since a 15-day forecast is where flood preparedness gains the most.
 
 \paragraph{Against the neural baselines.}
-CFL-EDLSTM was better than the Vanilla LSTM, GRU and TCN at every horizon, by
-roughly 28--44\% depending on the metric. Because the Vanilla LSTM uses the same
-cells, the gain comes from the encoder--decoder structure, the clustered federated
-training and the richer input features together, and these experiments cannot
-separate them. Doing so would need a non-encoder--decoder model trained under the
-same clustered scheme, a single global encoder--decoder trained on all stations, and
-baselines given the same 42 features. Until then we describe the combined design as
-effective without crediting any one component.
+CFL-EDLSTM was better than the centrally trained Vanilla LSTM, GRU and TCN at every
+horizon, by roughly 28--44\% depending on the metric. When GRU, TCN and XGBoost are
+also trained under the clustered federated scheme (Section~\ref{sec:4.5.1}),
+CFL-EDLSTM still has the lowest MAE at every horizon, so the encoder--decoder
+structure appears to contribute beyond the training scheme itself, at least
+relative to these three. What the experiments still cannot separate is the effect
+of clustering and federation from that of the architecture, because no
+non-federated or single global encoder--decoder was trained, and the centrally
+trained baselines use fewer input features. Until then we describe the combined
+design as effective without crediting any one component.
 
 \paragraph{Stations and clusters.}
 Averages also hide where errors sit. XGBoost has the weakest overall RMSE although

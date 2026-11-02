@@ -948,7 +948,7 @@ all four clusters.
 \label{sec:3.13}
 
 Four baselines give CFL-EDLSTM something concrete to be measured against:
-XGBoost, Vanilla LSTM, GRU and TCN. Table~\ref{tab:3.6} summarizes them.
+XGBoost, Vanilla LSTM, GRU and TCN. Table~\ref{tab:3.6} summarizes them.Federated versions of four of them are compared in Section~\ref{sec:4.5.1}.
 XGBoost is Baseline~0, a sanity check, the Vanilla LSTM is the standard recurrent
 reference (Baseline~1), and the GRU (Baseline~2) tests the effect of the
 recurrent cell. The TCN is a secondary convolutional comparison.
@@ -1019,6 +1019,14 @@ water-level values plus the current readings, time features and a station
 indicator, whereas CFL-EDLSTM uses 42 engineered features. Part of CFL-EDLSTM's
 advantage may therefore come from richer inputs and not from its architecture
 alone, a limitation that Chapter~\ref{ch:results} keeps in view.
+
+\paragraph{Federated variants.}
+Because the proposed model is federated, comparing it with centrally trained
+baselines cannot show why the encoder--decoder LSTM was chosen as the model to
+federate. XGBoost, GRU and TCN were therefore also trained under the same
+clustered federated scheme as CFL-EDLSTM (the same four clusters, 30 rounds,
+three local epochs and weighted averaging; Section~\ref{sec:3.12}), giving
+CFL-XGBoost, CFL-GRU and CFL-TCN.Their results are reported in Section~\ref{sec:4.5.1}.
 
 \subsection{Vanilla LSTM}
 \label{sec:3.13.1}
