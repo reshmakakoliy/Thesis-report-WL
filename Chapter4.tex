@@ -8,17 +8,19 @@
 This chapter reports what happened when the procedure of
 Chapter~\ref{ch:methodology} was run. It begins with the data the models were
 trained and tested on (Section~\ref{sec:4.2}), then presents the clustering
-outcome (Section~\ref{sec:4.3}), the performance of CFL-EDLSTM on its own
-(Section~\ref{sec:4.4}) and its comparison with the baselines
-(Section~\ref{sec:4.5}). The results are then broken down by forecast horizon
-(Sections~\ref{sec:4.6} and~\ref{sec:4.8}), by cluster (Section~\ref{sec:4.7}) and
-by station (Section~\ref{sec:4.10}), with the SHAP analysis in
-Section~\ref{sec:4.9}. The remaining sections compare the model with FFWC
-(Section~\ref{sec:4.11}), discuss the findings (Section~\ref{sec:4.12}) and place
-them beside earlier studies (Section~\ref{sec:4.13}), and the chapter closes with
-a summary (Section~\ref{sec:4.14}). Performance is judged mainly on MAE and RMSE
-in meters, since both stay comparable across architectures and are expressed in
-the unit of the readings themselves.
+outcome (Section~\ref{sec:4.3}) and the performance of CFL-EDLSTM on its own
+(Section~\ref{sec:4.4}). Section~\ref{sec:4.5} compares it with the baselines,
+first as centrally trained models and then, in Section~\ref{sec:4.5.1}, as
+versions trained under the same clustered federated scheme, to show why the
+encoder--decoder was chosen as the model to federate. The results are then broken
+down by forecast horizon (Sections~\ref{sec:4.6} and~\ref{sec:4.8}), by cluster
+(Section~\ref{sec:4.7}) and by station (Section~\ref{sec:4.10}), with the SHAP
+analysis in Section~\ref{sec:4.9}. The remaining sections compare the model with
+FFWC (Section~\ref{sec:4.11}), discuss the findings (Section~\ref{sec:4.12}) and
+place them beside earlier studies (Section~\ref{sec:4.13}), and the chapter closes
+with a summary (Section~\ref{sec:4.14}). Performance is judged mainly on MAE and
+RMSE in meters, since both stay comparable across architectures and are expressed
+in the unit of the readings themselves.
 
 \section{Experimental Setup and Dataset Characteristics}
 \label{sec:4.2}
@@ -452,12 +454,30 @@ leads and narrows with the horizon, because CFL-EDLSTM's error grows faster
 (about 3.0-fold from 3~hours to 15~days, against 2.5-fold for CFL-GRU and
 1.6-fold for CFL-TCN).
 
-CFL-XGBoost is far behind: its MAE stays between 4.8 and 5.7~m at every horizon,
+% CFL-XGBoost is far behind: its MAE stays between 4.8 and 5.7~m at every horizon,
+% so CFL-EDLSTM's MAE is 92 to 97\% lower, and it barely changes with lead time
+% (1.2-fold), which suggests it did not learn station-level behavior in the
+% federated setting. Tree ensembles have no shared parameter vector to average, so
+% they do not suit federated averaging the way recurrent and convolutional networks
+% do.
+
+CFL-XGBoost is far behind. Its MAE stays between 4.8 and 5.7~m at every horizon,
 so CFL-EDLSTM's MAE is 92 to 97\% lower, and it barely changes with lead time
-(1.2-fold), which suggests it did not learn station-level behavior in the
-federated setting. Tree ensembles have no shared parameter vector to average, so
-they do not suit federated averaging the way recurrent and convolutional networks
-do.
+(1.2-fold), unlike the centrally trained XGBoost, whose MAE is 0.07~m at 3~hours.
+Three features of tree ensembles probably explain this. Neural networks share one
+parameter vector, so averaging them across clients is meaningful, whereas boosted
+trees have none: each cluster builds trees with different structures, split points
+and leaf values, which cannot be averaged the way FedAvg combines weights. Any
+other way of combining them, here [\textbf{state the method used}], can lose what
+individual clusters learned or mix conflicting predictions. And each cluster's
+trees see only its own stations, which differ by tens of meters in water level, so
+they may miss relationships that are visible in the pooled data. A roughly constant
+error of about 5~m is consistent with a combined model that captures the general
+shape of the series but not the level of individual stations. We did not test
+these explanations, so CFL-XGBoost should be read as showing that this baseline
+does not carry over to the federated scheme, not as a general statement about
+tree models in federated learning.
+
 
 The federated GRU and TCN are also more accurate than their centrally trained
 versions (15-day MAE of 0.455 against 0.583~m for GRU, and 0.488 against 0.777~m
@@ -529,9 +549,16 @@ against 2.372~m, a reduction of about 71\%.
 The crossover comes from how differently the errors grow. From 3~hours to 15~days
 XGBoost's MAE rises about 16-fold, against about 3.0-fold for CFL-EDLSTM, 2.6-fold
 for Vanilla LSTM and 1.9-fold for both GRU and TCN, and at 7 and 15~days XGBoost
-is the weakest of the five on both metrics. A plausible reason is that it relies
-heavily on recent lagged values, which are very informative at short leads and
-lose value as the horizon extends, although we did not test this. The neural
+is the weakest of the five on both metrics. A likely reason is how each model uses its inputs. XGBoost is given the 150
+latest water-level values directly, together with the current readings of the
+other variables, and tree ensembles suit structured inputs of this kind. At short
+leads, where the next value is close to the latest ones, its trees can read the
+answer almost directly from these values. The advantage fades with the horizon,
+because the latest values carry less information about water levels days ahead
+and each of its 75 regressors is trained independently, with no shared trajectory
+across steps. The sequence models must first learn a temporal representation from
+the input window, which costs them accuracy at short leads, but they carry that
+representation forward and degrade more gently. The neural
 models start from a higher floor but degrade more gently, and CFL-EDLSTM's MAE is
 almost flat over the first day (0.146 to 0.160~m).
 
@@ -1059,7 +1086,9 @@ relative to these three. What the experiments still cannot separate is the effec
 of clustering and federation from that of the architecture, because no
 non-federated or single global encoder--decoder was trained, and the centrally
 trained baselines use fewer input features. Until then we describe the combined
-design as effective without crediting any one component.
+design as effective without crediting any one component.Federating XGBoost was far less successful than federating the neural models
+(Section~\ref{sec:4.5.1}), which suggests that tree ensembles do not carry over to
+federated averaging as readily.
 
 \paragraph{Stations and clusters.}
 Averages also hide where errors sit. XGBoost has the weakest overall RMSE although
@@ -1323,9 +1352,9 @@ from 3 hours to 15 days.
 \section{Summary}
 \label{sec:4.14}
 
-This chapter evaluated CFL-EDLSTM on 25 monitoring stations against four baselines at
-seven horizons from 3 hours to 15 days. Table~\ref{tab:4.summary} lists the main
-findings.
+This chapter evaluated CFL-EDLSTM on 25 monitoring stations against four
+baselines at seven horizons from 3 hours to 15 days. Table~\ref{tab:4.summary}
+lists the main findings.
 
 \begin{table}[htbp]
   \centering
@@ -1338,23 +1367,28 @@ findings.
     \textbf{Topic} & \textbf{Finding} & \textbf{Section} \\
     \midrule
     Clusters & The four clusters differ most in water level (2.1 to 28.2~mMSL on average) and little in temperature & \ref{sec:4.3} \\
-    Overall accuracy & CFL-EDLSTM gave the lowest MAE (0.321~m) and RMSE (0.521~m) and the highest NSE (0.998) of the five models & \ref{sec:4.4}, \ref{sec:4.5} \\
+    Overall accuracy & CFL-EDLSTM gave the lowest MAE (0.321~m) and RMSE (0.521~m) and the highest NSE (0.998) of the models compared & \ref{sec:4.4}, \ref{sec:4.5} \\
     Comparison with baselines & MAE was about 35\% lower than Vanilla LSTM and about 40\% lower than XGBoost; XGBoost had the weakest RMSE & \ref{sec:4.5} \\
+    Federated baselines & Under the same clustered federated scheme, CFL-EDLSTM had the lowest MAE at every horizon, ahead of federated GRU, TCN and XGBoost & \ref{sec:4.5.1} \\
     Forecast horizon & XGBoost was best up to 1 day; CFL-EDLSTM was best from 3 days, with a 15-day MAE of 0.436~m against 1.149~m & \ref{sec:4.6}, \ref{sec:4.8} \\
     Clusters and stations & MAE ranged from 0.252 to 0.394~m across clusters; CFL-EDLSTM had the lowest MAE at 24 of 25 stations & \ref{sec:4.7}, \ref{sec:4.10} \\
     Interpretability & SHAP showed reliance on seasonal timing, temperature and the most recent days of input, with rainfall accumulations weaker & \ref{sec:4.9} \\
     Comparison with FFWC & Lower MAE than FFWC at short and medium leads over a short, calm period; FFWC ahead at the longest leads & \ref{sec:4.11} \\
-    Limitations & Contributions of clustering, federation and the encoder--decoder not separated; single training run; filled data & \ref{sec:4.12} \\
+    Limitations & Effect of clustering and federation alone not isolated; single training run; filled data & \ref{sec:4.12} \\
     \bottomrule
   \end{tabularx}
 \end{table}
 
-Three points stand out. First, CFL-EDLSTM was the most accurate model overall and from
-three days onward, and its error grew far more slowly with lead time than XGBoost's,
-which made it preferable at the longer horizons that matter most for early warning.
-Second, its performance was more even across stations than any baseline's, although it
-varied between clusters and showed one clear weakness at the highest-level station.
-Third, the gain over a plain LSTM is of a similar size to that of the regional
-benchmark (Section~\ref{sec:4.13}) and an initial check against FFWC was encouraging,
-within the limits of indirect and short comparisons. The next chapter draws the
-conclusions of the thesis, states its limitations and suggests future work.
+Four points stand out. First, CFL-EDLSTM was the most accurate model overall and
+from three days onward, and its error grew far more slowly with lead time than
+XGBoost's, which made it preferable at the longer horizons that matter most for
+early warning. Second, when GRU, TCN and XGBoost were trained under the same
+clustered federated scheme, the encoder--decoder still gave the lowest MAE at
+every horizon, which supports choosing it as the model to federate. Third, its
+performance was more even across stations than any baseline's, although it varied
+between clusters and showed one clear weakness at the highest-level station.
+Fourth, the gain over a plain LSTM is of a similar size to that of the regional
+benchmark (Section~\ref{sec:4.13}), and an initial check against FFWC was
+encouraging, within the limits of indirect and short comparisons. The next chapter
+draws the conclusions of the thesis, states its limitations and suggests future
+work.
