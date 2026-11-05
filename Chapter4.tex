@@ -954,11 +954,62 @@ others (Figure~\ref{fig:raw-wl-timeseries}). There CFL-EDLSTM has an MAE of
 LSTM. This is the one station where the proposed model is not among the best,
 and its unusual level is a plausible reason, though we did not test it.
 
-\paragraph{Link to the cluster analysis.}
-The station results show that CFL-EDLSTM's advantage does not come from a few
-easy stations. It holds at most stations across a very wide range of water
-levels, and no station produces the large errors seen with XGBoost or TCN.
-Section~\ref{sec:4.7} looks at these differences by cluster.
+\paragraph{Station results by cluster.}
+Grouping the station errors by cluster (Table~\ref{tab:4.station-cluster}) shows
+that the ranking of Section~\ref{sec:4.7} holds up at the level of single
+stations. The Urban cluster is the most consistent: all six of its stations have
+an MAE between 0.20 and 0.29~m, and CFL-EDLSTM beats the other four models at
+every one of them. Mid-river is the hardest, with all eight stations between 0.35
+and 0.47~m and the largest error of any station (SW225, 0.466~m). Upstream is the
+most uneven. It holds both the most accurate station in the study (SW294,
+0.177~m) and the model's one clear weak spot, SW291.5R (0.378~m), the station near
+50~mMSL that sits far above all the others. Leave that station out and the
+cluster's mean MAE drops to 0.277~m, close to Urban's 0.252~m. Downstream falls
+in between, at 0.30 to 0.40~m.
+
+\begin{table}[htbp]
+  \centering
+  \caption{CFL-EDLSTM station-level MAE (m) by cluster.}
+  \label{tab:4.station-cluster}
+  \small
+  \begin{tabular}{@{}l c l l r c@{}}
+    \toprule
+    \textbf{Cluster} & \textbf{Stations} & \textbf{Lowest} & \textbf{Highest} & \textbf{Mean} & \textbf{Best of 5 models} \\
+    \midrule
+    Urban      & 6 & SW68.5 (0.201) & SW42 (0.292)    & 0.252 & 6 of 6 \\
+    Upstream   & 6 & SW294 (0.177)  & SW291.5R (0.378) & 0.294 & 5 of 6 \\
+    Downstream & 5 & SW68A (0.296)  & SW147.5 (0.396) & 0.321 & 5 of 5 \\
+    Mid-river  & 8 & SW97 (0.350)   & SW225 (0.466)   & 0.394 & 8 of 8 \\
+    \bottomrule
+  \end{tabular}
+  \caption*{\footnotesize Mean is the mean of the station MAEs in the cluster; ``best'' refers to MAE.}
+\end{table}
+
+% The four stations in Figure~\ref{fig:4.cfl-cluster-forecast} broadly fit this
+% picture. Their errors rise from Kaunia (Upstream, 0.177~m) through Mirpur (Urban,
+% 0.244~m) and Taraghat (Downstream, 0.309~m) to Fulchari (Mid-river, 0.364~m), so
+% the Downstream and Mid-river stations come last, as their clusters do; Kaunia
+% comes first only because it is the best station in the whole study. At all four,
+% the model follows the broad trend but not the sharper drops or short-term
+% fluctuations, so a low error here probably says more about how smoothly a
+% station's level changes than about sharper tracking.
+
+A few observations hint at why the clusters differ. The Urban cluster seems easy
+for the neural models in general, not just CFL-EDLSTM: Vanilla LSTM and GRU also
+have their lowest errors there (mean station MAE of 0.38 and 0.35~m, against 0.55
+and 0.85~m in Mid-river), so part of that ease looks like a property of the data.
+XGBoost is the exception, with its highest errors in this cluster
+(Section~\ref{sec:4.10}). The Urban stations also sit at the lowest levels, about
+2~mMSL on average (Table~\ref{tab:4.cluster-features}), on neighboring channels,
+which is exactly the situation in which one cluster model can serve several
+stations well. Mid-river is the largest cluster (eight stations, 32\% of the
+aggregation weight), so a single model has to cover more varied stations, and its
+mainstem stations respond to flows from catchments outside Bangladesh that our
+data do not reach. CFL-EDLSTM's lead over the best baseline in each cluster is
+widest in Downstream (about 33\% lower mean MAE than Vanilla LSTM) and narrowest
+in Upstream (about 7.5\% lower than XGBoost), where XGBoost does comparatively well
+at several stations. We did not test these explanations, and with only four
+clusters they remain suggestions rather than findings.
 
 \section{Comparison with FFWC}
 \label{sec:4.11}
