@@ -130,6 +130,7 @@
 \setcounter{tocdepth}{2}
 %
 \switchchapter{fake} 
+\phantomsection
 \addcontentsline{toc}{chapter}{Abstract}
 %
 \include{Abstract}
@@ -137,7 +138,8 @@
 % adding the acknowledgment 
 % this also adds the acknowledgment in the table of contents
 \switchchapter{fake} 
-\addcontentsline{toc}{chapter}{Acknowledgment}
+\phantomsection
+\addcontentsline{toc}{chapter}{Acknowledgement}
 %
 \include{Acknowledgment}
 %
@@ -154,16 +156,24 @@
 %
 %: ----------------------- list of figures ------------------------
 \switchchapter{fake} 
-%\addcontentsline{toc}{chapter}{List of Figures}
+\phantomsection
+\addcontentsline{toc}{chapter}{List of Figures}
 \listoffigures	% print list of figures
 \cleardoublepage
 %
 %: ----------------------- list of tables ------------------------
 \switchchapter{fake} 
-%\addcontentsline{toc}{chapter}{List of Tables}
+\phantomsection
+\addcontentsline{toc}{chapter}{List of Tables}
 \listoftables  % print list of tables
+\cleardoublepage
+%
+%: ----------------------- list of abbreviations ------------------------
+\switchchapter{fake}
+\phantomsection
+\addcontentsline{toc}{chapter}{List of Abbreviations}
+\input{Abbreviations}
 \switchchapter{real}
-\newpage
 %
 \mainmatter{}
 \fancyhead[RE,LO]{{\thesection}\hspace{0.5em} {\footnotesize\rightmark} }

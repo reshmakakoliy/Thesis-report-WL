@@ -172,12 +172,14 @@ research prototype, not an operational warning system.
 
 Several directions for future work follow directly from these limitations.
 
-The most immediate is to strengthen the evidence. Training a global
-encoder--decoder on all stations, together with local-only models, would
-isolate the effect of clustering and federation, and repeated runs with
-different seeds would show how stable the results are. A systematic
-hyperparameter search and an evaluation over a full flood season, with a longer
-FFWC record, would further strengthen the conclusions.
+The first step is to make the evidence stronger. We did not train a single shared
+model for all 25 stations, or a separate model for each station, so we cannot yet
+say how much of the gain comes from clustering and federation themselves.
+Training both would answer that. We also trained each model only once, so
+repeating the runs with different random seeds would show whether the results
+hold steady. Finally, tuning the model settings more carefully and testing over
+a full flood season, with a longer comparison against FFWC, would show how well
+the model performs when it matters most.
 
 A second direction is to improve the inputs and the clustering. Upstream data
 from across the border, satellite or forecast rainfall and more complete

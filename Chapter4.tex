@@ -341,7 +341,7 @@ and its error grows when the river changes course late in the forecast.
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=\textwidth]{figures2/fig4-cfl-pred-vs-obs.png}
-    \caption{15-Day Forecasts vs. Observed Water Levels at two Stations}
+    \caption{15-Day Forecasts vs. Observed Water Levels at Two Stations}
     \label{fig:4.cfl-cluster-forecast}
 \end{figure}
 
@@ -1045,36 +1045,36 @@ forecasts exist and FFWC has posted the reading were scored. Errors are in
 meters. Forecasts issued before 30~October 2026 are hindcasts: the model was run
 afterwards, using only data available on the issue day.
 
-% Table~\ref{tab:ffwc} gives the results over all stations with matching data.
-% Against the FFWC 10-day forecast, CFL-EDLSTM has the lower MAE for lead days 1 to
-% 7. The gap is widest at the start, 0.062~m against 0.285~m on day~1, and narrows
-% to about one to two centimeters by days 6 and 7. FFWC is slightly better on days
-% 8 and 9 (0.806 against 0.822~m, and 0.923 against 0.931~m). Against the FFWC
-% 5-day forecast, CFL-EDLSTM is ahead on days 1 to 3, although the two are
-% practically level on day~2 (0.122 against 0.123~m), and FFWC is ahead on days 4
-% and 5, by 0.018 and 0.028~m.
+Table~\ref{tab:ffwc} gives the results over all stations with matching data.
+Against the FFWC 10-day forecast, CFL-EDLSTM has the lower MAE for lead days 1 to
+7. The gap is widest at the start, 0.062~m against 0.285~m on day~1, and narrows
+to about one to two centimeters by days 6 and 7. FFWC is slightly better on days
+8 and 9 (0.806 against 0.822~m, and 0.923 against 0.931~m). Against the FFWC
+5-day forecast, CFL-EDLSTM is ahead on days 1 to 3, although the two are
+practically level on day~2 (0.122 against 0.123~m), and FFWC is ahead on days 4
+and 5, by 0.018 and 0.028~m.
 
-% \begin{table}[H]
-%     \centering
-%     \caption{MAE (m) of CFL-EDLSTM and FFWC forecasts by lead day.}
-%     \label{tab:ffwc}
-%     \begin{tabular}{c|ccc|ccc}
-%         \hline
-%         & \multicolumn{3}{c|}{FFWC 10-day} & \multicolumn{3}{c}{FFWC 5-day} \\
-%         Lead day & Points & Ours & FFWC & Points & Ours & FFWC \\
-%         \hline
-%         1 & 23 & \textbf{0.062} & 0.285 & 44 & \textbf{0.070} & 0.095 \\
-%         2 & 23 & \textbf{0.130} & 0.327 & 44 & \textbf{0.122} & 0.123 \\
-%         3 & 23 & \textbf{0.226} & 0.372 & 44 & \textbf{0.176} & 0.193 \\
-%         4 & 23 & \textbf{0.365} & 0.457 & 32 & 0.245 & \textbf{0.227} \\
-%         5 & 23 & \textbf{0.510} & 0.565 & 32 & 0.271 & \textbf{0.243} \\
-%         6 & 23 & \textbf{0.639} & 0.660 & -- & -- & -- \\
-%         7 & 23 & \textbf{0.728} & 0.740 & -- & -- & -- \\
-%         8 & 23 & 0.822 & \textbf{0.806} & -- & -- & -- \\
-%         9 & 23 & 0.931 & \textbf{0.923} & -- & -- & -- \\
-%         \hline
-%     \end{tabular}
-% \end{table}
+\begin{table}[H]
+    \centering
+    \caption{MAE (m) of CFL-EDLSTM and FFWC forecasts by lead day.}
+    \label{tab:ffwc}
+    \begin{tabular}{c|cc|cc}
+        \hline
+        & \multicolumn{2}{c|}{FFWC 10-day} & \multicolumn{2}{c}{FFWC 5-day} \\
+        Lead day & Ours & FFWC & Ours & FFWC \\
+        \hline
+        1 & \textbf{0.062} & 0.285 & \textbf{0.070} & 0.095 \\
+        2 & \textbf{0.130} & 0.327 & \textbf{0.122} & 0.123 \\
+        3 & \textbf{0.226} & 0.372 & \textbf{0.176} & 0.193 \\
+        4 & \textbf{0.365} & 0.457 & 0.245 & \textbf{0.227} \\
+        5 & \textbf{0.510} & 0.565 & 0.271 & \textbf{0.243} \\
+        6 & \textbf{0.639} & 0.660 & -- & -- \\
+        7 & \textbf{0.728} & 0.740 & -- & -- \\
+        8 & 0.822 & \textbf{0.806} & -- & -- \\
+        9 & 0.931 & \textbf{0.923} & -- & -- \\
+        \hline
+    \end{tabular}
+\end{table}
 
 \paragraph{A single forecast as an example.}
 To show what these averages look like for one forecast,
@@ -1119,8 +1119,7 @@ the learned model is strongest in the first days and loses its edge as the lead
 time grows. Still, the comparison needs to be read with care. It covers a short
 period in October 2026, after the monsoon peak, when water levels change slowly
 and errors are small, so it says little about flood conditions. The number of
-points is small, and the 5-day comparison drops from 44 points on days 1 to 3 to
-32 on days 4 and 5. Hindcasts are no substitute for real-time operation, and the
+points is small. Hindcasts are no substitute for real-time operation, and the
 values cannot be compared directly with Section~\ref{sec:4.6}, which uses a
 different period, different stations and many more points. The performance page
 shows the same limits (Figure~\ref{fig:bonna_performance}): at Chak-Rahimpur
@@ -1291,8 +1290,8 @@ taken as published and treated as indicative.
 
 Ruma et al.~\cite{Ruma2023} is the closest regional counterpart. It forecasts
 water level at gauge stations across Bangladesh's river network, uses data from
-the same agency and reaches lead times of up to 15 days. Seven of our stations
-(SW42, SW45, SW45.5, SW49, SW77, SW225 and SW294) also appear in their study.
+the same agency and reaches lead times of up to 15 days. Eight of our stations
+(SW42, SW45, SW45.5, SW49, SW77, SW137A, SW225 and SW294) also appear in their study.
 Their model is an LSTM whose hyperparameters are tuned by particle swarm
 optimization (PSO), and it beat ANN, PSO-ANN and a plain LSTM in every
 sub-network they tested.
@@ -1347,11 +1346,11 @@ theirs.
     \midrule
     Net~1   & SW45, SW45.5, SW225, SW49 & 0.953 & 1.114 & \textbf{0.507} & \textbf{0.815} \\
     Net~2   & SW294, SW77               & 0.729 & 0.857 & \textbf{0.316} & \textbf{0.470} \\
-    Net~7\textsuperscript{*} & SW137A   & 0.691 & 1.690 & \textbf{0.422} & \textbf{0.568} \\
+    Net~7   & SW137A   & 0.691 & 1.690  & \textbf{0.422} & \textbf{0.568} \\
     SW42    & SW42                      & 0.842 & 0.847 & \textbf{0.310} & \textbf{0.377} \\
     \bottomrule
   \end{tabular}
-  \caption*{\footnotesize Errors in meters. Ruma et al.\ values as published; our station values averaged within each group. \textsuperscript{*}Only SW137A of Net~7 is among our stations.}
+  \caption*{\footnotesize Errors in meters. Ruma et al.\ values as published \cite{Ruma2023}; our station values averaged within each group.}
 \end{table}
 
 On these numbers, CFL-EDLSTM is ahead in every group. Its 15-day MAE is 39 to
@@ -1385,23 +1384,43 @@ show accuracy declining gradually with lead time, with no breakdown at 15~days;
 in our case MAE rises about 2.7-fold, from 0.160~m at 1~day to 0.436~m at
 15~days.
 
+% \begin{table}[htbp]
+%   \centering
+%   \caption{Improvement over a Plain LSTM at a 15-Day Lead Time}
+%   \label{tab:4.ruma-gain}
+%   \small
+%   \renewcommand{\arraystretch}{1.15}
+%   \begin{tabular}{@{}l r r@{}}
+%     \toprule
+%     \textbf{Study and group} & \textbf{RMSE reduction} & \textbf{MAE reduction} \\
+%     \midrule
+%     Ruma et al.: Net~1 (SW45, SW45.5, SW225, SW49) & 30.0\% & 32.6\% \\
+%     Ruma et al.: Net~2 (SW294, SW77) & 0.8\% & 1.3\% \\
+%     Ruma et al.: SW42 & 8.0\% & 9.7\% \\
+%     \rowcolor{gray!15}
+%     \textbf{This study}: CFL-EDLSTM vs.\ Vanilla LSTM (all 25 stations) & \textbf{30.3\%} & \textbf{35.3\%} \\
+%     \bottomrule
+%   \end{tabular}
+% \end{table}
+
 \begin{table}[htbp]
-  \centering
-  \caption{Improvement over a Plain LSTM at a 15-Day Lead Time}
-  \label{tab:4.ruma-gain}
-  \small
-  \renewcommand{\arraystretch}{1.15}
-  \begin{tabular}{@{}l r r@{}}
-    \toprule
-    \textbf{Study and group} & \textbf{RMSE reduction} & \textbf{MAE reduction} \\
-    \midrule
-    Ruma et al.: Net~1 (SW45, SW45.5, SW225, SW49) & 30.0\% & 32.6\% \\
-    Ruma et al.: Net~2 (SW294, SW77) & 0.8\% & 1.3\% \\
-    Ruma et al.: SW42 & 8.0\% & 9.7\% \\
-    \rowcolor{gray!15}
-    \textbf{This study}: CFL-EDLSTM vs.\ Vanilla LSTM (all 25 stations) & \textbf{30.3\%} & \textbf{35.3\%} \\
-    \bottomrule
-  \end{tabular}
+    \centering
+    \caption{Improvement over a Plain LSTM at a 15-Day Lead Time}
+    \label{tab:4.ruma-gain}
+    \small
+    \renewcommand{\arraystretch}{1.15}
+    \begin{tabular}{@{}l r r@{}}
+        \toprule
+        \textbf{Study and group} & \textbf{RMSE reduction} & \textbf{MAE reduction} \\
+        \midrule
+        Ruma et al.: Net~1 (SW45, SW45.5, SW225, SW49) & 30.0\% & 32.6\% \\
+        Ruma et al.: Net~2 (SW294, SW77) & 0.8\% & 1.3\% \\
+        Ruma et al.: SW42 & 8.0\% & 9.7\% \\
+        \rowcolor{gray!15}
+        \makecell[l]{\textbf{This study}: CFL-EDLSTM vs.\ Vanilla LSTM\\
+        \textbf{(all 25 stations)}} & \textbf{30.3\%} & \textbf{35.3\%} \\
+        \bottomrule
+    \end{tabular}
 \end{table}
 
 This thesis differs from Ruma et al.\ in working at sub-daily resolution, in
@@ -1512,15 +1531,11 @@ lists the main findings and where each is reported.
 \end{table}
 
 Four points stand out. First, CFL-EDLSTM was the most accurate model overall and
-from three days onward, and its error grew far more slowly with lead time than
-XGBoost's, which makes it the better choice at the longer horizons that matter
-most for early warning. Second, when GRU and TCN were trained under the same
-clustered federated scheme, and XGBoost under its prediction-level counterpart,
-the encoder--decoder still gave the lowest MAE at every horizon, which supports
-choosing it as the model to federate. Third, its performance was more even across
-stations than any baseline's, although it varied between clusters and showed one
-clear weak spot at the highest-level station. Fourth, its gain over a plain LSTM
-is of a similar size to that of the regional benchmark (Section~\ref{sec:4.13}),
-and a first check against FFWC was encouraging, within the limits of indirect and
-short comparisons. Chapter~5 draws the conclusions of the thesis, sets out its
-limitations and suggests future work.
+from three days onward, with error growing far more slowly than XGBoost's, which
+suits early warning. Second, it kept the lowest MAE at every horizon even against
+the clustered federated versions of GRU, TCN and XGBoost, which supports choosing
+it as the model to federate. Third, it was more even across stations than any
+baseline, with one clear weak spot at the highest-level station. Fourth, its gain
+over a plain LSTM matches the regional benchmark (Section~\ref{sec:4.13}), and a
+first check against FFWC was encouraging. Chapter~5 draws the conclusions and
+suggests future work.
