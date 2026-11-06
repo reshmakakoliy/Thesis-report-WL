@@ -818,8 +818,8 @@ reports the error at each of the seven horizons so any degradation is visible.
 \subsection{Local Model Training}
 \label{sec:3.12.2}
 
-Each of the four clusters in Table~\ref{tab:3.5} is one federated client, $c_1$
-to $c_4$, holding every training window of its own stations. Before training,
+Each of the four clusters in Table~\ref{tab:3.5} is one federated client, upstream
+to urban, holding every training window of its own stations. Before training,
 the cluster definitions are checked: no station may appear in two clusters,
 every station must belong to one, and every station named in a cluster must
 exist in the data. The number of stations in cluster $k$, $n_k = |S_k|$, later
@@ -1063,9 +1063,11 @@ The Vanilla LSTM is the standard recurrent architecture that every other model
 is implicitly measured against. LSTM was introduced to fix the vanishing-gradient
 problem of plain RNNs by giving the network a cell state controlled by input,
 forget and output gates \cite{HochreiterSchmidhuber1997}. This is what lets a
-rainfall signal from several days earlier still shape a prediction made today,
-which matters in the Brahmaputra basin, where the chain from upstream rainfall
-to a downstream peak typically plays out over five to ten days.
+rainfall signal from several days earlier still shape a prediction made today.
+That matters here, because rain that falls far up the Brahmaputra basin takes
+several days to reach the stations in Bangladesh, which is also why our inputs
+include rainfall lags of up to 14 days and accumulations of up to 30 days
+(Section~\ref{sec:3.9.6}).
 
 Each of the 25 stations is treated as an independent sequence. Station files are
 combined into one long-form table, sorted by station and timestamp, and

@@ -308,20 +308,40 @@ cycles and stations at very different levels, since even a simple model can
 capture much of that variation. We therefore treat MAE and RMSE as the more
 informative measures.
 
-Figure~\ref{fig:4.cfl-cluster-forecast} compares predicted and observed water
-levels over a 15-day forecast at four representative stations, one per cluster:
-Kaunia (Upstream), Fulchari (Mid-river), Taraghat (Downstream) and Mirpur
-(Urban). The model picks up the general downward trend at Kaunia, Fulchari and
-Taraghat, though it does not fully follow the sharper drops in the observed
-levels. At Mirpur the predictions stay fairly close to the observations but miss
-some short-term fluctuations. In short, the model captures broad trends but
-struggles with sudden changes, and how well it does varies between the four
-stations.
+% Figure~\ref{fig:4.cfl-cluster-forecast} compares predicted and observed water
+% levels over a 15-day forecast at four representative stations, one per cluster:
+% Kaunia (Upstream), Fulchari (Mid-river), Taraghat (Downstream) and Mirpur
+% (Urban). The model picks up the general downward trend at Kaunia, Fulchari and
+% Taraghat, though it does not fully follow the sharper drops in the observed
+% levels. At Mirpur the predictions stay fairly close to the observations but miss
+% some short-term fluctuations. In short, the model captures broad trends but
+% struggles with sudden changes, and how well it does varies between the four
+% stations.
+
+Figure~\ref{fig:4.cfl-cluster-forecast} shows two 15-day forecasts made through
+the web interface in late September and early October 2026, after the test
+period: one at Singra (SW147.5, Downstream) and one at Chak-Rahimpur (SW63,
+Mid-river). At Singra the forecast tracks the observed level closely. It starts a
+few centimeters high, stays roughly flat while the river holds steady, and then
+falls with it from about 1~October. The forecast drops a little more gently than
+the river, so it runs about 0.1~m above the observations for most of the second
+week, but the two lines come back together at the end as the observed level
+levels off.
+
+Chak-Rahimpur is harder. The observed level rises to a small peak around
+29~September before falling, and the model misses that rise completely: it
+predicts a steady decline from the start and is about 0.3~m too low at the peak.
+After the peak the two lines fall in parallel, with the forecast roughly
+0.1--0.2~m below. In the last few days the river flattens while the forecast keeps
+falling, so the gap opens to about 0.3~m by day 15. Taken together, the two
+stations show the pattern seen throughout this chapter: the model follows the
+overall direction of the river well but is slow to catch short rises and turns,
+and its error grows when the river changes course late in the forecast.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.7\textwidth]{figures2/fig4-cfl-pred-vs-obs.png}
-    \caption{15-Day Forecasts vs. Observed Water Levels at Four Stations}
+    \includegraphics[width=\textwidth]{figures2/fig4-cfl-pred-vs-obs.png}
+    \caption{15-Day Forecasts vs. Observed Water Levels at two Stations}
     \label{fig:4.cfl-cluster-forecast}
 \end{figure}
 
@@ -582,15 +602,15 @@ model at 7 and 15~days.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.95\textwidth]{figures2/fig4-4-model-horizon-heatmap.png}
+    \includegraphics[width=\textwidth]{figures2/fig4-4-model-horizon-heatmap.png}
     \caption{Model-by-horizon performance heatmap.}
     \label{fig:4.4}
 \end{figure}
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.9\textwidth]{figures2/fig4-5-horizon-degradation.png}
-    \caption{RMSE and MAE against forecast horizon for the five models.}
+    \includegraphics[width=\textwidth]{figures2/fig4-5-horizon-degradation.png}
+    \caption{MAE and RMSE against forecast horizon for the five models.}
     \label{fig:4.5}
 \end{figure}
 
@@ -655,7 +675,7 @@ Figure~\ref{fig:4.cluster-metrics} shows.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.95\textwidth]{figures2/fig4-cluster-metrics.jpeg}
+    \includegraphics[width=\textwidth]{figures2/fig4-cluster-metrics.png}
     \caption{Cluster-wise MAE, RMSE and R\textsuperscript{2} of CFL-EDLSTM.}
     \label{fig:4.cluster-metrics}
 \end{figure}
@@ -667,7 +687,7 @@ grows with lead time in every cluster.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.95\textwidth]{figures2/fig4-cluster-horizon.png}
+    \includegraphics[width=\textwidth]{figures2/fig4-cluster-horizon.png}
     \caption{Cluster-wise MAE and RMSE of CFL-EDLSTM by horizon.}
     \label{fig:4.cluster-horizon}
 \end{figure}
@@ -749,7 +769,7 @@ run-to-run variation is unknown.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.75\textwidth]{figures2/fig4-8-ratio-to-xgboost.png}
+    \includegraphics[width=0.8\textwidth]{figures2/fig4-8-ratio-to-xgboost.png}
     \caption{Ratio of CFL-EDLSTM MAE to XGBoost MAE by horizon.}
     \label{fig:ratio}
 \end{figure}
@@ -1025,36 +1045,36 @@ forecasts exist and FFWC has posted the reading were scored. Errors are in
 meters. Forecasts issued before 30~October 2026 are hindcasts: the model was run
 afterwards, using only data available on the issue day.
 
-Table~\ref{tab:ffwc} gives the results over all stations with matching data.
-Against the FFWC 10-day forecast, CFL-EDLSTM has the lower MAE for lead days 1 to
-7. The gap is widest at the start, 0.062~m against 0.285~m on day~1, and narrows
-to about one to two centimeters by days 6 and 7. FFWC is slightly better on days
-8 and 9 (0.806 against 0.822~m, and 0.923 against 0.931~m). Against the FFWC
-5-day forecast, CFL-EDLSTM is ahead on days 1 to 3, although the two are
-practically level on day~2 (0.122 against 0.123~m), and FFWC is ahead on days 4
-and 5, by 0.018 and 0.028~m.
+% Table~\ref{tab:ffwc} gives the results over all stations with matching data.
+% Against the FFWC 10-day forecast, CFL-EDLSTM has the lower MAE for lead days 1 to
+% 7. The gap is widest at the start, 0.062~m against 0.285~m on day~1, and narrows
+% to about one to two centimeters by days 6 and 7. FFWC is slightly better on days
+% 8 and 9 (0.806 against 0.822~m, and 0.923 against 0.931~m). Against the FFWC
+% 5-day forecast, CFL-EDLSTM is ahead on days 1 to 3, although the two are
+% practically level on day~2 (0.122 against 0.123~m), and FFWC is ahead on days 4
+% and 5, by 0.018 and 0.028~m.
 
-\begin{table}[H]
-    \centering
-    \caption{MAE (m) of CFL-EDLSTM and FFWC forecasts by lead day.}
-    \label{tab:ffwc}
-    \begin{tabular}{c|ccc|ccc}
-        \hline
-        & \multicolumn{3}{c|}{FFWC 10-day} & \multicolumn{3}{c}{FFWC 5-day} \\
-        Lead day & Points & Ours & FFWC & Points & Ours & FFWC \\
-        \hline
-        1 & 23 & \textbf{0.062} & 0.285 & 44 & \textbf{0.070} & 0.095 \\
-        2 & 23 & \textbf{0.130} & 0.327 & 44 & \textbf{0.122} & 0.123 \\
-        3 & 23 & \textbf{0.226} & 0.372 & 44 & \textbf{0.176} & 0.193 \\
-        4 & 23 & \textbf{0.365} & 0.457 & 32 & 0.245 & \textbf{0.227} \\
-        5 & 23 & \textbf{0.510} & 0.565 & 32 & 0.271 & \textbf{0.243} \\
-        6 & 23 & \textbf{0.639} & 0.660 & -- & -- & -- \\
-        7 & 23 & \textbf{0.728} & 0.740 & -- & -- & -- \\
-        8 & 23 & 0.822 & \textbf{0.806} & -- & -- & -- \\
-        9 & 23 & 0.931 & \textbf{0.923} & -- & -- & -- \\
-        \hline
-    \end{tabular}
-\end{table}
+% \begin{table}[H]
+%     \centering
+%     \caption{MAE (m) of CFL-EDLSTM and FFWC forecasts by lead day.}
+%     \label{tab:ffwc}
+%     \begin{tabular}{c|ccc|ccc}
+%         \hline
+%         & \multicolumn{3}{c|}{FFWC 10-day} & \multicolumn{3}{c}{FFWC 5-day} \\
+%         Lead day & Points & Ours & FFWC & Points & Ours & FFWC \\
+%         \hline
+%         1 & 23 & \textbf{0.062} & 0.285 & 44 & \textbf{0.070} & 0.095 \\
+%         2 & 23 & \textbf{0.130} & 0.327 & 44 & \textbf{0.122} & 0.123 \\
+%         3 & 23 & \textbf{0.226} & 0.372 & 44 & \textbf{0.176} & 0.193 \\
+%         4 & 23 & \textbf{0.365} & 0.457 & 32 & 0.245 & \textbf{0.227} \\
+%         5 & 23 & \textbf{0.510} & 0.565 & 32 & 0.271 & \textbf{0.243} \\
+%         6 & 23 & \textbf{0.639} & 0.660 & -- & -- & -- \\
+%         7 & 23 & \textbf{0.728} & 0.740 & -- & -- & -- \\
+%         8 & 23 & 0.822 & \textbf{0.806} & -- & -- & -- \\
+%         9 & 23 & 0.931 & \textbf{0.923} & -- & -- & -- \\
+%         \hline
+%     \end{tabular}
+% \end{table}
 
 \paragraph{A single forecast as an example.}
 To show what these averages look like for one forecast,
@@ -1277,14 +1297,22 @@ Their model is an LSTM whose hyperparameters are tuned by particle swarm
 optimization (PSO), and it beat ANN, PSO-ANN and a plain LSTM in every
 sub-network they tested.
 
+% The two studies differ in several other ways (Table~\ref{tab:4.ruma-setup}).
+% Their stations are cascaded sub-networks in which upstream gauges feed downstream
+% ones, whereas ours are modeled within their clusters. We also do not compare
+% absolute errors, because the RMSE and MAE reported in their paper could not be
+% reconciled with their other statistics: for their Net~1 stations, whose standard
+% deviation is about 1.5~m, an NSE of 0.9475 implies an RMSE near 0.34~m, yet
+% 1.11~m is reported, and the units are not stated. We compare instead how much
+% each method improves on a plain LSTM.
+
 The two studies differ in several other ways (Table~\ref{tab:4.ruma-setup}).
 Their stations are cascaded sub-networks in which upstream gauges feed downstream
-ones, whereas ours are modeled within their clusters. We also do not compare
-absolute errors, because the RMSE and MAE reported in their paper could not be
-reconciled with their other statistics: for their Net~1 stations, whose standard
-deviation is about 1.5~m, an NSE of 0.9475 implies an RMSE near 0.34~m, yet
-1.11~m is reported, and the units are not stated. We compare instead how much
-each method improves on a plain LSTM.
+ones, whereas ours are modeled within their clusters. Ruma et al.\ report results
+per sub-network rather than per station, but four of their groups (Net~1, Net~2,
+Net~7 and SW42) have output stations that are among ours, so
+Table~\ref{tab:4.ruma-abs} puts our 15-day errors for those eight stations next to
+theirs.
 
 \begin{table}[htbp]
   \centering
@@ -1304,6 +1332,45 @@ each method improves on a plain LSTM.
     \bottomrule
   \end{tabularx}
 \end{table}
+
+\begin{table}[htbp]
+  \centering
+  \caption{15-day errors at the shared stations.}
+  \label{tab:4.ruma-abs}
+  \small
+  \setlength{\tabcolsep}{5pt}
+  \begin{tabular}{@{}l l cc cc@{}}
+    \toprule
+    & & \multicolumn{2}{c}{Ruma et al.\ (PSO-LSTM)} & \multicolumn{2}{c}{CFL-EDLSTM} \\
+    \cmidrule(lr){3-4}\cmidrule(l){5-6}
+    \textbf{Group} & \textbf{Output stations} & MAE & RMSE & MAE & RMSE \\
+    \midrule
+    Net~1   & SW45, SW45.5, SW225, SW49 & 0.953 & 1.114 & \textbf{0.507} & \textbf{0.815} \\
+    Net~2   & SW294, SW77               & 0.729 & 0.857 & \textbf{0.316} & \textbf{0.470} \\
+    Net~7\textsuperscript{*} & SW137A   & 0.691 & 1.690 & \textbf{0.422} & \textbf{0.568} \\
+    SW42    & SW42                      & 0.842 & 0.847 & \textbf{0.310} & \textbf{0.377} \\
+    \bottomrule
+  \end{tabular}
+  \caption*{\footnotesize Errors in meters. Ruma et al.\ values as published; our station values averaged within each group. \textsuperscript{*}Only SW137A of Net~7 is among our stations.}
+\end{table}
+
+On these numbers, CFL-EDLSTM is ahead in every group. Its 15-day MAE is 39 to
+63\% lower than theirs and its RMSE 27 to 66\% lower, with the widest gap at SW42
+(0.310 against 0.842~m in MAE) and the narrowest at Net~7 in MAE and Net~1 in
+RMSE.
+
+We would not read too much into the size of these gaps, though, for two reasons.
+First, their published values do not fit together. For the Net~1 stations, whose
+standard deviation is about 1.5~m, an NSE of 0.9475 implies an RMSE near 0.34~m,
+yet they report 1.11~m. For both to be right, the test-period standard deviation
+would have to be about 4.8~m, more than three times the published figure, and
+the units of their errors are not stated. Second, the two studies differ in
+period, resolution (daily against 3-hourly), inputs and split. So
+Table~\ref{tab:4.ruma-abs} shows that our errors at the shared stations are of
+the same order or lower, not that one method is better. That is why we also
+compare how much each method improves on a plain LSTM
+(Table~\ref{tab:4.ruma-gain}), a measure that depends less on scale.
+
 
 At a 15-day lead, for the three sub-networks that contain our shared stations,
 their PSO-LSTM lowers RMSE relative to the plain LSTM by 0.8\% to 30.0\% and MAE
