@@ -261,6 +261,210 @@
 
 
 
+% \chapter{Experimental Results and Discussion}
+% \label{Ch_Chapter4}
+% \label{ch:results}
+
+% \section{Introduction}
+% \label{sec:4.1}
+
+% This chapter reports what happened when we ran the procedure described in
+% Chapter~\ref{ch:methodology}. We begin with the data the models were trained and
+% tested on (Section~\ref{sec:4.2}), and then present how the stations were
+% clustered (Section~\ref{sec:4.3}) and how CFL-EDLSTM performs on its own
+% (Section~\ref{sec:4.4}). Section~\ref{sec:4.5} sets it against the baselines,
+% first as centrally trained models and then, in Section~\ref{sec:4.5.1}, as
+% versions trained under the same clustered federated scheme. This second
+% comparison shows why the encoder--decoder was the right model to federate. After
+% that, the results are broken down by forecast horizon (Sections~\ref{sec:4.6}
+% and~\ref{sec:4.8}), by cluster (Section~\ref{sec:4.7}) and by station
+% (Section~\ref{sec:4.10}), and the SHAP analysis follows in
+% Section~\ref{sec:4.9}. The rest of the chapter compares the model with FFWC
+% (Section~\ref{sec:4.11}), discusses the findings (Section~\ref{sec:4.12}), places
+% them next to earlier studies (Section~\ref{sec:4.13}) and ends with a summary
+% (Section~\ref{sec:4.14}). We judge performance mainly by MAE and RMSE in meters.
+% Both can be compared fairly across architectures, and both are in the same unit
+% as the readings themselves.
+
+% \section{Experimental Setup and Dataset Characteristics}
+% \label{sec:4.2}
+
+% \subsection{Experimental Setup}
+% \label{sec:4.2.1}
+
+% Every result in this chapter uses the station-wise records of water level,
+% rainfall, MDD, evaporation and temperature from the 25 stations described in
+% Section~\ref{sec:3.5}. For each station, the first 70\% of the timeline is used
+% for training, the next 15\% for validation and the last 15\% for testing. This
+% way the models are always tested on data that come after what they were trained
+% on (Section~\ref{sec:3.9.5}). Each model looks back over 30 days (150
+% observations) and predicts the next 15 days (75 observations), and we report
+% accuracy at the seven horizon checkpoints of Section~\ref{sec:3.15}. All values
+% are calculated after the outputs are converted back to meters, and we did not
+% round them beyond what the result files already contain. Training and evaluation
+% were run on a single desktop machine (Section~\ref{sec:3.19}).
+
+% \subsection{Raw Dataset Visualization}
+% \label{sec:4.2.2}
+
+% Before building any model, we plotted the raw data for all stations over the full
+% study period, using water level, our target, as the main reference.
+% Figure~\ref{fig:raw-wl-heatmap} is a station-by-time heatmap of the raw
+% water-level observations. Time runs along the horizontal axis and stations along
+% the vertical axis, the color shows the observed level, and white cells mark
+% periods with no observation. Two things are easy to notice. First, the stations
+% sit at very different levels: SW291.5R stays near 50~mMSL for most of the period,
+% while SW179, SW180, SW302 and SW42 stay near the bottom of the scale. Second, the
+% gaps are not evenly spread. Most stations are fairly complete, but a few, SW68.5
+% in particular, have longer and repeated stretches with no observations.
+
+% \begin{figure}[htbp]
+%     \centering
+%     \includegraphics[width=\textwidth]{figures2/fig4-3-raw-wl-heatmap.png}
+%     \caption{Station-by-time heatmap of raw water level (mMSL).}
+%     \label{fig:raw-wl-heatmap}
+% \end{figure}
+
+% Figure~\ref{fig:raw-wl-timeseries} shows the same observations as time series.
+% The stations run at different overall levels, and most of them rise and fall in a
+% repeating seasonal pattern, although the size of the swings and the shape of the
+% peaks vary from one station to the next. This variation is the reason we grouped
+% the stations into clusters instead of treating them all as one. In the early
+% years of one or two series there are a few short, abrupt changes, and we kept
+% them as part of the raw record. We made the same kind of plots for the four input
+% variables to check how they behave and to look for gaps or unusual values. These
+% plots were only exploratory, and we did not use them to evaluate the models.
+
+% \begin{figure}[htbp]
+%     \centering
+%     \includegraphics[width=\textwidth]{figures2/fig4-4-raw-wl-timeseries.png}
+%     \caption{Raw water-level time series of the 25 stations, 2010--2026.}
+%     \label{fig:raw-wl-timeseries}
+% \end{figure}
+
+% \subsection{Processed Dataset}
+% \label{sec:4.2.3}
+
+% The final dataset brings together hydrological and meteorological records from 25
+% gauge stations in the Brahmaputra River system. It covers 1 January 2010 to
+% 31 March 2026, which is 5{,}934 days, or a little over sixteen years. Each
+% station contributes 29{,}670 observations, so the dataset has 741{,}750 rows and
+% 44 columns. Every station covers the same period with the same columns, which
+% makes the panel balanced. This suits the clustered federated setup well, because
+% each station enters its client with the same time span and the same input
+% structure.
+
+% \paragraph{Temporal structure.}
+% Observations are recorded five times a day, at 06:00, 09:00, 12:00, 15:00 and
+% 18:00. About 80\% of consecutive records are three hours apart, and the rest are
+% the 12-hour overnight gap from 18:00 to 06:00. Rather than forcing the data onto
+% a regular grid, we kept this uneven spacing. A \texttt{delta\_hours} column holds
+% the normalized gap, which is 0.25 for a 3-hour step and 1.0 for the overnight
+% jump.
+
+% \paragraph{Variables.}
+% Water level is the forecast target, and it is the only variable measured several
+% times a day. The other variables are recorded less often, so their value stays
+% the same across all observations within a day. Rainfall, evaporation and
+% temperature come from fewer measurement points than there are stations. Each
+% station is therefore matched to its closest relevant record, and neighboring
+% stations sometimes share the same series. Across the 25 stations there are 13
+% distinct rainfall series, 7 evaporation series and 11 temperature series.
+% Discharge is available at 15 stations and recorded as zero at the other 10.
+
+% In the processed data, water level averages 12.51~mMSL (SD 11.28, range $-0.92$
+% to 52.90) and differs a great deal between stations. Rainfall averages 4.79~mm
+% with a maximum of 540~mm, and about 75\% of records are zero, which is what you
+% would expect after a long dry season. Evaporation averages 1.67~mm, and
+% temperature averages 25.58~\textdegree C, with a range of 8.65 to
+% 36.83~\textdegree C.
+
+% \paragraph{Engineered features.}
+% We added a set of look-back features so that the models have some memory of
+% recent conditions. These are lagged values at 1, 2, 3, 5, 7 and 14 days for
+% rainfall, discharge, temperature and evaporation (24 columns), cumulative
+% rainfall over 3, 7, 14 and 30 days (4 columns), and rolling-mean discharge over
+% the same four windows (4 columns). Water level gets no lags, because it is the
+% target and the input window already carries its history. Hour of day and day of
+% year are each encoded as a sine and cosine pair (4 columns), so that 18:00 sits
+% close to 06:00 and 31 December close to 1 January. The forecast horizons are
+% created when the training windows are built, so they do not show up as columns.
+% Table~\ref{tab:features} lists the groups.
+
+% \paragraph{Missing data.}
+% The raw records had gaps, by far the largest in discharge and temperature, and
+% the amount missing differed between stations (Table~\ref{tab:4.1}). Our first
+% idea was to recover these values from the reports of the Flood Forecasting and
+% Warning Centre (FFWC). However, the reports covered only part of the gaps and
+% often did not match the missing stations or times, so only a few values could be
+% filled this way. We filled the remaining gaps by linear interpolation, followed
+% by forward and backward filling. Anything that still could not be filled, such as
+% discharge at the ten stations with no sensor, was set to zero
+% (Section~\ref{sec:3.9.2}). The final dataset has no missing values. Still, the
+% filled values are estimates and not measurements, so the long dry-season
+% stretches with constant values and the ten stations without discharge records
+% should be kept in mind when reading the results.
+
+% \subsection{Descriptive Statistics}
+% \label{sec:4.2.4}
+
+% Table~\ref{tab:4.1} summarizes the five variables across all stations as they
+% were before filling, which is why it includes the percentage missing. Water level
+% has the smallest gap (3.38\%). Temperature has a large one (24.08\%), since it
+% covers only 2012--2024, and discharge has the largest (68.44\%), because ten
+% stations have no record at all.
+
+% \begin{table}[htbp]
+%   \centering
+%   \caption{Dataset Statistics Across the 25 Stations (Before Filling)}
+%   \label{tab:4.1}
+%   \small
+%   \renewcommand{\arraystretch}{1.15}
+%   \begin{tabular}{@{}l r r r r r@{}}
+%     \toprule
+%     \textbf{Variable} & \textbf{Mean} & \textbf{SD} & \textbf{Min} & \textbf{Max} & \textbf{Missing (\%)} \\
+%     \midrule
+%     Water Level (mMSL) & 12.528 & 2.033 & $-0.92$ & 52.9 & 3.38 \\
+%     Discharge, MDD (m\textsuperscript{3}/s) & 1534.785 & 462.86 & 0 & 73{,}226.6 & 68.44 \\
+%     Rainfall (mm) & 4.753 & 15.024 & 0 & 540 & 0.48 \\
+%     Temperature (\textdegree C) & 25.342 & 4.862 & 8.65 & 36.83 & 24.08 \\
+%     Evaporation (mm) & 1.663 & 3.100 & $-145.796$ & 115.15 & 1.66 \\
+%     \bottomrule
+%   \end{tabular}
+% \end{table}
+
+% Each entry in Table~\ref{tab:4.1} was built from 25 rows of per-station
+% statistics (one mean, SD, minimum, maximum and missing percentage for each
+% station and variable), and not from the raw observations directly. For this
+% reason the SD column, such as 2.03 for water level, should not be compared with
+% the observation-level SD of 11.28 quoted above. The negative evaporation minimum
+% ($-145.8$~mm) is physically impossible and is probably a recording error in the
+% source records. We kept it in the dataset as recorded.
+
+% Figure~\ref{fig:4.1} shows the historical series of the five variables at Dalia
+% (SW291.5R). Water level, discharge and temperature follow a clear yearly cycle,
+% rainfall arrives in seasonal bursts, and evaporation is noisier, with the
+% occasional extreme value. Figure~\ref{fig:4.2} shows how the five variables
+% correlate at the same station. Water level moves most closely with discharge
+% (0.89), followed by temperature (0.57) and rainfall (0.32), and its correlation
+% with evaporation is close to zero. A correlation matrix only captures linear
+% association, so it should not be read as evidence of cause and effect.
+
+% \begin{figure}[htbp]
+%     \centering
+%     \includegraphics[width=0.9\textwidth]{figures2/fig4-1-historical-timeseries.png}
+%     \caption{Five-variable time series at Dalia (SW291.5R).}
+%     \label{fig:4.1}
+% \end{figure}
+
+% \begin{figure}[htbp]
+%     \centering
+%     \includegraphics[width=0.7\textwidth]{figures2/fig4-2-correlation-heatmap.png}
+%     \caption{Variable correlations at Dalia (SW291.5R).}
+%     \label{fig:4.2}
+% \end{figure}
+
+
 \chapter{Experimental Results and Discussion}
 \label{Ch_Chapter4}
 \label{ch:results}
@@ -268,23 +472,20 @@
 \section{Introduction}
 \label{sec:4.1}
 
-This chapter reports what happened when we ran the procedure described in
-Chapter~\ref{ch:methodology}. We begin with the data the models were trained and
-tested on (Section~\ref{sec:4.2}), and then present how the stations were
-clustered (Section~\ref{sec:4.3}) and how CFL-EDLSTM performs on its own
-(Section~\ref{sec:4.4}). Section~\ref{sec:4.5} sets it against the baselines,
-first as centrally trained models and then, in Section~\ref{sec:4.5.1}, as
-versions trained under the same clustered federated scheme. This second
-comparison shows why the encoder--decoder was the right model to federate. After
-that, the results are broken down by forecast horizon (Sections~\ref{sec:4.6}
-and~\ref{sec:4.8}), by cluster (Section~\ref{sec:4.7}) and by station
-(Section~\ref{sec:4.10}), and the SHAP analysis follows in
-Section~\ref{sec:4.9}. The rest of the chapter compares the model with FFWC
-(Section~\ref{sec:4.11}), discusses the findings (Section~\ref{sec:4.12}), places
-them next to earlier studies (Section~\ref{sec:4.13}) and ends with a summary
-(Section~\ref{sec:4.14}). We judge performance mainly by MAE and RMSE in meters.
-Both can be compared fairly across architectures, and both are in the same unit
-as the readings themselves.
+This chapter presents the results of the procedure described in
+Chapter~\ref{ch:methodology}. We start with the data (Section~\ref{sec:4.2}),
+then the station clustering (Section~\ref{sec:4.3}) and CFL-EDLSTM's own
+performance (Section~\ref{sec:4.4}). Section~\ref{sec:4.5} compares it with the
+baselines, first trained centrally and then, in Section~\ref{sec:4.5.1}, under
+the same clustered federated scheme, a comparison that shows why the
+encoder--decoder was the right model to federate. The results are then broken
+down by forecast horizon (Sections~\ref{sec:4.6} and~\ref{sec:4.8}), cluster
+(Section~\ref{sec:4.7}) and station (Section~\ref{sec:4.10}), followed by the
+SHAP analysis (Section~\ref{sec:4.9}). The chapter closes with a comparison
+against FFWC (Section~\ref{sec:4.11}), a discussion (Section~\ref{sec:4.12}), a
+comparison with earlier studies (Section~\ref{sec:4.13}) and a summary
+(Section~\ref{sec:4.14}). Performance is judged mainly by MAE and RMSE in meters,
+which compare fairly across architectures and share the unit of the readings.
 
 \section{Experimental Setup and Dataset Characteristics}
 \label{sec:4.2}
@@ -292,31 +493,31 @@ as the readings themselves.
 \subsection{Experimental Setup}
 \label{sec:4.2.1}
 
-Every result in this chapter uses the station-wise records of water level,
-rainfall, MDD, evaporation and temperature from the 25 stations described in
-Section~\ref{sec:3.5}. For each station, the first 70\% of the timeline is used
-for training, the next 15\% for validation and the last 15\% for testing. This
-way the models are always tested on data that come after what they were trained
-on (Section~\ref{sec:3.9.5}). Each model looks back over 30 days (150
-observations) and predicts the next 15 days (75 observations), and we report
-accuracy at the seven horizon checkpoints of Section~\ref{sec:3.15}. All values
-are calculated after the outputs are converted back to meters, and we did not
-round them beyond what the result files already contain. Training and evaluation
-were run on a single desktop machine (Section~\ref{sec:3.19}).
+All results use the station-wise records of water level, rainfall, MDD,
+evaporation and temperature from the 25 stations described in
+Section~\ref{sec:3.5}. Each station's timeline is split in order: the first 70\%
+for training, the next 15\% for validation and the last 15\% for testing, so the
+models are always tested on data later than what they were trained on
+(Section~\ref{sec:3.9.5}). Each model looks back 30 days (150 observations) and
+predicts the next 15 days (75 observations), and accuracy is reported at the
+seven horizon checkpoints of Section~\ref{sec:3.15}. All values are computed
+after converting the outputs back to meters, with no rounding beyond what the
+result files contain. Training and evaluation ran on a single desktop machine
+(Section~\ref{sec:3.19}).
 
 \subsection{Raw Dataset Visualization}
 \label{sec:4.2.2}
 
-Before building any model, we plotted the raw data for all stations over the full
-study period, using water level, our target, as the main reference.
+Before modeling, we plotted the raw data for all stations over the full study
+period, with water level, our target, as the main reference.
 Figure~\ref{fig:raw-wl-heatmap} is a station-by-time heatmap of the raw
-water-level observations. Time runs along the horizontal axis and stations along
-the vertical axis, the color shows the observed level, and white cells mark
-periods with no observation. Two things are easy to notice. First, the stations
-sit at very different levels: SW291.5R stays near 50~mMSL for most of the period,
-while SW179, SW180, SW302 and SW42 stay near the bottom of the scale. Second, the
-gaps are not evenly spread. Most stations are fairly complete, but a few, SW68.5
-in particular, have longer and repeated stretches with no observations.
+water-level observations: time runs horizontally, stations vertically, color
+shows the observed level and white cells mark missing observations. Two things
+stand out. First, the stations sit at very different levels: SW291.5R stays near
+50~mMSL for most of the period, while SW179, SW180, SW302 and SW42 stay near the
+bottom of the scale. Second, the gaps are uneven. Most stations are fairly
+complete, but a few, SW68.5 in particular, have longer, repeated stretches with
+no observations.
 
 \begin{figure}[htbp]
     \centering
@@ -326,14 +527,14 @@ in particular, have longer and repeated stretches with no observations.
 \end{figure}
 
 Figure~\ref{fig:raw-wl-timeseries} shows the same observations as time series.
-The stations run at different overall levels, and most of them rise and fall in a
-repeating seasonal pattern, although the size of the swings and the shape of the
-peaks vary from one station to the next. This variation is the reason we grouped
-the stations into clusters instead of treating them all as one. In the early
-years of one or two series there are a few short, abrupt changes, and we kept
-them as part of the raw record. We made the same kind of plots for the four input
-variables to check how they behave and to look for gaps or unusual values. These
-plots were only exploratory, and we did not use them to evaluate the models.
+Besides running at different levels, most stations rise and fall in a repeating
+seasonal pattern, but the size of the swings and the shape of the peaks vary from
+station to station. This variation is why we clustered the stations instead of
+treating them as one group. A few short, abrupt changes appear in the early years
+of one or two series, and we kept them as part of the raw record. We made similar
+plots of the four input variables to check their behavior and look for gaps or
+unusual values; these were purely exploratory and not used to evaluate the
+models.
 
 \begin{figure}[htbp]
     \centering
@@ -345,74 +546,69 @@ plots were only exploratory, and we did not use them to evaluate the models.
 \subsection{Processed Dataset}
 \label{sec:4.2.3}
 
-The final dataset brings together hydrological and meteorological records from 25
-gauge stations in the Brahmaputra River system. It covers 1 January 2010 to
-31 March 2026, which is 5{,}934 days, or a little over sixteen years. Each
-station contributes 29{,}670 observations, so the dataset has 741{,}750 rows and
-44 columns. Every station covers the same period with the same columns, which
-makes the panel balanced. This suits the clustered federated setup well, because
-each station enters its client with the same time span and the same input
-structure.
+The final dataset combines hydrological and meteorological records from 25 gauge
+stations in the Brahmaputra River system, covering 1 January 2010 to 31 March
+2026 (5{,}934 days, just over sixteen years). Each station contributes
+29{,}670 observations, giving 741{,}750 rows and 44 columns. Every station spans
+the same period with the same columns, so the panel is balanced. This suits the
+clustered federated setup, since each station enters its client with the same
+time span and input structure.
 
 \paragraph{Temporal structure.}
 Observations are recorded five times a day, at 06:00, 09:00, 12:00, 15:00 and
 18:00. About 80\% of consecutive records are three hours apart, and the rest are
-the 12-hour overnight gap from 18:00 to 06:00. Rather than forcing the data onto
-a regular grid, we kept this uneven spacing. A \texttt{delta\_hours} column holds
-the normalized gap, which is 0.25 for a 3-hour step and 1.0 for the overnight
-jump.
+the 12-hour overnight gap from 18:00 to 06:00. We kept this uneven spacing rather
+than forcing a regular grid, and a \texttt{delta\_hours} column stores the
+normalized gap: 0.25 for a 3-hour step and 1.0 for the overnight jump.
 
 \paragraph{Variables.}
-Water level is the forecast target, and it is the only variable measured several
-times a day. The other variables are recorded less often, so their value stays
-the same across all observations within a day. Rainfall, evaporation and
-temperature come from fewer measurement points than there are stations. Each
-station is therefore matched to its closest relevant record, and neighboring
-stations sometimes share the same series. Across the 25 stations there are 13
-distinct rainfall series, 7 evaporation series and 11 temperature series.
-Discharge is available at 15 stations and recorded as zero at the other 10.
+Water level, the forecast target, is the only variable measured several times a
+day. The others are recorded less often, so their values stay the same across a
+day's observations. Rainfall, evaporation and temperature come from fewer
+measurement points than there are stations, so each station is matched to its
+closest relevant record and neighboring stations sometimes share a series. In
+total there are 13 distinct rainfall series, 7 evaporation series and 11
+temperature series. Discharge is available at 15 stations and recorded as zero at
+the other 10.
 
 In the processed data, water level averages 12.51~mMSL (SD 11.28, range $-0.92$
-to 52.90) and differs a great deal between stations. Rainfall averages 4.79~mm
-with a maximum of 540~mm, and about 75\% of records are zero, which is what you
-would expect after a long dry season. Evaporation averages 1.67~mm, and
-temperature averages 25.58~\textdegree C, with a range of 8.65 to
-36.83~\textdegree C.
+to 52.90) and differs greatly between stations. Rainfall averages 4.79~mm with a
+maximum of 540~mm, and about 75\% of records are zero, as expected after a long
+dry season. Evaporation averages 1.67~mm, and temperature averages
+25.58~\textdegree C (range 8.65 to 36.83~\textdegree C).
 
 \paragraph{Engineered features.}
-We added a set of look-back features so that the models have some memory of
-recent conditions. These are lagged values at 1, 2, 3, 5, 7 and 14 days for
-rainfall, discharge, temperature and evaporation (24 columns), cumulative
-rainfall over 3, 7, 14 and 30 days (4 columns), and rolling-mean discharge over
-the same four windows (4 columns). Water level gets no lags, because it is the
-target and the input window already carries its history. Hour of day and day of
-year are each encoded as a sine and cosine pair (4 columns), so that 18:00 sits
-close to 06:00 and 31 December close to 1 January. The forecast horizons are
-created when the training windows are built, so they do not show up as columns.
-Table~\ref{tab:features} lists the groups.
+To give the models some memory of recent conditions, we added look-back features:
+lagged values at 1, 2, 3, 5, 7 and 14 days for rainfall, discharge, temperature
+and evaporation (24 columns), cumulative rainfall over 3, 7, 14 and 30 days
+(4 columns), and rolling-mean discharge over the same windows (4 columns). Water
+level has no lags, since it is the target and the input window already carries
+its history. Hour of day and day of year are each encoded as a sine--cosine pair
+(4 columns), so that 18:00 sits close to 06:00 and 31 December close to
+1 January. The forecast horizons are created when the training windows are built,
+so they do not appear as columns. Table~\ref{tab:features} lists the groups.
 
 \paragraph{Missing data.}
 The raw records had gaps, by far the largest in discharge and temperature, and
-the amount missing differed between stations (Table~\ref{tab:4.1}). Our first
-idea was to recover these values from the reports of the Flood Forecasting and
-Warning Centre (FFWC). However, the reports covered only part of the gaps and
-often did not match the missing stations or times, so only a few values could be
-filled this way. We filled the remaining gaps by linear interpolation, followed
-by forward and backward filling. Anything that still could not be filled, such as
-discharge at the ten stations with no sensor, was set to zero
-(Section~\ref{sec:3.9.2}). The final dataset has no missing values. Still, the
-filled values are estimates and not measurements, so the long dry-season
-stretches with constant values and the ten stations without discharge records
-should be kept in mind when reading the results.
+the amount missing varied between stations (Table~\ref{tab:4.1}). We first tried
+to recover these values from the reports of the Flood Forecasting and Warning
+Centre (FFWC), but the reports covered only part of the gaps and often did not
+match the missing stations or times, so only a few values could be filled this
+way. The remaining gaps were filled by linear interpolation, followed by forward
+and backward filling, and anything still unfilled, such as discharge at the ten
+stations without a sensor, was set to zero (Section~\ref{sec:3.9.2}). The final
+dataset has no missing values. Even so, the filled values are estimates, not
+measurements, so the long constant dry-season stretches and the ten stations
+without discharge records should be kept in mind when reading the results.
 
 \subsection{Descriptive Statistics}
 \label{sec:4.2.4}
 
-Table~\ref{tab:4.1} summarizes the five variables across all stations as they
-were before filling, which is why it includes the percentage missing. Water level
-has the smallest gap (3.38\%). Temperature has a large one (24.08\%), since it
-covers only 2012--2024, and discharge has the largest (68.44\%), because ten
-stations have no record at all.
+Table~\ref{tab:4.1} summarizes the five variables across all stations before
+filling, which is why it includes the percentage missing. Water level has the
+smallest gap (3.38\%), temperature a large one (24.08\%) because it covers only
+2012--2024, and discharge the largest (68.44\%) because ten stations have no
+record at all.
 
 \begin{table}[htbp]
   \centering
@@ -434,21 +630,21 @@ stations have no record at all.
 \end{table}
 
 Each entry in Table~\ref{tab:4.1} was built from 25 rows of per-station
-statistics (one mean, SD, minimum, maximum and missing percentage for each
-station and variable), and not from the raw observations directly. For this
-reason the SD column, such as 2.03 for water level, should not be compared with
-the observation-level SD of 11.28 quoted above. The negative evaporation minimum
-($-145.8$~mm) is physically impossible and is probably a recording error in the
-source records. We kept it in the dataset as recorded.
+statistics (a mean, SD, minimum, maximum and missing percentage for each station
+and variable), not from the raw observations directly. The SD column, such as
+2.03 for water level, is therefore not comparable with the observation-level SD
+of 11.28 quoted above. The negative evaporation minimum ($-145.8$~mm) is
+physically impossible and probably a recording error in the source records; we
+kept it as recorded.
 
 Figure~\ref{fig:4.1} shows the historical series of the five variables at Dalia
 (SW291.5R). Water level, discharge and temperature follow a clear yearly cycle,
 rainfall arrives in seasonal bursts, and evaporation is noisier, with the
-occasional extreme value. Figure~\ref{fig:4.2} shows how the five variables
-correlate at the same station. Water level moves most closely with discharge
-(0.89), followed by temperature (0.57) and rainfall (0.32), and its correlation
-with evaporation is close to zero. A correlation matrix only captures linear
-association, so it should not be read as evidence of cause and effect.
+occasional extreme value. Figure~\ref{fig:4.2} shows their correlations at the
+same station. Water level moves most closely with discharge (0.89), followed by
+temperature (0.57) and rainfall (0.32), and its correlation with evaporation is
+close to zero. These are linear associations only and should not be read as
+evidence of cause and effect.
 
 \begin{figure}[htbp]
     \centering
@@ -463,6 +659,8 @@ association, so it should not be read as evidence of cause and effect.
     \caption{Variable correlations at Dalia (SW291.5R).}
     \label{fig:4.2}
 \end{figure}
+
+
 
 \section{Clustering Results}
 \label{sec:4.3}
