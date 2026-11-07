@@ -62,29 +62,59 @@ and the web interface.
 \section{Study Area}
 \label{sec:3.4}
 
-The study covers 25 water-level monitoring stations across northern, central,
-western and metropolitan Dhaka, on 13 named river systems. All of them belong to
-the Brahmaputra River system in the broad sense of Section~\ref{sec:1.10}: the
-Brahmaputra--Jamuna together with the tributaries and distributaries connected
-to it, including the rivers around Dhaka. Figure~\ref{fig:3.2a} shows how the
-stations sit along their rivers and how those rivers connect. It is a schematic
-based on the river and station listing in the FFWC river-situation bulletin of
-28 October 2026~\cite{ffwc_website}, not drawn to scale, with north at the top.
-Each colored line is a river and each dot a station. The dashed gray line marks
-the Padma and Meghna, shown only for context, since no station in this study
-lies on them.
+% The study covers 25 water-level monitoring stations across northern, central,
+% western and metropolitan Dhaka, on 13 named river systems. All of them belong to
+% the Brahmaputra River system in the broad sense of Section~\ref{sec:1.10}: the
+% Brahmaputra--Jamuna together with the tributaries and distributaries connected
+% to it, including the rivers around Dhaka. Figure~\ref{fig:3.2a} shows how the
+% stations sit along their rivers and how those rivers connect. It is a schematic
+% based on the river and station listing in the FFWC river-situation bulletin of
+% 28 October 2026~\cite{ffwc_website}, not drawn to scale, with north at the top.
+% Each colored line is a river and each dot a station. The dashed gray line marks
+% the Padma and Meghna, shown only for context, since no station in this study
+% lies on them.
 
-Read from north to south, the Teesta and Dharla flow toward the Brahmaputra near
-Chilmari, and the Brahmaputra continues as the Jamuna. The Brahmaputra--Jamuna
-has the most stations in the study: four on the Jamuna itself, or six counting
-the two Brahmaputra stations upstream. To the west, the Karatoa system, which
-includes the Jamuneswari and Deonai--Charalkata channels, runs south and is
-joined by the Ghagot, while the Atrai reaches the Jamuna near Baghabari. East of
-the Jamuna, the Old Brahmaputra branches off toward Mymensingh. Further
-downstream, the Dhaleswari and the Kaliganga--Bethua carry water toward Dhaka,
-where the Buriganga, Turag, Lakhya and Balu complete the network around the
-capital. Table~\ref{tab:river-distribution} gives the number of stations on each
-river system, along with its general location and tidal status.
+% Read from north to south, the Teesta and Dharla flow toward the Brahmaputra near
+% Chilmari, and the Brahmaputra continues as the Jamuna. The Brahmaputra--Jamuna
+% has the most stations in the study: four on the Jamuna itself, or six counting
+% the two Brahmaputra stations upstream. To the west, the Karatoa system, which
+% includes the Jamuneswari and Deonai--Charalkata channels, runs south and is
+% joined by the Ghagot, while the Atrai reaches the Jamuna near Baghabari. East of
+% the Jamuna, the Old Brahmaputra branches off toward Mymensingh. Further
+% downstream, the Dhaleswari and the Kaliganga--Bethua carry water toward Dhaka,
+% where the Buriganga, Turag, Lakhya and Balu complete the network around the
+% capital. Table~\ref{tab:river-distribution} gives the number of stations on each
+% river system, along with its general location and tidal status.
+
+
+
+
+
+The study covers 25 water-level monitoring stations in northern, central, western
+and metropolitan Dhaka. They lie on 13 named river systems. All of these belong
+to the Brahmaputra River system, in the broad sense used in
+Section~\ref{sec:1.10}. That includes the Brahmaputra--Jamuna and the tributaries
+and distributaries that connect to it, as well as the rivers around Dhaka.
+Figure~\ref{fig:3.2a} shows where the stations are on their rivers and how the
+rivers are linked. The figure is a schematic. We made it from the river and
+station listing in the FFWC river-situation bulletin of 28 October
+2026~\cite{ffwc_website}. It is not drawn to scale, and north is at the top. Each
+colored line is a river, and each dot is a station. The dashed gray line is the
+Padma and Meghna. We drew it only to give context, because none of our stations
+are on these two rivers.
+
+Starting from the north, the Teesta and Dharla flow into the Brahmaputra near
+Chilmari, and from there the Brahmaputra continues as the Jamuna. This is the
+river with the most stations in the study. Four are on the Jamuna itself, and the
+number becomes six if we include the two Brahmaputra stations upstream. On the
+west side, the Karatoa system runs south, and the Ghagot joins it. The Karatoa
+system includes the Jamuneswari and Deonai--Charalkata channels. The Atrai
+reaches the Jamuna near Baghabari. On the east side of the Jamuna, the Old
+Brahmaputra branches off and heads toward Mymensingh. Further downstream, the
+Dhaleswari and the Kaliganga--Bethua carry water toward Dhaka. Around the
+capital, the Buriganga, Turag, Lakhya and Balu complete the network.
+Table~\ref{tab:river-distribution} gives the number of stations on each river
+system, with its general location and tidal status.
 
 \begin{table}[htbp]
   \centering
@@ -117,9 +147,9 @@ river system, along with its general location and tidal status.
 As Table~\ref{tab:river-distribution} shows, the Buriganga, Turag, Lakhya and
 Balu are also where the tidal stations lie. The Bangladesh Water Development
 Board (BWDB) classifies each station as tidal or non-tidal, and 5 of the 25 are
-tidal, all of them in the Urban cluster. We report this as background on the
-study area, not as an input to the clustering, which is defined in
-Section~\ref{sec:3.10.1}.
+tidal, all of them in the Urban cluster. 
+
+% We report this as background on the study area, not as an input to the clustering, which is defined in Section~\ref{sec:3.10.1}.
 
 \begin{figure}[htbp]
     \centering
@@ -239,20 +269,37 @@ station-level, so it is mapped onto stations by district
 \section{Dataset Description}
 \label{sec:3.7}
 
+% Before any cleaning or alignment, the dataset holds 1,092,687 raw observations:
+% 762,813 for water level, 46,812 for discharge, 71,110 for rainfall, 40,761 for
+% evaporation and 171,191 for temperature.
+% % NOTE: See mismatch note 4 (temperature observation count).
+% Water level dominates because it covers more stations and is recorded more
+% often, five times a day against once a day for the other four variables.
+
+% Coverage across variables is uneven. Of the 13 districts in the dataset, only
+% four (Bogura, Dhaka, Rangpur and Sirajganj) have all five variables, most have
+% three or four, and Narayanganj has only water level and one other variable.
+% This unevenness is why clustering (Section~\ref{sec:3.10}) and careful
+% preprocessing (Section~\ref{sec:3.9}) matter: a model cannot assume that every
+% station looks like every other. Descriptive statistics of the final dataset are
+% given in Section~\ref{sec:4.2}.
+
+
 Before any cleaning or alignment, the dataset holds 1,092,687 raw observations:
 762,813 for water level, 46,812 for discharge, 71,110 for rainfall, 40,761 for
 evaporation and 171,191 for temperature.
 % NOTE: See mismatch note 4 (temperature observation count).
-Water level dominates because it covers more stations and is recorded more
-often, five times a day against once a day for the other four variables.
+Water level makes up most of these because it covers more stations and is
+recorded more often, five times a day, against once a day for the other four
+variables.
 
-Coverage across variables is uneven. Of the 13 districts in the dataset, only
-four (Bogura, Dhaka, Rangpur and Sirajganj) have all five variables, most have
-three or four, and Narayanganj has only water level and one other variable.
-This unevenness is why clustering (Section~\ref{sec:3.10}) and careful
-preprocessing (Section~\ref{sec:3.9}) matter: a model cannot assume that every
-station looks like every other. Descriptive statistics of the final dataset are
-given in Section~\ref{sec:4.2}.
+Coverage is uneven across the variables. The dataset has 13 districts, and only
+four of them (Bogura, Dhaka, Rangpur and Sirajganj) have all five variables.
+Most have three or four, and Narayanganj has only water level and one other
+variable. This unevenness is why clustering (Section~\ref{sec:3.10}) and careful
+preprocessing (Section~\ref{sec:3.9}) matter, since a model cannot assume that
+every station looks like every other. Descriptive statistics of the final
+dataset are given in Section~\ref{sec:4.2}.
 
 % ------------------------------------------------------------
 \section{Input and Target Variables}
@@ -298,46 +345,91 @@ dataset, and it is kept as the master modeling timeline
 the quantity every forecast horizon predicts, as in \cite{Ruma2023} and, for
 fewer stations, \cite{Islam2026b}.
 
+
+% \subsection{Discharge}
+% \label{sec:3.8.2}
+
+% Discharge (mean daily discharge, MDD) is recorded at 15 of the 25 stations, in
+% m\textsuperscript{3}/s, and is used both directly and through rolling-mean
+% features. The ten stations without a discharge record carry a zero-valued series
+% (Section~\ref{sec:3.9.2}). Islam et al.\ relied on discharge alone in their Old
+% Brahmaputra work and named the missing meteorological variables as a limitation
+% \cite{Islam2026a}. The rainfall, temperature and evaporation inputs used here
+% address exactly that.
+
+% \subsection{Rainfall}
+% \label{sec:3.8.3}
+
+% Rainfall is recorded daily at 13 stations, in millimeters. It is used directly
+% and as cumulative windows, which capture the delayed response of the catchment.
+% This follows the lag and cumulative treatment of \cite{Islam2026b} and the
+% areal-rainfall approach of \cite{Cui2022}, both of which found that rainfall
+% carries real, if secondary, predictive weight.
+
+% \subsection{Temperature}
+% \label{sec:3.8.4}
+
+% Temperature is the one variable that is not station-specific. It comes from a
+% Mendeley dataset and NASA POWER at daily resolution for 11 districts, with gaps
+% filled and values mapped to stations by district. Because it is district-level
+% and partly gap-filled, it should not be read like a variable measured at the
+% station, a point that matters when interpreting the SHAP results
+% (Section~\ref{sec:3.17}).
+
+% \subsection{Evaporation}
+% \label{sec:3.8.5}
+
+% Evaporation is recorded daily at 7 stations, the narrowest coverage of any
+% variable, and its gaps are filled before use. Its inclusion follows
+% \cite{Cui2022}, who found that adding evaporation to rainfall improved
+% multi-step accuracy in an encoder--decoder framework, even though evaporation
+% had narrower coverage than the other inputs in their study as well.
+
+% ------------------------------------------------------------
+
+
 \subsection{Discharge}
 \label{sec:3.8.2}
 
-Discharge (mean daily discharge, MDD) is recorded at 15 of the 25 stations, in
-m\textsuperscript{3}/s, and is used both directly and through rolling-mean
-features. The ten stations without a discharge record carry a zero-valued series
-(Section~\ref{sec:3.9.2}). Islam et al.\ relied on discharge alone in their Old
-Brahmaputra work and named the missing meteorological variables as a limitation
-\cite{Islam2026a}. The rainfall, temperature and evaporation inputs used here
-address exactly that.
+Discharge here means mean daily discharge (MDD). It is recorded at 15 of the 25
+stations, in m\textsuperscript{3}/s, and we use it both directly and through
+rolling-mean features. The other ten stations have no discharge record, so they
+carry a series of zeros (Section~\ref{sec:3.9.2}). Islam et al.\ used discharge
+alone in their Old Brahmaputra work and named the missing meteorological
+variables as a limitation \cite{Islam2026a}. The rainfall, temperature and
+evaporation inputs in this study address exactly that limitation.
 
 \subsection{Rainfall}
 \label{sec:3.8.3}
 
-Rainfall is recorded daily at 13 stations, in millimeters. It is used directly
-and as cumulative windows, which capture the delayed response of the catchment.
-This follows the lag and cumulative treatment of \cite{Islam2026b} and the
-areal-rainfall approach of \cite{Cui2022}, both of which found that rainfall
-carries real, if secondary, predictive weight.
+Rainfall is recorded daily at 13 stations, in millimeters. We use it directly and
+also as cumulative windows, which capture how the catchment responds with a
+delay. This follows the lag and cumulative treatment of \cite{Islam2026b} and the
+areal-rainfall approach of \cite{Cui2022}. Both found that rainfall carries real
+predictive weight, even if it is secondary.
 
 \subsection{Temperature}
 \label{sec:3.8.4}
 
-Temperature is the one variable that is not station-specific. It comes from a
-Mendeley dataset and NASA POWER at daily resolution for 11 districts, with gaps
-filled and values mapped to stations by district. Because it is district-level
-and partly gap-filled, it should not be read like a variable measured at the
-station, a point that matters when interpreting the SHAP results
+Temperature is the one variable that is not specific to a station. It comes from
+a Mendeley dataset and NASA POWER at daily resolution for 11 districts. The gaps
+were filled, and the values were mapped to stations by district. Since it is
+district-level and partly gap-filled, it should not be read like a variable
+measured at the station itself. This matters when interpreting the SHAP results
 (Section~\ref{sec:3.17}).
 
 \subsection{Evaporation}
 \label{sec:3.8.5}
 
-Evaporation is recorded daily at 7 stations, the narrowest coverage of any
-variable, and its gaps are filled before use. Its inclusion follows
+Evaporation is recorded daily at 7 stations, which is the narrowest coverage of
+any variable, and its gaps are filled before use. We included it following
 \cite{Cui2022}, who found that adding evaporation to rainfall improved
-multi-step accuracy in an encoder--decoder framework, even though evaporation
-had narrower coverage than the other inputs in their study as well.
+multi-step accuracy in an encoder--decoder framework. In their study, too,
+evaporation had narrower coverage than the other inputs.
+
 
 % ------------------------------------------------------------
+
 \section{Data Preprocessing}
 \label{sec:3.9}
 
@@ -404,6 +496,7 @@ day's rainfall total, for example, appears identically in all five rows of that
 date. This repetition simply aligns the feature matrix; it does not mean five
 independent measurements. Figure~\ref{fig:3.5} illustrates the alignment, and
 Table~\ref{tab:3.4} summarizes the processing applied to each variable.
+
 
 \begin{figure}[htbp]
     \centering

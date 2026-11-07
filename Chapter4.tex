@@ -1,3 +1,266 @@
+% \chapter{Experimental Results and Discussion}
+% \label{Ch_Chapter4}
+% \label{ch:results}
+
+% \section{Introduction}
+% \label{sec:4.1}
+
+% This chapter reports what happened when the procedure of
+% Chapter~\ref{ch:methodology} was run. It starts with the data the models were
+% trained and tested on (Section~\ref{sec:4.2}), then presents the clustering
+% outcome (Section~\ref{sec:4.3}) and the performance of CFL-EDLSTM on its own
+% (Section~\ref{sec:4.4}). Section~\ref{sec:4.5} compares it with the baselines,
+% first as centrally trained models and then, in Section~\ref{sec:4.5.1}, as
+% versions trained under the same clustered federated scheme, to show why the
+% encoder--decoder was the right model to federate. The results are then broken
+% down by forecast horizon (Sections~\ref{sec:4.6} and~\ref{sec:4.8}), by cluster
+% (Section~\ref{sec:4.7}) and by station (Section~\ref{sec:4.10}), with the SHAP
+% analysis in Section~\ref{sec:4.9}. The remaining sections compare the model with
+% FFWC (Section~\ref{sec:4.11}), discuss the findings (Section~\ref{sec:4.12}) and
+% set them beside earlier studies (Section~\ref{sec:4.13}), and the chapter closes
+% with a summary (Section~\ref{sec:4.14}). Performance is judged mainly on MAE and
+% RMSE in meters, since both stay comparable across architectures and are in the
+% same unit as the readings themselves.
+
+% \section{Experimental Setup and Dataset Characteristics}
+% \label{sec:4.2}
+
+% \subsection{Experimental Setup}
+% \label{sec:4.2.1}
+
+% All results use the station-wise records of water level, rainfall, MDD,
+% evaporation and temperature from the 25 stations of Section~\ref{sec:3.5}. For
+% every station, the first 70\% of the timeline is used for training, the next
+% 15\% for validation and the last 15\% for testing, so the models are always
+% judged on data that come after what they were trained on
+% (Section~\ref{sec:3.9.5}). Each model looks back over 30 days (150 observations)
+% and predicts the next 15 days (75 observations), and accuracy is reported at the
+% seven horizon checkpoints of Section~\ref{sec:3.15}. All values are computed
+% after converting outputs back to meters and are not rounded beyond what the
+% result files contain. Training and evaluation ran on a single desktop machine
+% (Section~\ref{sec:3.19}).
+
+% \subsection{Raw Dataset Visualization}
+% \label{sec:4.2.2}
+
+% Before modeling, we looked at the raw data across all stations and the full
+% study period, with water level, the target, as the main reference.
+% Figure~\ref{fig:raw-wl-heatmap} is a station-by-time heatmap of the raw
+% water-level observations: time runs along the horizontal axis, stations along
+% the vertical axis, color shows the observed level, and white cells mark periods
+% with no observation. Two things stand out. The stations differ greatly in level:
+% SW291.5R stays near 50~mMSL for most of the period, while SW179, SW180, SW302 and
+% SW42 stay near the bottom of the scale. And the gaps are uneven: most stations
+% are fairly complete, but a few, SW68.5 in particular, have longer and repeated
+% stretches without observations.
+
+% \begin{figure}[htbp]
+%     \centering
+%     \includegraphics[width=\textwidth]{figures2/fig4-3-raw-wl-heatmap.png}
+%     \caption{Station-by-time heatmap of raw water level (mMSL).}
+%     \label{fig:raw-wl-heatmap}
+% \end{figure}
+
+% Figure~\ref{fig:raw-wl-timeseries} shows the same observations as time series.
+% The stations run at different overall levels, and most rise and fall in a
+% recurring seasonal pattern. The size of the swings and the shape of the peaks
+% also differ from station to station. This heterogeneity is what motivated
+% clustering the stations rather than treating them as one group. A few short,
+% abrupt changes in the early years of one or two series were kept as part of the
+% raw record. We applied the same visualization to the four input variables to
+% check their behavior and spot gaps or unusual values. These plots were
+% exploratory only and were not used to evaluate the models.
+
+% \begin{figure}[htbp]
+%     \centering
+%     \includegraphics[width=\textwidth]{figures2/fig4-4-raw-wl-timeseries.png}
+%     \caption{Raw water-level time series of the 25 stations, 2010--2026.}
+%     \label{fig:raw-wl-timeseries}
+% \end{figure}
+
+% \subsection{Processed Dataset}
+% \label{sec:4.2.3}
+
+% The final dataset combines hydrological and meteorological records from 25
+% gauge stations in the Brahmaputra River system. It runs from 1 January 2010 to
+% 31 March 2026, 5{,}934 days or a little over sixteen years. Each station
+% contributes 29{,}670 observations, giving 741{,}750 rows and 44 columns. Since
+% every station covers the same period with the same columns, the panel is
+% balanced, which suits the clustered federated setup: each station enters its
+% client with the same time span and input structure.
+
+% \paragraph{Temporal structure.}
+% Observations are recorded five times a day, at 06:00, 09:00, 12:00, 15:00 and
+% 18:00. About 80\% of consecutive records are three hours apart, and the rest are
+% the 12-hour overnight gap from 18:00 to 06:00. We kept this uneven spacing
+% instead of forcing the data onto a regular grid, and a \texttt{delta\_hours}
+% column stores the normalized gap (0.25 for a 3-hour step and 1.0 for the
+% overnight jump).
+
+% \paragraph{Variables.}
+% Water level is the forecast target and the only variable measured several times
+% a day. The others are recorded less often, so their value is the same across all
+% observations within a day. Rainfall, evaporation and temperature come from fewer
+% measurement points than there are stations, so each station is matched to its
+% closest relevant record, and neighboring stations sometimes share a series.
+% Across the 25 stations there are 13 distinct rainfall series, 7 evaporation
+% series and 11 temperature series. Discharge is available at 15 stations and
+% recorded as zero at the other 10.
+
+% In the processed data, water level averages 12.51~mMSL (SD 11.28, range $-0.92$
+% to 52.90) and differs greatly between stations. Rainfall averages 4.79~mm with a
+% maximum of 540~mm, and about 75\% of records are zero, as you would expect with a
+% long dry season. Evaporation averages 1.67~mm, and temperature averages
+% 25.58~\textdegree C, ranging from 8.65 to 36.83~\textdegree C.
+
+% \paragraph{Engineered features.}
+% To give the models some memory of recent conditions, we added look-back
+% features: lagged values at 1, 2, 3, 5, 7 and 14 days for rainfall, discharge,
+% temperature and evaporation (24 columns), cumulative rainfall over 3, 7, 14 and
+% 30 days (4 columns), and rolling-mean discharge over the same four windows (4
+% columns). Water level gets no lags, because it is the target and the input
+% window already carries its history. Hour of day and day of year are each
+% encoded as a sine and cosine pair (4 columns), so 18:00 sits close to 06:00 and
+% 31 December close to 1 January. The forecast horizons are created when the
+% training windows are built, so they do not appear as columns.
+% Table~\ref{tab:features} lists the groups.
+
+% \paragraph{Missing data.}
+% The raw records had gaps, by far the largest in discharge and temperature, and
+% how much was missing differed between stations (Table~\ref{tab:4.1}). We first
+% tried to recover these values from the reports of the Flood Forecasting and
+% Warning Centre (FFWC), but the reports covered only part of the gaps and often
+% did not match the missing stations or times, so only a few values could be
+% filled this way. The remaining gaps were filled by linear interpolation, then
+% forward and backward filling, and anything that still could not be filled, such
+% as discharge at the ten stations with no sensor, was set to zero
+% (Section~\ref{sec:3.9.2}). The final dataset has no missing values. Filled values
+% are estimates, not measurements, so the long dry-season stretches with constant
+% values and the ten stations without discharge records should be kept in mind
+% when reading the results.
+
+% \subsection{Descriptive Statistics}
+% \label{sec:4.2.4}
+
+% Table~\ref{tab:4.1} summarizes the five variables across all stations as they
+% were before filling, which is why it includes the percentage missing. Water
+% level has the smallest gap (3.38\%), temperature a large one (24.08\%, since it
+% covers only 2012--2024), and discharge the largest (68.44\%), because ten
+% stations have no record at all.
+
+% \begin{table}[htbp]
+%   \centering
+%   \caption{Dataset Statistics Across the 25 Stations (Before Filling)}
+%   \label{tab:4.1}
+%   \small
+%   \renewcommand{\arraystretch}{1.15}
+%   \begin{tabular}{@{}l r r r r r@{}}
+%     \toprule
+%     \textbf{Variable} & \textbf{Mean} & \textbf{SD} & \textbf{Min} & \textbf{Max} & \textbf{Missing (\%)} \\
+%     \midrule
+%     Water Level (mMSL) & 12.528 & 2.033 & $-0.92$ & 52.9 & 3.38 \\
+%     Discharge, MDD (m\textsuperscript{3}/s) & 1534.785 & 462.86 & 0 & 73{,}226.6 & 68.44 \\
+%     Rainfall (mm) & 4.753 & 15.024 & 0 & 540 & 0.48 \\
+%     Temperature (\textdegree C) & 25.342 & 4.862 & 8.65 & 36.83 & 24.08 \\
+%     Evaporation (mm) & 1.663 & 3.100 & $-145.796$ & 115.15 & 1.66 \\
+%     \bottomrule
+%   \end{tabular}
+% \end{table}
+
+% Each entry in Table~\ref{tab:4.1} was built from 25 rows of per-station
+% statistics (one mean, SD, minimum, maximum and missing percentage per station and
+% variable), not from the raw observations directly. The SD column in particular,
+% such as 2.03 for water level, should not be compared with the observation-level
+% SD of 11.28 quoted above. The negative evaporation minimum ($-145.8$~mm) is
+% physically impossible and probably a recording error in the source records; it
+% was kept in the dataset as recorded.
+
+% Figure~\ref{fig:4.1} shows the historical series of the five variables at Dalia
+% (SW291.5R). Water level, discharge and temperature follow a clear yearly cycle,
+% rainfall comes in seasonal bursts, and evaporation is noisier, with the
+% occasional extreme value. Figure~\ref{fig:4.2} shows how the five variables
+% correlate at the same station. Water level moves most closely with discharge
+% (0.89), then temperature (0.57) and rainfall (0.32), while its correlation with
+% evaporation is close to zero. A correlation matrix captures only linear
+% association, so it should not be read as evidence of cause and effect.
+
+% \begin{figure}[htbp]
+%     \centering
+%     \includegraphics[width=0.9\textwidth]{figures2/fig4-1-historical-timeseries.png}
+%     \caption{Five-variable time series at Dalia (SW291.5R).}
+%     \label{fig:4.1}
+% \end{figure}
+
+% \begin{figure}[htbp]
+%     \centering
+%     \includegraphics[width=0.7\textwidth]{figures2/fig4-2-correlation-heatmap.png}
+%     \caption{Variable correlations at Dalia (SW291.5R).}
+%     \label{fig:4.2}
+% \end{figure}
+
+% \section{Clustering Results}
+% \label{sec:4.3}
+
+% The stations were grouped into the four clusters of Section~\ref{sec:3.10}
+% (Upstream, Mid-river, Downstream and Urban), each of which later serves as one
+% federated client. Their membership is listed in Table~\ref{tab:3.5}, and
+% Table~\ref{tab:4.cluster-features} gives the average of each input variable per
+% cluster.
+
+% \begin{table}[htbp]
+%   \centering
+%   \caption{Cluster-Wise Average Feature Values}
+%   \label{tab:4.cluster-features}
+%   \small
+%   \renewcommand{\arraystretch}{1.15}
+%   \begin{tabular}{@{}l r r r r r@{}}
+%     \toprule
+%     \textbf{Cluster} & \textbf{Water level} & \textbf{Discharge} & \textbf{Rainfall} & \textbf{Evaporation} & \textbf{Temperature} \\
+%      & (mMSL) & (m\textsuperscript{3}/s) & (mm) & (mm) & (\textdegree C) \\
+%     \midrule
+%     Upstream   & 28.240 & 5.466 & 429.617  & 1.324 & 25.032 \\
+%     Mid-river  & 12.546 & 4.271 & 9086.924 & 1.815 & 25.409 \\
+%     Downstream & 5.748  & 4.326 & 259.677  & 1.544 & 25.426 \\
+%     Urban      & 2.115  & 5.043 & 401.068  & 1.896 & 25.494 \\
+%     \bottomrule
+%   \end{tabular}
+% \end{table}
+% % NOTE: See mismatch note 1 (discharge and rainfall columns of this table).
+
+% \paragraph{Water level separates the clusters most clearly.}
+% Average water level falls steadily from the Upstream cluster (28.24~mMSL)
+% through Mid-river (12.55~mMSL) and Downstream (5.75~mMSL) to Urban
+% (2.11~mMSL). The ordering matches the cluster names, so the grouping seems to
+% reflect where the stations sit along the river and how high they are. The gap
+% between the highest and lowest clusters is more than tenfold, larger than for
+% any other variable.
+
+% \paragraph{Temperature and evaporation differ little.}
+% Average temperature stays within a narrow band, from 25.03~\textdegree C
+% (Upstream) to 25.49~\textdegree C (Urban), less than half a degree. Evaporation
+% varies more in relative terms, from 1.32 to 1.90~mm, but the absolute differences
+% are small. The clusters therefore share a broadly similar climate and are set
+% apart mainly by hydrological behavior, not by temperature.
+
+% \paragraph{Rainfall and discharge need caution.}
+% The discharge averages are close across clusters (4.27 to 5.47), but discharge is
+% available at only 15 of the 25 stations and zero at the rest
+% (Section~\ref{sec:4.2.3}), so these averages depend partly on how many stations
+% in each cluster have a record. The Mid-river rainfall value (9{,}087) is about 21
+% to 35 times larger than the other three (260 to 430) and far above the overall
+% mean of 4.79~mm in Section~\ref{sec:4.2.3}, so it cannot be compared with them
+% and probably reflects how rainfall was aggregated in this table. We therefore do
+% not use rainfall or discharge to tell the clusters apart.
+
+% \paragraph{What this means for the modeling.}
+% The clusters clearly differ, mainly in water level. That supports giving each
+% cluster its own model state instead of forcing all 25 stations to share one set
+% of parameters. Whether it actually improves the forecasts is a separate question,
+% taken up in Section~\ref{sec:4.7}.
+
+
+
+
 \chapter{Experimental Results and Discussion}
 \label{Ch_Chapter4}
 \label{ch:results}
@@ -5,22 +268,23 @@
 \section{Introduction}
 \label{sec:4.1}
 
-This chapter reports what happened when the procedure of
-Chapter~\ref{ch:methodology} was run. It starts with the data the models were
-trained and tested on (Section~\ref{sec:4.2}), then presents the clustering
-outcome (Section~\ref{sec:4.3}) and the performance of CFL-EDLSTM on its own
-(Section~\ref{sec:4.4}). Section~\ref{sec:4.5} compares it with the baselines,
+This chapter reports what happened when we ran the procedure described in
+Chapter~\ref{ch:methodology}. We begin with the data the models were trained and
+tested on (Section~\ref{sec:4.2}), and then present how the stations were
+clustered (Section~\ref{sec:4.3}) and how CFL-EDLSTM performs on its own
+(Section~\ref{sec:4.4}). Section~\ref{sec:4.5} sets it against the baselines,
 first as centrally trained models and then, in Section~\ref{sec:4.5.1}, as
-versions trained under the same clustered federated scheme, to show why the
-encoder--decoder was the right model to federate. The results are then broken
-down by forecast horizon (Sections~\ref{sec:4.6} and~\ref{sec:4.8}), by cluster
-(Section~\ref{sec:4.7}) and by station (Section~\ref{sec:4.10}), with the SHAP
-analysis in Section~\ref{sec:4.9}. The remaining sections compare the model with
-FFWC (Section~\ref{sec:4.11}), discuss the findings (Section~\ref{sec:4.12}) and
-set them beside earlier studies (Section~\ref{sec:4.13}), and the chapter closes
-with a summary (Section~\ref{sec:4.14}). Performance is judged mainly on MAE and
-RMSE in meters, since both stay comparable across architectures and are in the
-same unit as the readings themselves.
+versions trained under the same clustered federated scheme. This second
+comparison shows why the encoder--decoder was the right model to federate. After
+that, the results are broken down by forecast horizon (Sections~\ref{sec:4.6}
+and~\ref{sec:4.8}), by cluster (Section~\ref{sec:4.7}) and by station
+(Section~\ref{sec:4.10}), and the SHAP analysis follows in
+Section~\ref{sec:4.9}. The rest of the chapter compares the model with FFWC
+(Section~\ref{sec:4.11}), discusses the findings (Section~\ref{sec:4.12}), places
+them next to earlier studies (Section~\ref{sec:4.13}) and ends with a summary
+(Section~\ref{sec:4.14}). We judge performance mainly by MAE and RMSE in meters.
+Both can be compared fairly across architectures, and both are in the same unit
+as the readings themselves.
 
 \section{Experimental Setup and Dataset Characteristics}
 \label{sec:4.2}
@@ -28,31 +292,31 @@ same unit as the readings themselves.
 \subsection{Experimental Setup}
 \label{sec:4.2.1}
 
-All results use the station-wise records of water level, rainfall, MDD,
-evaporation and temperature from the 25 stations of Section~\ref{sec:3.5}. For
-every station, the first 70\% of the timeline is used for training, the next
-15\% for validation and the last 15\% for testing, so the models are always
-judged on data that come after what they were trained on
-(Section~\ref{sec:3.9.5}). Each model looks back over 30 days (150 observations)
-and predicts the next 15 days (75 observations), and accuracy is reported at the
-seven horizon checkpoints of Section~\ref{sec:3.15}. All values are computed
-after converting outputs back to meters and are not rounded beyond what the
-result files contain. Training and evaluation ran on a single desktop machine
-(Section~\ref{sec:3.19}).
+Every result in this chapter uses the station-wise records of water level,
+rainfall, MDD, evaporation and temperature from the 25 stations described in
+Section~\ref{sec:3.5}. For each station, the first 70\% of the timeline is used
+for training, the next 15\% for validation and the last 15\% for testing. This
+way the models are always tested on data that come after what they were trained
+on (Section~\ref{sec:3.9.5}). Each model looks back over 30 days (150
+observations) and predicts the next 15 days (75 observations), and we report
+accuracy at the seven horizon checkpoints of Section~\ref{sec:3.15}. All values
+are calculated after the outputs are converted back to meters, and we did not
+round them beyond what the result files already contain. Training and evaluation
+were run on a single desktop machine (Section~\ref{sec:3.19}).
 
 \subsection{Raw Dataset Visualization}
 \label{sec:4.2.2}
 
-Before modeling, we looked at the raw data across all stations and the full
-study period, with water level, the target, as the main reference.
+Before building any model, we plotted the raw data for all stations over the full
+study period, using water level, our target, as the main reference.
 Figure~\ref{fig:raw-wl-heatmap} is a station-by-time heatmap of the raw
-water-level observations: time runs along the horizontal axis, stations along
-the vertical axis, color shows the observed level, and white cells mark periods
-with no observation. Two things stand out. The stations differ greatly in level:
-SW291.5R stays near 50~mMSL for most of the period, while SW179, SW180, SW302 and
-SW42 stay near the bottom of the scale. And the gaps are uneven: most stations
-are fairly complete, but a few, SW68.5 in particular, have longer and repeated
-stretches without observations.
+water-level observations. Time runs along the horizontal axis and stations along
+the vertical axis, the color shows the observed level, and white cells mark
+periods with no observation. Two things are easy to notice. First, the stations
+sit at very different levels: SW291.5R stays near 50~mMSL for most of the period,
+while SW179, SW180, SW302 and SW42 stay near the bottom of the scale. Second, the
+gaps are not evenly spread. Most stations are fairly complete, but a few, SW68.5
+in particular, have longer and repeated stretches with no observations.
 
 \begin{figure}[htbp]
     \centering
@@ -62,14 +326,14 @@ stretches without observations.
 \end{figure}
 
 Figure~\ref{fig:raw-wl-timeseries} shows the same observations as time series.
-The stations run at different overall levels, and most rise and fall in a
-recurring seasonal pattern. The size of the swings and the shape of the peaks
-also differ from station to station. This heterogeneity is what motivated
-clustering the stations rather than treating them as one group. A few short,
-abrupt changes in the early years of one or two series were kept as part of the
-raw record. We applied the same visualization to the four input variables to
-check their behavior and spot gaps or unusual values. These plots were
-exploratory only and were not used to evaluate the models.
+The stations run at different overall levels, and most of them rise and fall in a
+repeating seasonal pattern, although the size of the swings and the shape of the
+peaks vary from one station to the next. This variation is the reason we grouped
+the stations into clusters instead of treating them all as one. In the early
+years of one or two series there are a few short, abrupt changes, and we kept
+them as part of the raw record. We made the same kind of plots for the four input
+variables to check how they behave and to look for gaps or unusual values. These
+plots were only exploratory, and we did not use them to evaluate the models.
 
 \begin{figure}[htbp]
     \centering
@@ -81,71 +345,73 @@ exploratory only and were not used to evaluate the models.
 \subsection{Processed Dataset}
 \label{sec:4.2.3}
 
-The final dataset combines hydrological and meteorological records from 25
-gauge stations in the Brahmaputra River system. It runs from 1 January 2010 to
-31 March 2026, 5{,}934 days or a little over sixteen years. Each station
-contributes 29{,}670 observations, giving 741{,}750 rows and 44 columns. Since
-every station covers the same period with the same columns, the panel is
-balanced, which suits the clustered federated setup: each station enters its
-client with the same time span and input structure.
+The final dataset brings together hydrological and meteorological records from 25
+gauge stations in the Brahmaputra River system. It covers 1 January 2010 to
+31 March 2026, which is 5{,}934 days, or a little over sixteen years. Each
+station contributes 29{,}670 observations, so the dataset has 741{,}750 rows and
+44 columns. Every station covers the same period with the same columns, which
+makes the panel balanced. This suits the clustered federated setup well, because
+each station enters its client with the same time span and the same input
+structure.
 
 \paragraph{Temporal structure.}
 Observations are recorded five times a day, at 06:00, 09:00, 12:00, 15:00 and
 18:00. About 80\% of consecutive records are three hours apart, and the rest are
-the 12-hour overnight gap from 18:00 to 06:00. We kept this uneven spacing
-instead of forcing the data onto a regular grid, and a \texttt{delta\_hours}
-column stores the normalized gap (0.25 for a 3-hour step and 1.0 for the
-overnight jump).
+the 12-hour overnight gap from 18:00 to 06:00. Rather than forcing the data onto
+a regular grid, we kept this uneven spacing. A \texttt{delta\_hours} column holds
+the normalized gap, which is 0.25 for a 3-hour step and 1.0 for the overnight
+jump.
 
 \paragraph{Variables.}
-Water level is the forecast target and the only variable measured several times
-a day. The others are recorded less often, so their value is the same across all
-observations within a day. Rainfall, evaporation and temperature come from fewer
-measurement points than there are stations, so each station is matched to its
-closest relevant record, and neighboring stations sometimes share a series.
-Across the 25 stations there are 13 distinct rainfall series, 7 evaporation
-series and 11 temperature series. Discharge is available at 15 stations and
-recorded as zero at the other 10.
+Water level is the forecast target, and it is the only variable measured several
+times a day. The other variables are recorded less often, so their value stays
+the same across all observations within a day. Rainfall, evaporation and
+temperature come from fewer measurement points than there are stations. Each
+station is therefore matched to its closest relevant record, and neighboring
+stations sometimes share the same series. Across the 25 stations there are 13
+distinct rainfall series, 7 evaporation series and 11 temperature series.
+Discharge is available at 15 stations and recorded as zero at the other 10.
 
 In the processed data, water level averages 12.51~mMSL (SD 11.28, range $-0.92$
-to 52.90) and differs greatly between stations. Rainfall averages 4.79~mm with a
-maximum of 540~mm, and about 75\% of records are zero, as you would expect with a
-long dry season. Evaporation averages 1.67~mm, and temperature averages
-25.58~\textdegree C, ranging from 8.65 to 36.83~\textdegree C.
+to 52.90) and differs a great deal between stations. Rainfall averages 4.79~mm
+with a maximum of 540~mm, and about 75\% of records are zero, which is what you
+would expect after a long dry season. Evaporation averages 1.67~mm, and
+temperature averages 25.58~\textdegree C, with a range of 8.65 to
+36.83~\textdegree C.
 
 \paragraph{Engineered features.}
-To give the models some memory of recent conditions, we added look-back
-features: lagged values at 1, 2, 3, 5, 7 and 14 days for rainfall, discharge,
-temperature and evaporation (24 columns), cumulative rainfall over 3, 7, 14 and
-30 days (4 columns), and rolling-mean discharge over the same four windows (4
-columns). Water level gets no lags, because it is the target and the input
-window already carries its history. Hour of day and day of year are each
-encoded as a sine and cosine pair (4 columns), so 18:00 sits close to 06:00 and
-31 December close to 1 January. The forecast horizons are created when the
-training windows are built, so they do not appear as columns.
+We added a set of look-back features so that the models have some memory of
+recent conditions. These are lagged values at 1, 2, 3, 5, 7 and 14 days for
+rainfall, discharge, temperature and evaporation (24 columns), cumulative
+rainfall over 3, 7, 14 and 30 days (4 columns), and rolling-mean discharge over
+the same four windows (4 columns). Water level gets no lags, because it is the
+target and the input window already carries its history. Hour of day and day of
+year are each encoded as a sine and cosine pair (4 columns), so that 18:00 sits
+close to 06:00 and 31 December close to 1 January. The forecast horizons are
+created when the training windows are built, so they do not show up as columns.
 Table~\ref{tab:features} lists the groups.
 
 \paragraph{Missing data.}
 The raw records had gaps, by far the largest in discharge and temperature, and
-how much was missing differed between stations (Table~\ref{tab:4.1}). We first
-tried to recover these values from the reports of the Flood Forecasting and
-Warning Centre (FFWC), but the reports covered only part of the gaps and often
-did not match the missing stations or times, so only a few values could be
-filled this way. The remaining gaps were filled by linear interpolation, then
-forward and backward filling, and anything that still could not be filled, such
-as discharge at the ten stations with no sensor, was set to zero
-(Section~\ref{sec:3.9.2}). The final dataset has no missing values. Filled values
-are estimates, not measurements, so the long dry-season stretches with constant
-values and the ten stations without discharge records should be kept in mind
-when reading the results.
+the amount missing differed between stations (Table~\ref{tab:4.1}). Our first
+idea was to recover these values from the reports of the Flood Forecasting and
+Warning Centre (FFWC). However, the reports covered only part of the gaps and
+often did not match the missing stations or times, so only a few values could be
+filled this way. We filled the remaining gaps by linear interpolation, followed
+by forward and backward filling. Anything that still could not be filled, such as
+discharge at the ten stations with no sensor, was set to zero
+(Section~\ref{sec:3.9.2}). The final dataset has no missing values. Still, the
+filled values are estimates and not measurements, so the long dry-season
+stretches with constant values and the ten stations without discharge records
+should be kept in mind when reading the results.
 
 \subsection{Descriptive Statistics}
 \label{sec:4.2.4}
 
 Table~\ref{tab:4.1} summarizes the five variables across all stations as they
-were before filling, which is why it includes the percentage missing. Water
-level has the smallest gap (3.38\%), temperature a large one (24.08\%, since it
-covers only 2012--2024), and discharge the largest (68.44\%), because ten
+were before filling, which is why it includes the percentage missing. Water level
+has the smallest gap (3.38\%). Temperature has a large one (24.08\%), since it
+covers only 2012--2024, and discharge has the largest (68.44\%), because ten
 stations have no record at all.
 
 \begin{table}[htbp]
@@ -168,20 +434,20 @@ stations have no record at all.
 \end{table}
 
 Each entry in Table~\ref{tab:4.1} was built from 25 rows of per-station
-statistics (one mean, SD, minimum, maximum and missing percentage per station and
-variable), not from the raw observations directly. The SD column in particular,
-such as 2.03 for water level, should not be compared with the observation-level
-SD of 11.28 quoted above. The negative evaporation minimum ($-145.8$~mm) is
-physically impossible and probably a recording error in the source records; it
-was kept in the dataset as recorded.
+statistics (one mean, SD, minimum, maximum and missing percentage for each
+station and variable), and not from the raw observations directly. For this
+reason the SD column, such as 2.03 for water level, should not be compared with
+the observation-level SD of 11.28 quoted above. The negative evaporation minimum
+($-145.8$~mm) is physically impossible and is probably a recording error in the
+source records. We kept it in the dataset as recorded.
 
 Figure~\ref{fig:4.1} shows the historical series of the five variables at Dalia
 (SW291.5R). Water level, discharge and temperature follow a clear yearly cycle,
-rainfall comes in seasonal bursts, and evaporation is noisier, with the
+rainfall arrives in seasonal bursts, and evaporation is noisier, with the
 occasional extreme value. Figure~\ref{fig:4.2} shows how the five variables
 correlate at the same station. Water level moves most closely with discharge
-(0.89), then temperature (0.57) and rainfall (0.32), while its correlation with
-evaporation is close to zero. A correlation matrix captures only linear
+(0.89), followed by temperature (0.57) and rainfall (0.32), and its correlation
+with evaporation is close to zero. A correlation matrix only captures linear
 association, so it should not be read as evidence of cause and effect.
 
 \begin{figure}[htbp]
@@ -201,11 +467,11 @@ association, so it should not be read as evidence of cause and effect.
 \section{Clustering Results}
 \label{sec:4.3}
 
-The stations were grouped into the four clusters of Section~\ref{sec:3.10}
-(Upstream, Mid-river, Downstream and Urban), each of which later serves as one
-federated client. Their membership is listed in Table~\ref{tab:3.5}, and
-Table~\ref{tab:4.cluster-features} gives the average of each input variable per
-cluster.
+We grouped the stations into the four clusters of Section~\ref{sec:3.10}
+(Upstream, Mid-river, Downstream and Urban), and each cluster later acts as one
+federated client. Table~\ref{tab:3.5} lists which stations belong to which
+cluster, and Table~\ref{tab:4.cluster-features} gives the average of each input
+variable per cluster.
 
 \begin{table}[htbp]
   \centering
@@ -228,35 +494,36 @@ cluster.
 % NOTE: See mismatch note 1 (discharge and rainfall columns of this table).
 
 \paragraph{Water level separates the clusters most clearly.}
-Average water level falls steadily from the Upstream cluster (28.24~mMSL)
-through Mid-river (12.55~mMSL) and Downstream (5.75~mMSL) to Urban
-(2.11~mMSL). The ordering matches the cluster names, so the grouping seems to
-reflect where the stations sit along the river and how high they are. The gap
-between the highest and lowest clusters is more than tenfold, larger than for
+The average water level drops steadily from the Upstream cluster (28.24~mMSL)
+through Mid-river (12.55~mMSL) and Downstream (5.75~mMSL) to Urban (2.11~mMSL).
+This order matches the cluster names, so the grouping appears to reflect where
+the stations sit along the river and how high they are. The difference between
+the highest and lowest clusters is more than tenfold, which is larger than for
 any other variable.
 
 \paragraph{Temperature and evaporation differ little.}
 Average temperature stays within a narrow band, from 25.03~\textdegree C
-(Upstream) to 25.49~\textdegree C (Urban), less than half a degree. Evaporation
-varies more in relative terms, from 1.32 to 1.90~mm, but the absolute differences
-are small. The clusters therefore share a broadly similar climate and are set
-apart mainly by hydrological behavior, not by temperature.
+(Upstream) to 25.49~\textdegree C (Urban), a difference of less than half a
+degree. Evaporation varies more in relative terms, from 1.32 to 1.90~mm, but the
+absolute differences are small. The clusters therefore share a broadly similar
+climate, and what sets them apart is mainly their hydrological behavior and not
+temperature.
 
 \paragraph{Rainfall and discharge need caution.}
 The discharge averages are close across clusters (4.27 to 5.47), but discharge is
-available at only 15 of the 25 stations and zero at the rest
-(Section~\ref{sec:4.2.3}), so these averages depend partly on how many stations
-in each cluster have a record. The Mid-river rainfall value (9{,}087) is about 21
-to 35 times larger than the other three (260 to 430) and far above the overall
-mean of 4.79~mm in Section~\ref{sec:4.2.3}, so it cannot be compared with them
-and probably reflects how rainfall was aggregated in this table. We therefore do
-not use rainfall or discharge to tell the clusters apart.
+available at only 15 of the 25 stations and is zero at the rest
+(Section~\ref{sec:4.2.3}). These averages therefore depend partly on how many
+stations in each cluster have a record. The Mid-river rainfall value (9{,}087) is
+about 21 to 35 times larger than the other three (260 to 430) and far above the
+overall mean of 4.79~mm in Section~\ref{sec:4.2.3}. It cannot be compared with
+the others and most likely reflects how rainfall was aggregated in this table.
+For this reason, we do not use rainfall or discharge to tell the clusters apart.
 
 \paragraph{What this means for the modeling.}
-The clusters clearly differ, mainly in water level. That supports giving each
+The clusters clearly differ, mainly in water level. This supports giving each
 cluster its own model state instead of forcing all 25 stations to share one set
-of parameters. Whether it actually improves the forecasts is a separate question,
-taken up in Section~\ref{sec:4.7}.
+of parameters. Whether it really improves the forecasts is a separate question,
+which we take up in Section~\ref{sec:4.7}.
 
 \section{Overall Performance of CFL-EDLSTM}
 \label{sec:4.4}
@@ -507,6 +774,8 @@ encoder--decoder LSTM as the model to federate: under the same federated
 training, it was the most accurate of the four architectures on MAE at every
 horizon, with GRU its closest rival.
 
+
+
 \section{Multi-Horizon Forecasting Results}
 \label{sec:4.6}
 
@@ -614,6 +883,7 @@ model at 7 and 15~days.
     \label{fig:4.5}
 \end{figure}
 
+
 \section{Cluster-Wise Performance Analysis}
 \label{sec:4.7}
 
@@ -702,6 +972,7 @@ conclusion from it. Nor do the results show on their own that clustering
 improves forecasts. That would need a comparison with a single global model on
 the same stations, which this section does not provide.
 
+
 \section{Effect of Forecasting Horizon}
 \label{sec:4.8}
 
@@ -782,16 +1053,99 @@ or worse (Section~\ref{sec:4.7}). Whether errors of this size are acceptable
 depends on how the forecast is used, and Section~\ref{sec:4.11} sets them beside
 FFWC's forecasts.
 
+
+
+% \section{SHAP-Based Interpretability Results}
+% \label{sec:4.9}
+% \label{sec:shap_results}
+
+% This section reports what SHAP shows about the proposed CFL-EDLSTM
+% (Section~\ref{sec:3.17}). The results pool all four cluster models and the four
+% explained horizons (day~1, 3, 7 and 15), giving 768 explained test windows with
+% equal weight. Figure~\ref{fig:shap_feature_overall} ranks the input features,
+% pooled over all clusters and horizons, and Figure~\ref{fig:shap_temporal_overall}
+% shows how attribution is spread across the 30-day input window.
+
+% \subsection{Which Inputs the Model Relies On}
+% \label{sec:4.9.1}
+
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=0.85\textwidth]{figures2/shap_overall_feature_importance.jpeg}
+%     \caption{Top 20 features by mean absolute SHAP value.}
+%     \label{fig:shap_feature_overall}
+% \end{figure}
+
+% As Figure~\ref{fig:shap_feature_overall} shows, the two seasonal terms rank
+% highest: the cosine of day of year has a mean absolute SHAP value of about
+% $3.6\times10^{-4}$ and its sine counterpart about $2.5\times10^{-4}$. The
+% temperature features come next, with current temperature at about
+% $1.7\times10^{-4}$ and its 1-, 2-, 7-, 14-, 3- and 5-day lags between roughly
+% $0.7$ and $1.5\times10^{-4}$, followed by the hour-of-day terms at around
+% $0.8$--$1.0\times10^{-4}$.
+
+% Rainfall-based features are weaker. The 14-day accumulation is the strongest of
+% them (about $0.8\times10^{-4}$), followed by the 30-, 7- and 3-day accumulations,
+% while raw rainfall sits near the bottom with the evaporation features, at roughly
+% $0.4$--$0.5\times10^{-4}$. No discharge-related feature makes the top 20. Adding
+% up the bars within each group makes the pattern clearer: temperature features
+% contribute about $8.6\times10^{-4}$ in total, the day-of-year terms
+% $6.1\times10^{-4}$, rainfall features $2.8\times10^{-4}$, the hour-of-day terms
+% $1.8\times10^{-4}$ and evaporation $1.3\times10^{-4}$. These totals are read from
+% the chart and cover only the top 20 features, so they show relative size, not
+% exact shares.
+
+% Two cautions apply. The absolute magnitudes are small because SHAP values are in
+% standardized units and because the attribution of past water level, the dominant
+% input, was removed before plotting (Section~\ref{sec:3.17.5}), so the ranking is
+% the meaningful part. And temperature moves smoothly with the monsoon cycle, so it
+% may be acting partly as a seasonal marker, which would fit the high rank of the
+% day-of-year terms. The model seems to care more about where in the year a
+% forecast starts, and about recent temperature, than about any single rainfall
+% variable. That does not make rainfall physically unimportant: rainfall, its lags
+% and its accumulations are strongly correlated, and SHAP splits credit among
+% correlated inputs, so each can look weaker than the signal they carry together.
+
+% \subsection{How Far Back the Model Looks}
+% \label{sec:4.9.2}
+
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=0.9\textwidth]{figures2/shap_overall_temporal_importance.jpeg}
+%     \caption{Mean absolute SHAP value by input timestep.}
+%     \label{fig:shap_temporal_overall}
+% \end{figure}
+
+% Figure~\ref{fig:shap_temporal_overall} plots attribution against input timestep,
+% from 0 (oldest) to 149 (latest), and shows that it is concentrated at the end of
+% the window. Over the oldest 100 timesteps, roughly the first 20 days, the mean
+% absolute SHAP value stays at or below about $1\times10^{-4}$. It then rises
+% slowly and climbs steeply over the last 20 timesteps, about the final four days,
+% to a peak of about $1.1\times10^{-3}$ at the most recent observation. The model
+% therefore leans mainly on the latest observations, which fits the steady growth
+% of error with lead time (Section~\ref{sec:4.8}). This does not mean the distant
+% past is ignored: the recent timesteps already contain the 14-day lags and the
+% 30-day rainfall accumulation, so they carry information about earlier
+% conditions.
+
+% SHAP describes what the models have learned, not what drives the river, so these
+% values are not causal effects. Each cluster--horizon result rests on 48 test
+% windows against 32 background windows, which adds sampling noise, so small
+% differences between neighboring features should not be over-read.
+
+
+
 \section{SHAP-Based Interpretability Results}
 \label{sec:4.9}
 \label{sec:shap_results}
 
-This section reports what SHAP shows about the proposed CFL-EDLSTM
-(Section~\ref{sec:3.17}). The results pool all four cluster models and the four
-explained horizons (day~1, 3, 7 and 15), giving 768 explained test windows with
-equal weight. Figure~\ref{fig:shap_feature_overall} ranks the input features,
-pooled over all clusters and horizons, and Figure~\ref{fig:shap_temporal_overall}
-shows how attribution is spread across the 30-day input window.
+In this section we use SHAP to see what the proposed CFL-EDLSTM actually pays
+attention to (Section~\ref{sec:3.17}). We put the four cluster models and the
+four explained horizons (day~1, 3, 7 and 15) together, so the results come from
+768 explained test windows, all weighted equally.
+Figure~\ref{fig:shap_feature_overall} ranks the input features over all clusters
+and horizons. Figure~\ref{fig:shap_temporal_overall} shows how the attribution is
+spread over the 30-day input window.
 
 \subsection{Which Inputs the Model Relies On}
 \label{sec:4.9.1}
@@ -803,35 +1157,37 @@ shows how attribution is spread across the 30-day input window.
     \label{fig:shap_feature_overall}
 \end{figure}
 
-As Figure~\ref{fig:shap_feature_overall} shows, the two seasonal terms rank
-highest: the cosine of day of year has a mean absolute SHAP value of about
-$3.6\times10^{-4}$ and its sine counterpart about $2.5\times10^{-4}$. The
-temperature features come next, with current temperature at about
-$1.7\times10^{-4}$ and its 1-, 2-, 7-, 14-, 3- and 5-day lags between roughly
-$0.7$ and $1.5\times10^{-4}$, followed by the hour-of-day terms at around
-$0.8$--$1.0\times10^{-4}$.
+In Figure~\ref{fig:shap_feature_overall}, the two seasonal terms are at the top.
+The cosine of day of year has a mean absolute SHAP value of about
+$3.6\times10^{-4}$, and the sine of day of year has about $2.5\times10^{-4}$.
+Next are the temperature features. Current temperature is at about
+$1.7\times10^{-4}$, and its 1-, 2-, 7-, 14-, 3- and 5-day lags are between
+roughly $0.7$ and $1.5\times10^{-4}$. After them come the hour-of-day terms, at
+around $0.8$--$1.0\times10^{-4}$.
 
-Rainfall-based features are weaker. The 14-day accumulation is the strongest of
-them (about $0.8\times10^{-4}$), followed by the 30-, 7- and 3-day accumulations,
-while raw rainfall sits near the bottom with the evaporation features, at roughly
-$0.4$--$0.5\times10^{-4}$. No discharge-related feature makes the top 20. Adding
-up the bars within each group makes the pattern clearer: temperature features
-contribute about $8.6\times10^{-4}$ in total, the day-of-year terms
-$6.1\times10^{-4}$, rainfall features $2.8\times10^{-4}$, the hour-of-day terms
-$1.8\times10^{-4}$ and evaporation $1.3\times10^{-4}$. These totals are read from
-the chart and cover only the top 20 features, so they show relative size, not
-exact shares.
+Rainfall features are weaker. Of these, the 14-day accumulation is the strongest
+(about $0.8\times10^{-4}$), then the 30-, 7- and 3-day accumulations. Raw
+rainfall is near the bottom with the evaporation features, at roughly
+$0.4$--$0.5\times10^{-4}$. None of the discharge features reach the top 20. If we
+add up the bars in each group, the pattern is easier to see. Temperature features
+give about $8.6\times10^{-4}$ in total, the day-of-year terms $6.1\times10^{-4}$,
+rainfall features $2.8\times10^{-4}$, the hour-of-day terms $1.8\times10^{-4}$
+and evaporation $1.3\times10^{-4}$. These totals were read from the chart and
+include only the top 20 features. They show how the groups compare in size, not
+their exact shares.
 
-Two cautions apply. The absolute magnitudes are small because SHAP values are in
-standardized units and because the attribution of past water level, the dominant
-input, was removed before plotting (Section~\ref{sec:3.17.5}), so the ranking is
-the meaningful part. And temperature moves smoothly with the monsoon cycle, so it
-may be acting partly as a seasonal marker, which would fit the high rank of the
-day-of-year terms. The model seems to care more about where in the year a
-forecast starts, and about recent temperature, than about any single rainfall
-variable. That does not make rainfall physically unimportant: rainfall, its lags
-and its accumulations are strongly correlated, and SHAP splits credit among
-correlated inputs, so each can look weaker than the signal they carry together.
+Two things need to be kept in mind. First, the values look very small. This is
+because SHAP is in standardized units, and because we removed the attribution of
+past water level, the most dominant input, before plotting
+(Section~\ref{sec:3.17.5}). So the ranking matters more than the actual
+magnitudes. Second, temperature changes smoothly with the monsoon cycle, so it
+may be working partly as a marker of the season. That would explain why the
+day-of-year terms rank so high. It looks like the model cares more about what
+time of year the forecast starts and what the recent temperature has been than
+about any single rainfall variable. This does not mean rainfall is unimportant
+physically. Rainfall, its lags and its accumulations are strongly correlated, and
+SHAP shares the credit between correlated inputs. Each of them can therefore look
+weaker than the signal they carry together.
 
 \subsection{How Far Back the Model Looks}
 \label{sec:4.9.2}
@@ -844,21 +1200,22 @@ correlated inputs, so each can look weaker than the signal they carry together.
 \end{figure}
 
 Figure~\ref{fig:shap_temporal_overall} plots attribution against input timestep,
-from 0 (oldest) to 149 (latest), and shows that it is concentrated at the end of
-the window. Over the oldest 100 timesteps, roughly the first 20 days, the mean
-absolute SHAP value stays at or below about $1\times10^{-4}$. It then rises
-slowly and climbs steeply over the last 20 timesteps, about the final four days,
-to a peak of about $1.1\times10^{-3}$ at the most recent observation. The model
-therefore leans mainly on the latest observations, which fits the steady growth
-of error with lead time (Section~\ref{sec:4.8}). This does not mean the distant
-past is ignored: the recent timesteps already contain the 14-day lags and the
-30-day rainfall accumulation, so they carry information about earlier
-conditions.
+from 0 (oldest) to 149 (latest). Most of the attribution is at the end of the
+window. For the oldest 100 timesteps, roughly the first 20 days, the mean
+absolute SHAP value stays at or below about $1\times10^{-4}$. After that it
+rises slowly, and over the last 20 timesteps (about the final four days) it goes
+up sharply, reaching a peak of about $1.1\times10^{-3}$ at the most recent
+observation. So the model depends mostly on the latest observations. This fits
+with error growing steadily as the lead time increases
+(Section~\ref{sec:4.8}). It does not mean that the distant past is ignored. The
+recent timesteps already include the 14-day lags and the 30-day rainfall
+accumulation, so they also carry information about earlier conditions.
 
-SHAP describes what the models have learned, not what drives the river, so these
-values are not causal effects. Each cluster--horizon result rests on 48 test
-windows against 32 background windows, which adds sampling noise, so small
-differences between neighboring features should not be over-read.
+SHAP shows what the models have learned, not what drives the river, so these
+values are not causal effects. Each cluster--horizon result is based on 48 test
+windows and 32 background windows. This adds some sampling noise, so we should
+not read too much into small differences between neighboring features.
+
 
 \section{Station-Level Forecast Visualization}
 \label{sec:4.10}
@@ -1019,7 +1376,7 @@ for the neural models in general, not just CFL-EDLSTM: Vanilla LSTM and GRU also
 have their lowest errors there (mean station MAE of 0.38 and 0.35~m, against 0.55
 and 0.85~m in Mid-river), so part of that ease looks like a property of the data.
 XGBoost is the exception, with its highest errors in this cluster
-(Section~\ref{sec:4.10}). The Urban stations also sit at the lowest levels, about
+(see above). The Urban stations also sit at the lowest levels, about
 2~mMSL on average (Table~\ref{tab:4.cluster-features}), on neighboring channels,
 which is exactly the situation in which one cluster model can serve several
 stations well. Mid-river is the largest cluster (eight stations, 32\% of the
